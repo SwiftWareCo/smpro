@@ -26,12 +26,8 @@ const navMain = [
         url: '/',
       },
       {
-        title: 'Resources',
-        url: '/resources',
-      },
-      {
-        title: 'Videos',
-        url: '/videos',
+        title: 'Content',
+        url: '/content',
       },
       {
         title: 'Ideas',
