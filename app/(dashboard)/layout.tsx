@@ -1,24 +1,26 @@
 import type { Metadata } from 'next';
-import { ClerkProvider } from '@clerk/nextjs';
-import './globals.css';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
+import { AppSidebar } from '@/components/dashboard/app-sidebar';
+import { TopBar } from '@/components/dashboard/top-bar';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://ai-sdk-preview-rag.vercel.app'),
-  title: 'Retrieval Augmented Generation Preview',
-  description:
-    'Augment language model generations with vector based retrieval using the Vercel AI SDK',
+  title: 'SM Pro Dashboard',
+  description: 'Social Media Content Management Platform',
 };
 
-export default function RootLayout({
+export default function DashboardLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-      <html lang='en'>
-        <body>{children}</body>
-      </html>
-    </ClerkProvider>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <TopBar />
+        <div className='flex flex-1 flex-col gap-4 p-4'>{children}</div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
+

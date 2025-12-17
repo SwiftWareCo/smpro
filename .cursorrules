@@ -1,0 +1,57 @@
+# Project Rules and Conventions
+
+## Tech Stack
+
+- **Next.js**: 16.0.10 (latest version)
+- **Tailwind CSS**: 4.1.18 (v4 - latest major version)
+- **React**: 19.2.3
+- **TypeScript**: 5.9.3
+- **Database**: PostgreSQL with Drizzle ORM
+- **Package Manager**: pnpm
+
+## Tailwind CSS v4 Specifics
+
+- Uses `@import 'tailwindcss'` instead of traditional config file
+- Uses `@theme` directive for configuration
+- Uses `@custom-variant` for custom variants (syntax: `&:is(.dark *)` not `&: is(.dark *)`)
+- Modern CSS-first approach
+
+## Code Quality Rules
+
+1. **Always provide a plan** for implementation first before making any changes
+2. **Follow Single Responsibility Principle (SRP)** – each file should handle only one concern
+3. **Create New Files When Needed** – don't hesitate to create new files for better organization
+
+## Project Structure
+
+- Components are organized in `components/` directory
+- UI components in `components/ui/`
+- Dashboard-specific components in `components/dashboard/`
+- Database schemas in `lib/db/schema/`
+- Server actions in `lib/actions/`
+- Utilities in `lib/utils.ts`
+- Hooks in `hooks/`
+
+## TypeScript
+
+- Use strict mode
+- Path aliases: `@/*` maps to project root
+- Use TypeScript for all new files
+
+## Styling
+
+- Use Tailwind CSS v4 utilities
+- Follow existing component patterns
+- Use shadcn/ui components from `components/ui/`
+
+## Database
+
+- Use Drizzle ORM for database operations
+
+## General Guidelines
+
+- Prefer functional components
+- Use React Server Components by default
+- Use Client Components only when necessary (add 'use client' directive)
+- Follow Next.js 16 App Router conventions
+- Use async/await for server-side operations
