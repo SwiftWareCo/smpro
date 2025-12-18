@@ -8,7 +8,7 @@ import {
 import { z } from 'zod';
 import { findRelevantContent } from '@/lib/ai/embedding';
 import { db } from '@/lib/db';
-import { videos } from '@/lib/db/schema/videos';
+import { content } from '@/lib/db/schema/content';
 import { savedIdeas } from '@/lib/db/schema/ideas';
 import { auth } from '@clerk/nextjs/server';
 import { eq, desc, sql } from 'drizzle-orm';
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: 'openai/gpt-4o',
-    system: `You are an AI assistant for a social media management app. You help generate content ideas based on the user's past video performance and current trends.
+    system: `You are an AI assistant for a social media management app. You help generate content ideas based on the user's past content performance and current trends.
 
 When generating ideas:
 1. First search the knowledge base for relevant past content
@@ -37,7 +37,7 @@ Only respond using information from tool calls. If no relevant data, ask the use
     tools: {
       searchContent: tool({
         description:
-          "Search the user's video library and past content for relevant information. Use this to find what topics, formats, or styles have worked well.",
+          "Search the user's content library for relevant information. Use this to find what topics, formats, or styles have worked well.",
         inputSchema: z.object({
           query: z
             .string()
@@ -49,9 +49,9 @@ Only respond using information from tool calls. If no relevant data, ask the use
         },
       }),
 
-      getTopPerformingVideos: tool({
+      getTopPerformingContent: tool({
         description:
-          "Get the user's top performing videos by views or engagement. Use this to understand what content works best.",
+          "Get the user's top performing content by views or engagement. Use this to understand what content works best.",
         inputSchema: z.object({
           metric: z
             .enum(['views', 'likes', 'comments', 'shares'])
@@ -62,27 +62,29 @@ Only respond using information from tool calls. If no relevant data, ask the use
             .describe(
               'Filter by platform (tiktok, youtube, instagram, facebook)'
             ),
-          limit: z.number().default(5).describe('Number of videos to return'),
+          limit: z.number().default(5).describe('Number of items to return'),
         }),
         execute: async ({ metric, platform, limit }) => {
           const baseQuery = db
             .select({
-              title: videos.title,
-              platform: videos.platform,
-              views: videos.views,
-              likes: videos.likes,
-              comments: videos.comments,
-              shares: videos.shares,
+              title: content.title,
+              caption: content.caption,
+              mediaType: content.mediaType,
+              platform: content.platform,
+              views: content.views,
+              likes: content.likes,
+              comments: content.comments,
+              shares: content.shares,
             })
-            .from(videos);
+            .from(content);
 
           // Add platform filter if specified and build final query
           const query = platform
             ? baseQuery
-                .where(eq(videos.platform, platform))
-                .orderBy(desc(videos[metric]))
+                .where(eq(content.platform, platform))
+                .orderBy(desc(content[metric]))
                 .limit(limit)
-            : baseQuery.orderBy(desc(videos[metric])).limit(limit);
+            : baseQuery.orderBy(desc(content[metric])).limit(limit);
 
           return await query;
         },
@@ -128,13 +130,13 @@ Only respond using information from tool calls. If no relevant data, ask the use
         execute: async () => {
           const stats = await db
             .select({
-              platform: videos.platform,
-              totalVideos: sql<number>`count(*)`,
-              totalViews: sql<number>`sum(${videos.views})`,
-              avgEngagement: sql<number>`avg(${videos.likes} + ${videos.comments} + ${videos.shares})`,
+              platform: content.platform,
+              totalContent: sql<number>`count(*)`,
+              totalViews: sql<number>`sum(${content.views})`,
+              avgEngagement: sql<number>`avg(${content.likes} + ${content.comments} + ${content.shares})`,
             })
-            .from(videos)
-            .groupBy(videos.platform);
+            .from(content)
+            .groupBy(content.platform);
 
           return stats;
         },

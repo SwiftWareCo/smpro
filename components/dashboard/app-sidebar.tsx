@@ -33,6 +33,10 @@ const navMain = [
         title: 'Ideas',
         url: '/ideas',
       },
+      {
+        title: 'Settings',
+        url: '/settings',
+      },
     ],
   },
 ];
@@ -43,7 +47,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar {...props}>
       <SidebarHeader>
-        <div className='flex items-center gap-2 px-2 py-1.5'>
+        <div className='flex items-center justify-center gap-2 px-4 py-3 mx-2 my-2 bg-card rounded-lg shadow-md border border-border'>
           <h2 className='text-lg font-semibold'>SM Pro</h2>
         </div>
       </SidebarHeader>
