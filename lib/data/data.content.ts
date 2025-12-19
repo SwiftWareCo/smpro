@@ -8,15 +8,24 @@ import { eq, desc, sql, and, inArray } from 'drizzle-orm';
 export async function getContent(options?: {
   platform?: string;
   limit?: number;
+  clientId?: string;
 }) {
   const { userId } = await auth();
   if (!userId) throw new Error('Unauthorized');
 
-  // Get user's connected accounts
+  // Build account query conditions
+  const accountConditions = [eq(connectedAccounts.userId, userId)];
+
+  // Filter by client if specified
+  if (options?.clientId) {
+    accountConditions.push(eq(connectedAccounts.clientId, options.clientId));
+  }
+
+  // Get user's connected accounts (optionally filtered by client)
   const userAccounts = await db
     .select({ id: connectedAccounts.id })
     .from(connectedAccounts)
-    .where(eq(connectedAccounts.userId, userId));
+    .where(and(...accountConditions));
 
   const accountIds = userAccounts.map((acc) => acc.id);
 
