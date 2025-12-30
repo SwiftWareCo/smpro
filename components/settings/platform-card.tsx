@@ -128,10 +128,14 @@ export function PlatformCard({
     });
   };
 
+  // Check if token is expiring soon (within 7 days)
+  // This function is called during render, so we create the date inline
   const isTokenExpiringSoon = (expiresAt: Date | null) => {
     if (!expiresAt) return false;
-    const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    return new Date(expiresAt) < sevenDaysFromNow;
+    const expiresDate = new Date(expiresAt);
+    const now = new Date();
+    const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+    return expiresDate.getTime() - now.getTime() < sevenDaysInMs;
   };
 
   return (

@@ -47,3 +47,27 @@ export async function getAccountByPlatform(platform: string) {
 
   return accounts;
 }
+
+export async function getAccountsByProject(projectId: string) {
+  const { userId } = await auth();
+  if (!userId) throw new Error('Unauthorized');
+
+  const accounts = await db
+    .select({
+      id: connectedAccounts.id,
+      platform: connectedAccounts.platform,
+      platformUsername: connectedAccounts.platformUsername,
+      platformUserId: connectedAccounts.platformUserId,
+      tokenExpiresAt: connectedAccounts.tokenExpiresAt,
+      createdAt: connectedAccounts.createdAt,
+    })
+    .from(connectedAccounts)
+    .where(
+      and(
+        eq(connectedAccounts.userId, userId),
+        eq(connectedAccounts.projectId, projectId)
+      )
+    );
+
+  return accounts;
+}

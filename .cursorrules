@@ -57,3 +57,4 @@
 - Use async/await for server-side operations
 - for types have one single source of truth by using z.infer from schema files. if we need to create relations for DB also create a type using drizzle zod for the relation.
 - run pnpm run check:types and pnpm run check:eslint after new changes to confirm everything works
+- CRUD operations should be put in an actions folder and be [feature].ts
