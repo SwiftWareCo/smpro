@@ -1,60 +1,143 @@
-# Project Rules and Conventions
+# SM Pro - Agency CRM
+
+## Project Overview
+
+SM Pro is an **agency CRM tool** for managing multiple clients across different service verticals:
+- **Social Media Management** - Instagram/Facebook content sync, analytics, strategy tagging
+- **SEO Services** - Website tracking, keyword management, site health
+- **AI Receptionist** - Voice AI for inbound calls (healthcare focus)
+
+**This is an internal agency tool** where you (the agency operator) manage client accounts. It's not a self-serve SaaS product.
+
+---
 
 ## Tech Stack
 
-- **Next.js**: 16.0.10 (latest version)
-- **Tailwind CSS**: 4.1.18 (v4 - latest major version)
-- **React**: 19.2.3
-- **TypeScript**: 5.9.3
+- **Next.js**: 16 (App Router)
+- **Tailwind CSS**: 4.x (uses `@import 'tailwindcss'` + `@theme`)
+- **React**: 19.x
+- **TypeScript**: 5.x (strict mode)
 - **Database**: PostgreSQL with Drizzle ORM
+- **Auth**: Clerk
 - **Package Manager**: pnpm
+
+---
 
 ## Tailwind CSS v4 Specifics
 
 - Uses `@import 'tailwindcss'` instead of traditional config file
 - Uses `@theme` directive for configuration
-- Uses `@custom-variant` for custom variants (syntax: `&:is(.dark *)` not `&: is(.dark *)`)
-- Modern CSS-first approach
+- Uses `@custom-variant` for custom variants (syntax: `&:is(.dark *)`)
+- Animations via `tw-animate-css` package
 
-## Code Quality Rules
-
-1. **Always provide a plan** for implementation first before making any changes
-2. **Follow Single Responsibility Principle (SRP)** – each file should handle only one concern
-3. **Create New Files When Needed** – don't hesitate to create new files for better organization
+---
 
 ## Project Structure
 
-- Components are organized in `components/` directory
-- UI components in `components/ui/`
-- Dashboard-specific components in `components/dashboard/`
-- Database schemas in `lib/db/schema/`
-- Server actions in `lib/actions/`
-- Utilities in `lib/utils.ts`
-- Hooks in `hooks/`
+```
+app/
+  (dashboard)/          # Main dashboard routes
+    page.tsx            # Dashboard home
+    settings/           # User settings (NOT client settings)
+  (workspace)/          # Client workspace routes
+    workspace/[clientId]/
+      page.tsx          # Client workspace
 
-## TypeScript
+components/
+  ui/                   # shadcn/ui components
+  dashboard/            # Dashboard-specific (sidebar, etc.)
+  workspace/            # Client workspace components
+  social/               # Social module components
+  seo/                  # SEO module components
+  ai-receptionist/      # AI Receptionist module (future)
 
-- Use strict mode
-- Path aliases: `@/*` maps to project root
-- Use TypeScript for all new files
+lib/
+  db/
+    schema/             # Drizzle ORM schemas
+    index.ts            # DB connection
+  actions/              # Server actions (CRUD operations)
+  data/                 # Data access layer (queries)
+  utils/                # Utility functions
+```
 
-## Styling
+---
 
-- Use Tailwind CSS v4 utilities
-- Follow existing component patterns
-- Use shadcn/ui components from `components/ui/`
+## Code Conventions
 
-## Database
-
-- Use Drizzle ORM for database operations
-
-## General Guidelines
-
+### Components
 - Prefer functional components
 - Use React Server Components by default
-- Use Client Components only when necessary (add 'use client' directive)
-- Follow Next.js 16 App Router conventions
-- Use async/await for server-side operations
-- for types have one single source of truth by using z.infer from schema files. if we need to create relations for DB also create a type using drizzle zod for the relation.
-- run pnpm run check:types and pnpm run check:eslint after new changes to confirm everything works
-- CRUD operations should be put in an actions folder and be [feature].ts
+- Use Client Components only when necessary (add `'use client'` directive)
+- Follow Next.js App Router conventions
+
+### Types
+- **Single source of truth**: Use `z.infer` from schema files for types
+- Use `drizzle-zod` to create `createInsertSchema` / `createSelectSchema`
+- Export types alongside schemas (e.g., `Client`, `InsertClient`)
+
+### Forms
+- Destructure `useForm()` methods when possible
+- Inline default values in `useForm()` options
+- Call `reset()` when dialog closes
+- Import form schemas from schema files
+
+### Data Flow
+- **Server Actions**: In `lib/actions/[feature].ts` for mutations
+- **Data Access**: In `lib/data/data.[feature].ts` for queries
+- **Schemas**: In `lib/db/schema/[table].ts`
+
+### Validation
+- Run `pnpm run check:types` after changes
+- Run `pnpm run check:eslint` after changes
+
+---
+
+## Module System
+
+Clients have an `enabledModules` array that controls which tabs appear in their workspace:
+
+```typescript
+enabledModules: ['social', 'seo', 'ai-receptionist', 'assets']
+```
+
+Only enabled modules show in the workspace tabs. Each module has:
+- Tab component in workspace
+- Setup checklist items in `lib/utils/setup-checklist.ts`
+- Module-specific settings table (if needed)
+
+---
+
+## Key Files Reference
+
+### Schemas
+- `lib/db/schema/clients.ts` - Client with status, enabledModules
+- `lib/db/schema/platforms.ts` - Connected accounts (clientId scoped)
+- `lib/db/schema/content.ts` - Synced social content
+- `lib/db/schema/client-seo-settings.ts` - SEO settings per client
+
+### Core Components
+- `components/dashboard/app-sidebar.tsx` - Main navigation
+- `components/workspace/workspace-header.tsx` - Client header with status
+- `components/workspace/workspace-tabs.tsx` - Dynamic module tabs
+- `components/workspace/client-settings-dialog.tsx` - Edit client
+
+### Utilities
+- `lib/utils/setup-checklist.ts` - Dynamic checklist engine
+
+---
+
+## Current Focus
+
+1. **Social Module** - Polish connected accounts UI, content feed
+2. **SEO Module** - MVP with website URL, keywords, locations
+3. **AI Receptionist** - Research phase (see `docs/VOICE-AI-PROVIDERS.md`)
+
+---
+
+## Implementation Rules
+
+1. **Always provide a plan** before making changes
+2. **Follow SRP** - each file handles one concern
+3. **Create new files** when needed for organization
+4. **Use absolute imports** with `@/` prefix
+5. **Test changes** with type checks before committing

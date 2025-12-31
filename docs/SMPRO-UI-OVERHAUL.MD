@@ -1,85 +1,130 @@
-# SM Pro - Client-First Agency Management Platform
-## Implementation Plan (Updated: Client-Centric Architecture)
+# SM Pro - Agency CRM
+
+## Implementation Plan
 
 ---
 
-## Executive Summary
+## What is SM Pro?
 
-**Goal**: Transform SM Pro from a basic social media content aggregator into a full-featured, client-first agency management platform with a scalable module system.
+**SM Pro is an internal agency CRM** for managing clients across multiple service verticals:
 
-**Current State**: App with client management, Meta OAuth, content syncing, workspace UI, and module system.
+- **Social Media Management** - Instagram/Facebook content sync and analytics
+- **SEO Services** - Website tracking, keyword management
+- **AI Receptionist** - Voice AI for inbound calls (healthcare focus)
 
-**Architecture**: Client-centric model - modules are enabled directly on clients via `enabledModules` array (projects layer removed for simplicity).
-
-**Your UX Decisions**:
-- ✅ Enhance Meta + Content UI first (don't add TikTok/YouTube OAuth yet)
-- ✅ Simple SEO MVP (website URL + keywords storage only)
-- ✅ Real placeholders for AI Receptionist & Automations modules
-- ✅ Integrate Ideas into Social module (not global tool)
-- ✅ Client-centric architecture (no projects layer)
+**You are the agency operator** using this tool to manage your client accounts. This is NOT a self-serve SaaS product for end-users.
 
 ---
 
-## Completed Phases
+## Current State
 
-### ✅ PHASE 1-2: Database & App Shell (COMPLETE)
-- Client workspace at `/workspace/[clientId]`
-- `WorkspaceHeader`, `WorkspaceTabs` components
-- Module enablement via `clients.enabledModules` array
-- `ModuleEnablementDialog` for toggling modules
-- Flat client list in sidebar
-- Client CRUD with server actions
-- `client_seo_settings` table (1:1 with client)
+**Implemented**:
 
-### ✅ PHASE 3: Pipeline + Checklist Engine (COMPLETE)
-- Setup checklist engine (`lib/utils/setup-checklist.ts`)
-- Dynamic missing items in workspace header
-- Dynamic checklist in overview tab
-- Pipeline page with drag-and-drop kanban (`/pipeline`)
-- Dashboard with "At Risk" clients and pipeline snapshot
-- Client cards with progress bars and missing items
+- ✅ Client workspace at `/workspace/[clientId]`
+- ✅ Module enablement system (`enabledModules` array)
+- ✅ Workspace header with status, next steps, settings
+- ✅ Dynamic setup checklist engine
+- ✅ Dashboard with "At Risk" clients
+- ✅ Instagram/Facebook OAuth via Meta
+- ✅ Client CRUD with server actions
+- ✅ `client_seo_settings` table
+- ✅ Drizzle-zod schemas with type exports
+
+**In Progress**:
+
+- 🔄 Social Tab polish (account banners, content feed)
+- 🔄 SEO Tab MVP (form-based settings)
+
+**Planned**:
+
+- ⏳ AI Receptionist module (see `docs/VOICE-AI-PROVIDERS.md`)
+- ⏳ Strategy tagging on content
+- ⏳ Basic analytics charts
+
+**Deferred**:
+
+- ❌ Pipeline kanban board (not needed until 15+ clients)
+- ❌ TikTok/YouTube OAuth (complex approval process)
+- ❌ Blog queue / content publishing
+
+---
+
+## Architecture Decisions
+
+### 1. Client-Centric (No Projects Layer)
+
+Modules are enabled directly on clients via `enabledModules` array. No intermediate "project" concept.
+
+### 2. Module System
+
+Each client can have different modules enabled:
+
+```typescript
+enabledModules: ['social', 'seo', 'ai-receptionist', 'assets'];
+```
+
+Only enabled modules appear as tabs in the workspace.
+
+### 3. Internal Tool, Not SaaS
+
+No client-facing portal, no self-service. You control everything.
 
 ---
 
 ## Core UX Model
 
-### 1. Client-First Navigation
-**Left Sidebar** = Global navigation (minimal):
+### Left Sidebar (Global Navigation)
+
 - Dashboard (cross-client overview)
-- Pipeline (CRM board)
-- Settings
-- Clients section (search + list + add client)
+- Settings (user preferences only)
+- Clients section (search + list + add)
 
-**Main Area** = Always scoped to a selected client
-
-### 2. Client Workspace Layout
-When you click a client, the main view becomes:
+### Client Workspace Layout
 
 **Header**:
-- Client name + avatar
-- Status pill (Lead / Onboarding / Active / Paused / Churned)
-- Quick actions (Add module, Settings)
-- Next Steps popover (dynamic missing items)
 
-**Body** = Dynamic module tabs (only active ones shown):
+- Client name + avatar
+- Status badge (Lead / Onboarding / Active / Paused / Churned)
+- Next Steps popover
+- Settings + Add Module buttons
+
+**Body** (Dynamic module tabs):
+
 - Overview (always visible)
 - Social (if enabled)
 - SEO (if enabled)
-- Website/GMB (if enabled - placeholder)
-- AI Receptionist (if enabled - placeholder)
-- Automations (if enabled - placeholder)
+- AI Receptionist (if enabled)
 - Assets (if enabled - placeholder)
 
-### 3. Modules = Service Apps
-Each client can enable different modules via the `enabledModules` array. Modules are scoped to **clients**.
+---
+
+## Current Priorities
+
+### Priority 1: Social Tab Polish
+
+- Move account connections from Settings to Social Tab
+- Platform banners showing connected/not-connected status
+- Content grid with filtering
+- Integrate into setup checklist
+
+### Priority 2: SEO Tab MVP
+
+- Website URL field
+- Keywords tags input
+- Locations tags input
+- PageSpeed test button (optional)
+
+### Priority 3: AI Receptionist Research
+
+- Evaluate voice AI providers (Vapi, Retell, Bland)
+- Build minimal config UI when ready
 
 ---
 
 ## Implementation Phases
 
----
-
 ## **PHASE 1: Database Migration (Foundation)**
+
 **Goal**: Add Projects, Modules, and SEO Settings tables; migrate existing data safely.
 
 ### Database Schema Changes
@@ -87,6 +132,7 @@ Each client can enable different modules via the `enabledModules` array. Modules
 #### 1.1 New Tables to Create
 
 **`projects` table**:
+
 ```typescript
 {
   id: string (PK)
@@ -102,6 +148,7 @@ Each client can enable different modules via the `enabledModules` array. Modules
 ```
 
 **`project_modules` table** (junction table):
+
 ```typescript
 {
   id: string (PK)
@@ -113,9 +160,11 @@ Each client can enable different modules via the `enabledModules` array. Modules
   updatedAt: timestamp
 }
 ```
-*Unique constraint on (projectId, moduleType)*
+
+_Unique constraint on (projectId, moduleType)_
 
 **`project_seo_settings` table**:
+
 ```typescript
 {
   id: string (PK)
@@ -133,28 +182,33 @@ Each client can enable different modules via the `enabledModules` array. Modules
 #### 1.2 Modify Existing Tables
 
 **`connected_accounts` table** - ADD:
+
 - `projectId: string | null` (FK → projects.id, CASCADE)
 - Keep existing `clientId` for backward compatibility during migration
 
 **Migration strategy**:
+
 - Maintain DUAL LINKING during transition (both clientId and projectId)
 - clientId will be deprecated later but kept for now
 
 #### 1.3 Data Migration Logic
 
 **Auto-create default projects**:
+
 1. For each existing client → create "General" project (isDefault: true)
 2. Enable 'social' module for all default projects (since all existing data is social media content)
 3. Link all connected_accounts with clientId → find default project → set projectId
 4. Handle orphaned accounts (no clientId) → create "Personal" client + project
 
 **SQL Migration Files**:
+
 - `0003_add_projects_and_modules.sql` (schema changes)
 - `0004_migrate_data_to_projects.sql` (data migration)
 
 ### Files to Create/Modify
 
 **CREATE**:
+
 - `lib/db/schema/projects.ts` - Projects table schema
 - `lib/db/schema/project-modules.ts` - Modules junction table
 - `lib/db/schema/project-seo-settings.ts` - SEO settings table
@@ -164,12 +218,14 @@ Each client can enable different modules via the `enabledModules` array. Modules
 - `migrations/0004_migrate_data_to_projects.sql`
 
 **MODIFY**:
+
 - `lib/db/schema/platforms.ts` - Add projectId column
 - `lib/db/schema/index.ts` - Export new schemas
 - `lib/data/data.accounts.ts` - Add getAccountsByProject()
 - `lib/data/data.content.ts` - Add getContentByProject(), update getContent() with project filtering
 
 ### Success Criteria
+
 - [ ] All clients have at least one default "General" project
 - [ ] All connected_accounts have valid projectId
 - [ ] All default projects have 'social' module enabled
@@ -179,16 +235,19 @@ Each client can enable different modules via the `enabledModules` array. Modules
 ---
 
 ## **PHASE 2: App Shell + Client Workspace UX**
+
 **Goal**: Build the core navigation structure and client workspace layout.
 
 ### 2.1 Update Global Navigation (Sidebar)
 
 **Current sidebar** (remove):
+
 - ❌ Ideas (global nav)
 - ❌ Import (global nav)
 - ❌ "All Content" link
 
 **New sidebar structure**:
+
 ```
 Dashboard
 Pipeline (new)
@@ -206,6 +265,7 @@ Settings
 ```
 
 **Component changes**:
+
 - Modify `components/dashboard/app-sidebar.tsx`:
   - Remove Ideas and Import from main nav
   - Add Pipeline nav item
@@ -218,6 +278,7 @@ Settings
 **New route**: `/workspace/[clientId]` (replaces `/content`)
 
 **Layout structure**:
+
 ```
 ┌─────────────────────────────────────────────────────────┐
 │ Header                                                  │
@@ -237,6 +298,7 @@ Settings
 ```
 
 **Components to create**:
+
 - `app/(workspace)/workspace/[clientId]/page.tsx` - Main workspace page
 - `components/workspace/workspace-header.tsx` - Client name, status, project dropdown
 - `components/workspace/workspace-tabs.tsx` - Dynamic tabs based on enabled modules
@@ -247,11 +309,13 @@ Settings
 ### 2.3 Overview Tab (Default View)
 
 **Top Row** - Health Tiles (status cards):
+
 - Social: Connected accounts count, posting cadence placeholder
 - SEO: Website connected? Keywords set? (if module enabled)
 - Other modules: Placeholder cards showing "Not enabled" or "Coming soon"
 
 **Middle Section** - Setup Checklist:
+
 ```
 Project Setup Progress: 3/7 complete
 
@@ -265,17 +329,20 @@ Project Setup Progress: 3/7 complete
 ```
 
 **Bottom Section** - Internal Notes/Tasks:
+
 - Simple textarea for project notes
 - Lightweight task list (optional, can be Phase 3+)
 
 ### 2.4 Module Tabs (Conditional Rendering)
 
 **Social Tab** - Only shows if 'social' module enabled:
+
 - Connected Accounts section
 - Content Feed (enhanced from existing /content page)
 - Ideas/Strategy section (placeholder for now)
 
 **SEO Tab** - Only shows if 'seo' module enabled:
+
 - Website URL input
 - Target Keywords (tags input)
 - Target Locations (tags input)
@@ -283,6 +350,7 @@ Project Setup Progress: 3/7 complete
 - Placeholder for "Site Health" (optional)
 
 **Placeholder Tabs** (AI Receptionist, Automations, Assets):
+
 - Show "Coming Soon" card
 - Brief description of what the module will do
 - "Disable module" option
@@ -290,11 +358,13 @@ Project Setup Progress: 3/7 complete
 ### 2.5 Project Management UI
 
 **Project Dropdown** (in workspace header):
+
 - Lists all projects for current client
 - Shows default project first
 - "Manage Projects" option → opens dialog
 
 **Manage Projects Dialog**:
+
 - List of projects with edit/archive actions
 - "Create New Project" button
 - Enable/disable modules per project
@@ -302,6 +372,7 @@ Project Setup Progress: 3/7 complete
 ### Files to Create/Modify
 
 **CREATE**:
+
 - `app/(workspace)/layout.tsx` - New workspace layout
 - `app/(workspace)/workspace/[clientId]/page.tsx`
 - `components/workspace/workspace-header.tsx`
@@ -316,10 +387,12 @@ Project Setup Progress: 3/7 complete
 - `components/workspace/module-enablement-dialog.tsx`
 
 **MODIFY**:
+
 - `components/dashboard/app-sidebar.tsx` - Update navigation structure
 - `app/(dashboard)/content/page.tsx` - Redirect to new workspace route or remove
 
 ### Success Criteria
+
 - [ ] Can navigate from sidebar → client → project
 - [ ] Workspace header shows client info + project dropdown
 - [ ] Overview tab displays with health tiles + checklist
@@ -331,15 +404,18 @@ Project Setup Progress: 3/7 complete
 ---
 
 ## **PHASE 3: Pipeline (CRM) + Setup Checklist Engine**
+
 **Goal**: Build the sales pipeline kanban board and smart "missing items" detection.
 
 ### 3.1 Client Status/Stage System
 
 **Add to `clients` table**:
+
 - `status: string` - One of: 'lead', 'onboarding', 'active', 'paused', 'churned'
 - Default: 'lead'
 
 **Migration**:
+
 - Set all existing clients to 'active' status
 
 ### 3.2 Pipeline Kanban Board
@@ -347,6 +423,7 @@ Project Setup Progress: 3/7 complete
 **New route**: `/pipeline`
 
 **Layout**: Horizontal kanban with 5 columns:
+
 ```
 ┌─────────┬─────────┬─────────┬─────────┬─────────┐
 │ Lead    │Onboard  │ Active  │ Paused  │Churned  │
@@ -360,6 +437,7 @@ Project Setup Progress: 3/7 complete
 ```
 
 **Client Card** (in each column):
+
 - Client avatar + name
 - Active project name
 - Enabled modules (icon badges)
@@ -368,6 +446,7 @@ Project Setup Progress: 3/7 complete
 - Click → Opens client workspace
 
 **Drag & Drop**:
+
 - Use `@dnd-kit/core` (or similar)
 - Drag client cards between columns
 - Updates client.status on drop
@@ -378,12 +457,14 @@ Project Setup Progress: 3/7 complete
 **Create checklist rules** per module:
 
 **Base Setup** (always):
+
 - ✓ Client created
 - ✓ Default project exists
 - ☐ Client has avatar
 - ☐ Client has description
 
 **Social Module**:
+
 - ☐ Instagram account connected
 - ☐ Facebook account connected
 - ☐ TikTok account connected
@@ -391,21 +472,25 @@ Project Setup Progress: 3/7 complete
 - ☐ At least 10 posts synced
 
 **SEO Module**:
+
 - ☐ Website URL set
 - ☐ At least 1 target keyword
 - ☐ At least 1 target location
 
 **Assets Module** (placeholder):
+
 - ☐ Logo uploaded
 - ☐ Brand colors set
 - ☐ Tone of voice notes added
 
 **Component**:
+
 - `lib/utils/setup-checklist.ts` - Checklist rule engine
   - Function: `getProjectSetupStatus(projectId)` → returns checklist items + completion %
   - Function: `getMissingItems(projectId)` → returns top 3 missing items for cards
 
 **Usage**:
+
 - Pipeline cards call `getMissingItems()` to show chips
 - Overview tab calls `getProjectSetupStatus()` to show full checklist
 - Next Steps panel uses same data
@@ -415,15 +500,18 @@ Project Setup Progress: 3/7 complete
 **Replace empty dashboard** (`app/(dashboard)/page.tsx`) with:
 
 **Section 1: At Risk / Missing Setup** (top priority):
+
 - List of clients with setup < 50% complete
 - Shows client name, project, completion %, primary missing item
 - Click → Jump to client workspace
 
 **Section 2: Pipeline Snapshot**:
+
 - Count cards: "3 Leads, 2 Onboarding, 12 Active, 1 Paused, 5 Churned"
 - Quick link to Pipeline page
 
 **Section 3: Recent Activity** (timeline):
+
 - "Instagram connected for Client A - General"
 - "Content synced: 15 new posts for Client B"
 - "Project created: Social Growth Q1 for Client C"
@@ -432,6 +520,7 @@ Project Setup Progress: 3/7 complete
 ### Files to Create/Modify
 
 **CREATE**:
+
 - `app/(dashboard)/pipeline/page.tsx` - Kanban board
 - `components/pipeline/pipeline-board.tsx` - Drag & drop board
 - `components/pipeline/pipeline-column.tsx` - Single column
@@ -441,12 +530,14 @@ Project Setup Progress: 3/7 complete
 - `migrations/0005_add_client_status.sql` - Add status column
 
 **MODIFY**:
+
 - `lib/db/schema/clients.ts` - Add status field
 - `app/(dashboard)/page.tsx` - Build real dashboard
 - `components/workspace/overview-tab.tsx` - Use checklist engine
 - `components/workspace/next-steps-panel.tsx` - Use missing items function
 
 ### Success Criteria
+
 - [ ] Pipeline page shows clients grouped by status
 - [ ] Can drag clients between columns
 - [ ] Client cards show setup completion %
@@ -458,6 +549,7 @@ Project Setup Progress: 3/7 complete
 ---
 
 ## **PHASE 4: Enhanced Social Module**
+
 **Goal**: Upgrade the Social module with better content UX, strategy tagging, and integrated Ideas.
 
 ### 4.1 Connected Accounts Section (Enhanced)
@@ -466,6 +558,7 @@ Project Setup Progress: 3/7 complete
 **New**: Client-scoped account management in Social tab
 
 **Social Tab → Connected Accounts**:
+
 ```
 Connected Accounts (3)
 
@@ -493,6 +586,7 @@ Connected Accounts (3)
 ```
 
 **Features**:
+
 - Shows accounts linked to current client (via clientId)
 - "Last synced" timestamp from most recent content.publishedAt
 - Manual sync button (calls existing Meta sync endpoint)
@@ -506,12 +600,14 @@ Connected Accounts (3)
 **Social Tab → Content Feed**:
 
 **Filters Bar**:
+
 - Platform filter: All / Instagram / Facebook / TikTok / YouTube
 - Date range: Last 7 days / 30 days / 90 days / All time
 - Sort by: Recent / Views / Engagement / Likes
 - **Strategy Tags filter** (multi-select): Shows tags in use
 
 **Content Grid** (keep existing card design):
+
 - Thumbnail
 - Platform badge
 - Metrics (views, likes, comments, shares)
@@ -519,6 +615,7 @@ Connected Accounts (3)
 - Click → Opens content detail modal
 
 **Content Detail Modal**:
+
 - Full-size media preview
 - Caption/description
 - All metrics
@@ -531,23 +628,28 @@ Connected Accounts (3)
 ### 4.3 Strategy Tagging System
 
 **Add to `content` table**:
+
 - `strategyTags: string[]` (array field)
 
 **Migration**:
+
 - Default to empty array for existing content
 
 **Tag Categories** (suggested, not enforced):
+
 - **Hook Types**: "Shock stat", "Question", "Story", "Relatability"
 - **Content Series**: "Quick tips", "Behind-the-scenes", "Client wins", "Tutorials"
 - **CTA Types**: "Book call", "Visit website", "Follow for more", "DM us"
 - **Topic/Theme**: Custom tags per industry
 
 **Tag Management**:
+
 - Stored as simple string array (flexible, no predefined schema)
 - UI shows suggested tags based on what's been used before (client-scoped)
 - Autocomplete input for adding tags
 
 **Component**:
+
 - `components/social/content-tag-manager.tsx` - Tag UI component
 - Server action: `updateContentTags(contentId, tags: string[])`
 
@@ -578,17 +680,20 @@ Filter: [All] [Trending ✓] [High Confidence]
 ```
 
 **Ideas Generation** (can be simple/manual at first):
+
 - Analyze content with strategy tags
 - Find patterns: which tags correlate with high views/engagement?
 - Group top-performing content by tag combinations
 - Generate "idea" = combination of successful tags + reason
 
 **Update `ideas` schema**:
+
 - Add `clientId: string` (FK → clients.id, CASCADE)
 - Keep existing fields (title, description, confidence, basedOnVideoIds, isTrending)
 - Change: basedOnVideoIds → array of content.id references
 
 **Component**:
+
 - `components/social/ideas-list.tsx` - Ideas display
 - `components/social/idea-card.tsx` - Single idea card
 - Server action: `generateIdeas(clientId)` - Analyzes content, creates ideas
@@ -599,12 +704,14 @@ Filter: [All] [Trending ✓] [High Confidence]
 **Social Tab → Analytics** (sub-section, collapsible):
 
 **Metrics Row** (last 30 days):
+
 - Total Posts: 24
 - Total Views: 45.2K
 - Avg Engagement: 3.2%
 - Top Post: [thumbnail] 12.3K views
 
 **Simple Charts** (use Recharts):
+
 - **Posting Frequency**: Bar chart by week
 - **Engagement by Platform**: Pie chart (IG vs FB views)
 - **Top 5 Posts**: Horizontal bar chart (sorted by views)
@@ -614,6 +721,7 @@ Filter: [All] [Trending ✓] [High Confidence]
 ### Files to Create/Modify
 
 **CREATE**:
+
 - `components/social/connected-accounts-section.tsx` - Enhanced accounts UI
 - `components/social/content-feed.tsx` - Filterable content grid
 - `components/social/content-filters.tsx` - Filter/sort controls
@@ -628,12 +736,14 @@ Filter: [All] [Trending ✓] [High Confidence]
 - `migrations/0007_add_client_to_ideas.sql` - Add clientId to ideas
 
 **MODIFY**:
+
 - `lib/db/schema/content.ts` - Add strategyTags field
 - `lib/db/schema/ideas.ts` - Add clientId, update basedOnVideoIds type
 - `components/workspace/social-tab.tsx` - Integrate all new sections
 - `app/(dashboard)/ideas/page.tsx` - Remove or redirect to workspace
 
 ### Success Criteria
+
 - [ ] Social tab shows client-scoped connected accounts
 - [ ] Can sync content from Social tab (not just Settings)
 - [ ] Content feed has platform/date/tag filters
@@ -646,6 +756,7 @@ Filter: [All] [Trending ✓] [High Confidence]
 ---
 
 ## **PHASE 5: Simple SEO Module (MVP)**
+
 **Goal**: Basic SEO settings storage - website URL, keywords, locations. No blog queue yet.
 
 ### 5.1 SEO Tab UI
@@ -691,6 +802,7 @@ Coming Soon:
 ```
 
 **Form handling**:
+
 - Auto-save on blur or explicit "Save" button
 - Stores in `client_seo_settings` table (one record per client)
 - Tags input component for keywords and locations
@@ -698,16 +810,19 @@ Coming Soon:
 ### 5.2 SEO Settings Data Flow
 
 **Server Actions**:
+
 - `updateSeoSettings(clientId, data)` - Upsert SEO settings
 - `getSeoSettings(clientId)` - Fetch settings for form
 
 **Component**:
+
 - `components/seo/seo-settings-form.tsx` - Main settings form
 - `components/seo/tags-input.tsx` - Reusable tags input (for keywords/locations)
 
 ### 5.3 SEO Checklist Integration
 
 **Update setup checklist** (from Phase 3):
+
 - ☐ Website URL set
 - ☐ At least 1 target keyword
 - ☐ At least 1 target location
@@ -719,6 +834,7 @@ Coming Soon:
 **If time allows** (totally optional):
 
 **SEO Tab → Site Health** (bottom section):
+
 ```
 Site Health (Last Checked: 2 days ago)
 
@@ -731,6 +847,7 @@ Core Web Vitals: Good
 ```
 
 **Implementation**:
+
 - Use PageSpeed Insights API (free, no key needed)
 - Store last result in `client_seo_settings.config` jsonb
 - Manual "Run Test" button (not automatic)
@@ -741,6 +858,7 @@ Core Web Vitals: Good
 ### Files to Create/Modify
 
 **CREATE**:
+
 - `components/seo/seo-settings-form.tsx` - Main SEO form
 - `components/seo/tags-input.tsx` - Tags input component
 - `components/seo/site-health-card.tsx` - Optional site health display
@@ -748,10 +866,12 @@ Core Web Vitals: Good
 - `lib/data/data.seo.ts` - SEO settings queries
 
 **MODIFY**:
+
 - `components/workspace/seo-tab.tsx` - Integrate settings form
 - `lib/utils/setup-checklist.ts` - Add SEO checklist rules
 
 ### Success Criteria
+
 - [ ] SEO tab shows when seo module is enabled
 - [ ] Can enter website URL, keywords, locations
 - [ ] Settings save to client_seo_settings table
@@ -761,20 +881,24 @@ Core Web Vitals: Good
 ---
 
 ## **PHASE 6: Settings Page Refactor + Placeholder Modules**
+
 **Goal**: Move account connections to workspace, update Settings to be user-level, add placeholder modules.
 
 ### 6.1 Settings Page (User-Level)
 
 **Remove from Settings**:
+
 - ❌ Platform connection cards (move to Social module)
 
 **Keep/Add to Settings**:
+
 - User preferences (theme, notifications - future)
 - Account settings (email, password - via Clerk)
 - Billing (future)
 - Team members (future)
 
 **For now, minimal Settings**:
+
 ```
 Settings
 
@@ -796,11 +920,13 @@ Danger Zone
 **Move OAuth connection flow** to Social tab:
 
 **Social Tab → Connected Accounts → Connect Button**:
+
 - Click "Connect Instagram" → Opens OAuth flow
 - On success → Redirects back to workspace Social tab
 - Linked to current clientId
 
 **Update OAuth callback**:
+
 - `app/api/oauth/meta/callback/route.ts`
 - Accept `clientId` in state parameter
 - Create connectedAccount with clientId link
@@ -808,6 +934,7 @@ Danger Zone
 ### 6.3 Placeholder Modules UI
 
 **AI Receptionist Module** (when enabled):
+
 ```
 AI Receptionist
 
@@ -825,6 +952,7 @@ Want early access? [Contact us]
 ```
 
 **Automations Module** (when enabled):
+
 ```
 Automations
 
@@ -842,6 +970,7 @@ Want early access? [Contact us]
 ```
 
 **Assets Module** (when enabled):
+
 ```
 Brand Assets
 
@@ -860,12 +989,14 @@ Powered by Cloudinary
 ```
 
 **Component**:
+
 - `components/workspace/placeholder-module-tab.tsx` - Generic placeholder
 - Pass module name + description as props
 
 ### Files to Create/Modify
 
 **MODIFY**:
+
 - `app/(dashboard)/settings/page.tsx` - Simplify to user-level only
 - `components/settings/platform-card.tsx` - Remove or move to Social module
 - `app/api/oauth/meta/callback/route.ts` - Use projectId instead of clientId
@@ -873,6 +1004,7 @@ Powered by Cloudinary
 - `components/workspace/placeholder-module-tab.tsx` - Render placeholder UI
 
 ### Success Criteria
+
 - [ ] Settings page is user-focused (no platform connections)
 - [ ] Can connect Instagram/Facebook from Social tab
 - [ ] OAuth flow creates account linked to clientId
@@ -882,11 +1014,13 @@ Powered by Cloudinary
 ---
 
 ## **PHASE 7: Polish + Cleanup**
+
 **Goal**: Final touches, remove deprecated routes, improve UX consistency.
 
 ### 7.1 Route Cleanup
 
 **Remove/Redirect deprecated routes**:
+
 - `/content` → Redirect to `/workspace/[firstClientId]` or Dashboard
 - `/ideas` → Remove (now in Social tab)
 - `/import` → Move to Settings or remove (manual import less needed with OAuth)
@@ -894,23 +1028,27 @@ Powered by Cloudinary
 ### 7.2 Sidebar State Persistence
 
 **Save selected client** to localStorage or URL state:
+
 - When you select a client, update URL: `/workspace/[clientId]`
 - On app load, restore last selected client
 
 ### 7.3 Empty States
 
 **Add empty states** everywhere:
+
 - No clients → "Create your first client" card
 - No modules enabled → "Enable a module to see data here"
 - No content synced → "Connect an account to see content"
 - No ideas generated → "Run analysis to discover trending ideas"
 
 **Component**:
+
 - `components/ui/empty-state.tsx` - Reusable empty state component
 
 ### 7.4 Loading States
 
 **Add skeleton loaders** for async data:
+
 - Client list loading
 - Content feed loading
 - Analytics loading
@@ -919,6 +1057,7 @@ Powered by Cloudinary
 ### 7.5 Error Handling
 
 **Consistent error handling**:
+
 - OAuth failures → Show toast + log error
 - API errors → Display error message + retry option
 - Network failures → Offline banner
@@ -926,6 +1065,7 @@ Powered by Cloudinary
 ### 7.6 Mobile Responsiveness
 
 **Test and fix mobile layouts**:
+
 - Sidebar collapse on mobile
 - Workspace header stacks vertically
 - Content grid responsive (1 col on mobile, 2 on tablet, 3+ on desktop)
@@ -934,6 +1074,7 @@ Powered by Cloudinary
 ### 7.7 Accessibility
 
 **A11y improvements**:
+
 - Keyboard navigation for sidebar
 - Focus management in modals
 - ARIA labels on icon buttons
@@ -942,10 +1083,12 @@ Powered by Cloudinary
 ### Files to Create/Modify
 
 **CREATE**:
+
 - `components/ui/empty-state.tsx` - Reusable empty state
 - `lib/hooks/use-workspace-state.ts` - Persist client/project selection
 
 **MODIFY**:
+
 - `app/(dashboard)/content/page.tsx` - Redirect logic
 - `app/(dashboard)/ideas/page.tsx` - Remove or redirect
 - `app/(dashboard)/import/page.tsx` - Remove or relocate
@@ -953,6 +1096,7 @@ Powered by Cloudinary
 - All major components - Add loading/error/empty states
 
 ### Success Criteria
+
 - [ ] No broken links or deprecated routes
 - [ ] Selected client persists across page loads
 - [ ] Empty states guide users to take action
@@ -966,6 +1110,7 @@ Powered by Cloudinary
 ## Critical Files Reference
 
 ### Database Schema Files
+
 - `lib/db/schema/clients.ts` - Client schema with status and enabledModules
 - `lib/db/schema/platforms.ts` - Connected accounts (clientId reference)
 - `lib/db/schema/content.ts` - Content/posts (add strategyTags - Phase 4)
@@ -974,32 +1119,36 @@ Powered by Cloudinary
 - `lib/db/schema/index.ts` - Schema exports
 
 ### Data Access Layer
+
 - `lib/data/data.clients.ts` - Client queries
 - `lib/data/data.accounts.ts` - Account queries (client-scoped)
 - `lib/data/data.content.ts` - Content queries
 - `lib/data/data.seo.ts` - SEO settings queries
 
 ### Actions Layer
+
 - `lib/actions/clients.ts` - Client CRUD + status update
 - `lib/actions/content.ts` - Content actions (strategy tags - Phase 4)
 - `lib/actions/seo.ts` - SEO settings actions
 
 ### UI Components
-- `components/dashboard/app-sidebar.tsx` - Flat client list sidebar
-- `app/(dashboard)/page.tsx` - Dashboard with at-risk clients + pipeline snapshot
-- `app/(dashboard)/pipeline/page.tsx` - Pipeline kanban board
+
+- `components/dashboard/app-sidebar.tsx` - Client list sidebar
+- `app/(dashboard)/page.tsx` - Dashboard with at-risk clients
 - `app/(dashboard)/settings/page.tsx` - User settings
 - `app/(workspace)/workspace/[clientId]/page.tsx` - Client workspace
 - `components/workspace/*` - Workspace components
-- `components/pipeline/*` - Pipeline board components
 - `components/dashboard/*` - Dashboard components
-- `components/social/*` - Social module (Phase 4)
-- `components/seo/*` - SEO module (Phase 5)
+- `components/social/*` - Social module
+- `components/seo/*` - SEO module
+- `components/ai-receptionist/*` - AI Receptionist module (future)
 
 ### API Routes
+
 - `app/api/oauth/meta/callback/route.ts` - OAuth with clientId
 
 ### Utilities
+
 - `lib/utils/setup-checklist.ts` - Dynamic checklist engine
 - `lib/hooks/use-workspace-state.ts` - State persistence (Phase 7)
 
@@ -1010,34 +1159,40 @@ Powered by Cloudinary
 ### Per Phase Testing
 
 **Phase 1-2** (COMPLETE):
+
 - [x] Client workspace loads
 - [x] Sidebar navigation works
 - [x] Modules appear/disappear correctly
 - [x] Module enablement dialog works
 
-**Phase 3** (COMPLETE):
-- [x] Pipeline drag & drop works
-- [x] Client status updates persist
+**Checklist Engine** (COMPLETE):
+
 - [x] Checklist shows correct items dynamically
-- [x] Dashboard displays at-risk clients and pipeline counts
+- [x] Dashboard displays at-risk clients
+- [x] Client status updates persist
+- [x] Workspace header shows next steps
 
 **Phase 4**:
+
 - [ ] Content filters work
 - [ ] Can add/remove tags
 - [ ] Ideas generate correctly
 - [ ] Analytics charts render
 
 **Phase 5**:
+
 - [ ] SEO settings save
 - [ ] Tags input works
 - [ ] Checklist updates
 
 **Phase 6**:
+
 - [ ] OAuth from workspace works
 - [ ] Settings page simplified
 - [ ] Placeholders render
 
 **Phase 7**:
+
 - [ ] No 404s on old routes
 - [ ] Empty states show
 - [ ] Mobile responsive
@@ -1050,6 +1205,7 @@ Powered by Cloudinary
 ### Future Enhancements (Not in this plan)
 
 **Phase 8+**:
+
 - TikTok & YouTube OAuth implementation
 - Blog queue & publishing workflow
 - Google My Business integration
@@ -1068,21 +1224,27 @@ Powered by Cloudinary
 ## Key Architectural Decisions
 
 ### 1. Client-Centric (No Projects Layer)
+
 **Why**: Simpler architecture for agencies that typically manage one engagement per client. Modules are enabled directly on clients via `enabledModules` array.
 
 ### 2. Array for Modules (Not Junction Table)
+
 **Why**: Simple `enabledModules` text array on clients table. Easy to query, no extra joins, works well for small module counts.
 
 ### 3. Ideas in Social Module (Not Global)
+
 **Why**: Ideas should be contextual to what's working for that client, not across all clients.
 
 ### 4. Simple SEO First (No Blog Queue)
+
 **Why**: Proves module system and provides value without complex blog workflow. Blog queue is Phase 8+.
 
 ### 5. Real Placeholders (Not Hidden)
+
 **Why**: Shows roadmap to clients, lets you enable modules when ready, demonstrates full platform vision.
 
 ### 6. Dynamic Setup Checklist
+
 **Why**: Checklist engine queries real data to show what's complete/missing. Powers dashboard, workspace header, and pipeline cards.
 
 ---
@@ -1090,24 +1252,30 @@ Powered by Cloudinary
 ## Success Metrics
 
 ### Phase 1-2 Success: ✅
+
 - Can create client → enable modules → see workspace
 
 ### Phase 3 Success: ✅
+
 - Can manage client pipeline visually
 - Dashboard provides at-a-glance status
 
 ### Phase 4 Success:
+
 - Social module feels feature-complete
 - Strategy tagging drives insights
 
 ### Phase 5 Success:
+
 - SEO module provides foundational value
 
 ### Phase 6-7 Success:
+
 - App feels polished and professional
 - No confusing or broken UX
 
 ### Overall Success:
+
 - **Client-first UX achieved**: Every view is scoped to a client
 - **Module system works**: Easy to enable/disable services per client
 - **Scalable foundation**: Can add TikTok, YouTube, Blog Queue, etc. without refactoring
