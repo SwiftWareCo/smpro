@@ -25,7 +25,8 @@ function DropdownMenuTrigger({
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Trigger>) {
   return (
     <DropdownMenuPrimitive.Trigger
-      data-slot="dropdown-menu-trigger"
+      data-slot="dropdown-menu-trigger "
+      className="cursor-pointer"
       {...props}
     />
   )

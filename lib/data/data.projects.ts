@@ -73,14 +73,4 @@ export async function getDefaultProject(clientId: string) {
   return result[0] || null;
 }
 
-export async function getProjectsByUser() {
-  const { userId } = await auth();
-  if (!userId) throw new Error('Unauthorized');
-
-  return await db
-    .select()
-    .from(projects)
-    .where(eq(projects.userId, userId))
-    .orderBy(desc(projects.createdAt));
-}
 

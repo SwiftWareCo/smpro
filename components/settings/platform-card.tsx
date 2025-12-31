@@ -139,7 +139,7 @@ export function PlatformCard({
   };
 
   return (
-    <Card className='bg-zinc-900 border-zinc-800'>
+    <Card>
       <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-4'>
         <div className='flex items-center gap-3'>
           <div
@@ -152,7 +152,7 @@ export function PlatformCard({
             {platform.icon}
           </div>
           <div>
-            <CardTitle className='text-white'>{platform.name}</CardTitle>
+            <CardTitle>{platform.name}</CardTitle>
             <CardDescription>
               {isConnected
                 ? `${connected.length} account${
@@ -170,11 +170,11 @@ export function PlatformCard({
         {connected.map((account) => (
           <div
             key={account.id}
-            className='flex items-center justify-between p-3 bg-zinc-800/50 rounded-lg'
+            className='flex items-center justify-between p-3 bg-muted rounded-lg'
           >
             <div className='flex flex-col'>
               <div className='flex items-center gap-2'>
-                <span className='text-zinc-300'>
+                <span className='text-foreground'>
                   @{account.platformUsername}
                 </span>
                 {platform.id === 'meta' && (
@@ -186,7 +186,7 @@ export function PlatformCard({
                 )}
               </div>
               {isTokenExpiringSoon(account.tokenExpiresAt) && (
-                <span className='text-xs text-orange-400 mt-1'>
+                <span className='text-xs text-destructive mt-1'>
                   Token expires soon
                 </span>
               )}
@@ -194,7 +194,7 @@ export function PlatformCard({
             <Button
               size='sm'
               variant='ghost'
-              className='text-red-400 hover:text-red-300'
+              className='text-destructive hover:text-destructive/80'
               onClick={() => handleDisconnect(account.id)}
               disabled={isPending}
             >

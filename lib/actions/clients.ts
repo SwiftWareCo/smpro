@@ -3,7 +3,7 @@
 import { auth } from '@clerk/nextjs/server';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
-import { clients, connectedAccounts, content } from '@/lib/db/schema';
+import { clients, connectedAccounts, content, projects, projectModules } from '@/lib/db/schema';
 import { generateVideoEmbeddings } from '@/lib/ai/embedding';
 import { eq, and } from 'drizzle-orm';
 import { nanoid } from '@/lib/utils';
@@ -19,6 +19,7 @@ export async function createClient(data: { name: string; description?: string })
   }
 
   try {
+    // Step 1: Create client
     const [newClient] = await db
       .insert(clients)
       .values({
@@ -28,10 +29,41 @@ export async function createClient(data: { name: string; description?: string })
       })
       .returning();
 
-    revalidatePath('/import');
-    revalidatePath('/content');
+    try {
+      // Step 2: Create default "General" project (wrapped in inner try for rollback)
+      const [defaultProject] = await db
+        .insert(projects)
+        .values({
+          clientId: newClient.id,
+          userId,
+          name: 'General',
+          description: 'Default project',
+          status: 'active',
+          isDefault: true,
+        })
+        .returning();
 
-    return { success: true, client: newClient };
+      // Step 3: Enable 'social' module for the project
+      await db.insert(projectModules).values({
+        projectId: defaultProject.id,
+        moduleType: 'social',
+        isEnabled: true,
+      });
+
+      revalidatePath('/import');
+      revalidatePath('/content');
+      revalidatePath('/'); // Refresh dashboard and sidebar
+
+      return {
+        success: true,
+        client: newClient,
+        project: defaultProject
+      };
+    } catch (projectError) {
+      // Rollback: delete the client if project creation fails
+      await db.delete(clients).where(eq(clients.id, newClient.id));
+      throw projectError;
+    }
   } catch (error) {
     console.error('Create client error:', error);
     return { success: false, error: 'Failed to create client' };

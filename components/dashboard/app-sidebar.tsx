@@ -8,13 +8,12 @@ import { toast } from 'sonner';
 import {
   ChevronRight,
   LayoutDashboard,
-  FileText,
-  Lightbulb,
   Settings,
   Users,
   Plus,
   Search,
   Loader2,
+  GitBranch,
 } from 'lucide-react';
 
 import {
@@ -28,6 +27,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
   SidebarRail,
 } from '@/components/ui/sidebar';
 import {
@@ -56,6 +58,18 @@ import {
 
 import { createClient } from '@/lib/actions/clients';
 
+type Project = {
+  id: string;
+  clientId: string;
+  userId: string;
+  name: string;
+  description: string | null;
+  status: string;
+  isDefault: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 type Client = {
   id: string;
   name: string;
@@ -64,6 +78,7 @@ type Client = {
   avatarUrl: string | null;
   createdAt: Date;
   updatedAt: Date;
+  projects: Project[];
 };
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
@@ -82,14 +97,9 @@ const navMain = [
     icon: LayoutDashboard,
   },
   {
-    title: 'Ideas',
-    url: '/ideas',
-    icon: Lightbulb,
-  },
-  {
-    title: 'Import',
-    url: '/import',
-    icon: Plus,
+    title: 'Pipeline',
+    url: '/pipeline',
+    icon: GitBranch,
   },
   {
     title: 'Settings',
@@ -102,11 +112,17 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const selectedClientId = searchParams.get('client');
+  const selectedClientId = pathname.startsWith('/workspace/')
+    ? pathname.split('/workspace/')[1]?.split('/')[0]
+    : null;
+  const selectedProjectId = searchParams.get('project');
 
   const [searchQuery, setSearchQuery] = React.useState('');
   const [mainOpen, setMainOpen] = React.useState(true);
   const [clientsOpen, setClientsOpen] = React.useState(true);
+  const [clientOpenStates, setClientOpenStates] = React.useState<
+    Record<string, boolean>
+  >({});
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [isPending, setIsPending] = React.useState(false);
 
@@ -165,7 +181,11 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
       </SidebarHeader>
       <SidebarContent>
         {/* Main Navigation */}
-        <Collapsible open={mainOpen} onOpenChange={setMainOpen} className='group/collapsible'>
+        <Collapsible
+          open={mainOpen}
+          onOpenChange={setMainOpen}
+          className='group/collapsible'
+        >
           <SidebarGroup>
             <SidebarGroupLabel asChild>
               <CollapsibleTrigger className='flex w-full items-center justify-between cursor-pointer hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md transition-colors'>
@@ -196,7 +216,11 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
         </Collapsible>
 
         {/* Clients Section */}
-        <Collapsible open={clientsOpen} onOpenChange={setClientsOpen} className='group/collapsible'>
+        <Collapsible
+          open={clientsOpen}
+          onOpenChange={setClientsOpen}
+          className='group/collapsible'
+        >
           <SidebarGroup>
             <SidebarGroupLabel asChild>
               <CollapsibleTrigger className='flex w-full items-center justify-between cursor-pointer hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md transition-colors'>
@@ -215,19 +239,6 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
             <CollapsibleContent>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {/* All Content option */}
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={pathname === '/content' && !selectedClientId}
-                    >
-                      <Link href='/content'>
-                        <FileText className='h-4 w-4' />
-                        All Content
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-
                   {filteredClients.length === 0 && searchQuery ? (
                     <div className='px-2 py-3 text-sm text-muted-foreground text-center'>
                       No clients match &quot;{searchQuery}&quot;
@@ -237,21 +248,87 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
                       No clients yet
                     </div>
                   ) : (
-                    filteredClients.map((client) => (
-                      <SidebarMenuItem key={client.id}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={selectedClientId === client.id}
+                    filteredClients.map((client) => {
+                      const isClientOpen =
+                        clientOpenStates[client.id] ??
+                        selectedClientId === client.id;
+                      const hasProjects =
+                        client.projects && client.projects.length > 0;
+
+                      return (
+                        <Collapsible
+                          key={client.id}
+                          open={isClientOpen}
+                          onOpenChange={(open) =>
+                            setClientOpenStates((prev) => ({
+                              ...prev,
+                              [client.id]: open,
+                            }))
+                          }
+                          className='group/client-collapsible'
                         >
-                          <Link href={`/content?client=${client.id}`}>
-                            <div className='flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary'>
-                              {client.name.charAt(0).toUpperCase()}
+                          <SidebarMenuItem>
+                            <div className='flex items-center w-full'>
+                              <SidebarMenuButton
+                                asChild
+                                isActive={
+                                  selectedClientId === client.id &&
+                                  !selectedProjectId
+                                }
+                                className='flex-1'
+                              >
+                                <Link href={`/workspace/${client.id}`}>
+                                  <div className='flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary'>
+                                    {client.name.charAt(0).toUpperCase()}
+                                  </div>
+                                  <span className='truncate'>
+                                    {client.name}
+                                  </span>
+                                </Link>
+                              </SidebarMenuButton>
+                              {hasProjects && (
+                                <CollapsibleTrigger asChild>
+                                  <SidebarMenuButton
+                                    className='h-8 cursor-pointer w-8 p-0 ml-1 flex items-center justify-center'
+                                    isActive={false}
+                                  >
+                                    <ChevronRight className='h-4 w-4 transition-transform duration-200 group-data-[state=open]/client-collapsible:rotate-90' />
+                                  </SidebarMenuButton>
+                                </CollapsibleTrigger>
+                              )}
                             </div>
-                            <span className='truncate'>{client.name}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))
+                            {hasProjects && (
+                              <CollapsibleContent>
+                                <SidebarMenuSub>
+                                  {client.projects.map((project) => (
+                                    <SidebarMenuSubItem key={project.id}>
+                                      <SidebarMenuSubButton
+                                        asChild
+                                        isActive={
+                                          selectedClientId === client.id &&
+                                          selectedProjectId === project.id
+                                        }
+                                      >
+                                        <Link
+                                          href={`/workspace/${client.id}?project=${project.id}`}
+                                        >
+                                          {project.name}
+                                          {project.isDefault && (
+                                            <span className='ml-auto text-xs text-muted-foreground'>
+                                              Default
+                                            </span>
+                                          )}
+                                        </Link>
+                                      </SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                  ))}
+                                </SidebarMenuSub>
+                              </CollapsibleContent>
+                            )}
+                          </SidebarMenuItem>
+                        </Collapsible>
+                      );
+                    })
                   )}
 
                   {/* Add Client Dialog */}
@@ -283,7 +360,10 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
                                 <FormItem>
                                   <FormLabel>Name</FormLabel>
                                   <FormControl>
-                                    <Input placeholder='e.g., Nike, Demo Brand' {...field} />
+                                    <Input
+                                      placeholder='e.g., Nike, Demo Brand'
+                                      {...field}
+                                    />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
@@ -297,7 +377,10 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
                                 <FormItem>
                                   <FormLabel>Description (optional)</FormLabel>
                                   <FormControl>
-                                    <Input placeholder='Brief description...' {...field} />
+                                    <Input
+                                      placeholder='Brief description...'
+                                      {...field}
+                                    />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>

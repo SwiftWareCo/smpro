@@ -30,8 +30,10 @@ export default async function SettingsPage() {
         <SettingsToast />
       </Suspense>
       <div>
-        <h2 className='text-2xl font-bold text-white'>Connected Accounts</h2>
-        <p className='text-zinc-500'>
+        <h2 className='text-2xl font-bold text-foreground'>
+          Connected Accounts
+        </h2>
+        <p className='text-muted-foreground'>
           Connect your social media accounts to sync content
         </p>
       </div>
@@ -46,11 +48,11 @@ export default async function SettingsPage() {
         ))}
       </div>
 
-      <Card className='bg-zinc-900 border-zinc-800'>
+      <Card>
         <CardHeader>
-          <CardTitle className='text-white'>Important Notes</CardTitle>
+          <CardTitle>Important Notes</CardTitle>
         </CardHeader>
-        <CardContent className='text-zinc-400 space-y-2'>
+        <CardContent className='text-muted-foreground space-y-2'>
           <p>
             • Instagram requires a Business or Creator account connected to a
             Facebook Page

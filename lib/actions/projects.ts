@@ -9,17 +9,17 @@ import {
   clients,
 } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { nanoid } from '@/lib/utils';
-import { getProject, getDefaultProject } from '@/lib/data/data.projects';
+import { getProject } from '@/lib/data/data.projects';
 
 // ============================================================================
 // Project CRUD
 // ============================================================================
 
-export async function createProject(
-  clientId: string,
-  data: { name: string; description?: string }
-) {
+export async function createProject(data: {
+  clientId: string;
+  name: string;
+  description?: string;
+}) {
   const { userId } = await auth();
   if (!userId) {
     return { success: false, error: 'Unauthorized' };
@@ -30,29 +30,52 @@ export async function createProject(
     const client = await db
       .select()
       .from(clients)
-      .where(and(eq(clients.id, clientId), eq(clients.userId, userId)))
+      .where(and(eq(clients.id, data.clientId), eq(clients.userId, userId)))
       .limit(1);
 
     if (client.length === 0) {
       return { success: false, error: 'Client not found' };
     }
 
+    // Check if this is the first project for this client
+    const existingProjects = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.clientId, data.clientId));
+
+    const isFirstProject = existingProjects.length === 0;
+
+    // Step 1: Create the project
     const [newProject] = await db
       .insert(projects)
       .values({
-        clientId,
+        clientId: data.clientId,
         userId,
         name: data.name,
         description: data.description || null,
         status: 'active',
-        isDefault: false,
+        isDefault: isFirstProject, // First project is always default
       })
       .returning();
 
-    revalidatePath('/workspace');
-    revalidatePath('/dashboard');
+    try {
+      // Step 2: Auto-enable social module (wrapped in try for rollback)
+      await db.insert(projectModules).values({
+        projectId: newProject.id,
+        moduleType: 'social',
+        isEnabled: true,
+      });
 
-    return { success: true, project: newProject };
+      revalidatePath('/workspace');
+      revalidatePath('/dashboard');
+      revalidatePath('/');
+
+      return { success: true, project: newProject };
+    } catch (moduleError) {
+      // Rollback: delete the project if module creation fails
+      await db.delete(projects).where(eq(projects.id, newProject.id));
+      throw moduleError;
+    }
   } catch (error) {
     console.error('Create project error:', error);
     return { success: false, error: 'Failed to create project' };
