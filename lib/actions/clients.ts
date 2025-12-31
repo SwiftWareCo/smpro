@@ -523,7 +523,6 @@ export async function updateClientStatus(
       .where(eq(clients.id, clientId));
 
     revalidatePath('/');
-    revalidatePath('/pipeline');
 
     return { success: true };
   } catch (error) {

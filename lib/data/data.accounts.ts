@@ -3,7 +3,7 @@ import 'server-only';
 import { auth } from '@clerk/nextjs/server';
 import { db } from '@/lib/db';
 import { connectedAccounts } from '@/lib/db/schema';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, sql } from 'drizzle-orm';
 
 export async function getConnectedAccounts() {
   const { userId } = await auth();
@@ -95,4 +95,24 @@ export async function getUnlinkedAccounts() {
     );
 
   return accounts;
+}
+
+
+export async function getAccountsCount(clientId: string): Promise<number> {
+  const { userId } = await auth();
+  if (!userId) throw new Error('Unauthorized');
+
+  const result = await db
+    .select({
+      count: sql<number>`count(*)`.as('count'),
+    })
+    .from(connectedAccounts)
+    .where(
+      and(
+        eq(connectedAccounts.clientId, clientId),
+        eq(connectedAccounts.userId, userId)
+      )
+    );
+
+  return Number(result[0]?.count ?? 0);
 }

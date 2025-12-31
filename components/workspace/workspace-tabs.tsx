@@ -15,6 +15,8 @@ type Client = {
 
 interface WorkspaceTabsProps {
   client: Client;
+  accountsCount: number;
+  seoConfigured?: boolean;
 }
 
 const moduleDisplayNames: Record<string, string> = {
@@ -35,7 +37,11 @@ const moduleDescriptions: Record<string, string> = {
   assets: 'Brand assets and media library',
 };
 
-export function WorkspaceTabs({ client }: WorkspaceTabsProps) {
+export function WorkspaceTabs({
+  client,
+  accountsCount,
+  seoConfigured,
+}: WorkspaceTabsProps) {
   const [activeTab, setActiveTab] = React.useState('overview');
 
   // Get enabled modules from client
@@ -61,7 +67,11 @@ export function WorkspaceTabs({ client }: WorkspaceTabsProps) {
       </TabsList>
 
       <TabsContent value='overview' className='mt-4'>
-        <OverviewTab clientId={client.id} />
+        <OverviewTab
+          client={client}
+          accountsCount={accountsCount}
+          seoConfigured={seoConfigured}
+        />
       </TabsContent>
 
       {enabledModules.map((moduleType) => {

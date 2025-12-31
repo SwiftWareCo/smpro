@@ -14,10 +14,13 @@ import { Separator } from '@/components/ui/separator';
 import { ModuleEnablementDialog } from './module-enablement-dialog';
 import { ClientSettingsDialog } from './client-settings-dialog';
 import { type Client } from '@/lib/db/schema/clients';
+import { type SetupStatus } from '@/lib/utils/setup-checklist';
 
 interface WorkspaceHeaderProps {
   client: Client;
+  setupStatus: SetupStatus;
 }
+
 const statusColors: Record<string, string> = {
   lead: 'bg-blue-500/90 text-white border-transparent',
   onboarding: 'bg-yellow-500/90 text-white border-transparent',
@@ -25,6 +28,7 @@ const statusColors: Record<string, string> = {
   paused: 'bg-gray-500/90 text-white border-transparent',
   churned: 'bg-red-500/90 text-white border-transparent',
 };
+
 const statusLabels: Record<string, string> = {
   lead: 'Lead',
   onboarding: 'Onboarding',
@@ -32,25 +36,20 @@ const statusLabels: Record<string, string> = {
   paused: 'Paused',
   churned: 'Churned',
 };
-export function WorkspaceHeader({ client }: WorkspaceHeaderProps) {
+
+export function WorkspaceHeader({
+  client,
+  setupStatus,
+}: WorkspaceHeaderProps) {
   const [moduleDialogOpen, setModuleDialogOpen] = React.useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = React.useState(false);
 
-  // Calculate missing items and completion percentage
-  const enabledModules = client.enabledModules || [];
-  const seoEnabled = enabledModules.includes('seo');
+  // Get missing items from setup status
+  const missingItems = setupStatus.items
+    .filter((item) => !item.completed)
+    .map((item) => item.label);
 
-  // Hardcoded missing items (Phase 3 will make this dynamic)
-  const missingItems = [
-    'Connect Instagram account',
-    'Connect Facebook account',
-    ...(seoEnabled ? ['Add website URL', 'Set target keywords'] : []),
-  ];
-
-  const totalItems = 2 + (seoEnabled ? 2 : 0); // Base items + SEO items if enabled
-  const completedItems = totalItems - missingItems.length;
-  const completionPercentage =
-    totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 100;
+  const completionPercentage = setupStatus.percentage;
 
   return (
     <div className='border-b bg-background'>

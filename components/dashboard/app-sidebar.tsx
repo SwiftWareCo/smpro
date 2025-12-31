@@ -83,11 +83,6 @@ const navMain = [
     icon: LayoutDashboard,
   },
   {
-    title: 'Pipeline',
-    url: '/pipeline',
-    icon: GitBranch,
-  },
-  {
     title: 'Settings',
     url: '/settings',
     icon: Settings,
