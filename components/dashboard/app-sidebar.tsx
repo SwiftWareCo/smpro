@@ -1,6 +1,6 @@
 'use client';
 
-import * as React from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -8,12 +8,10 @@ import { toast } from 'sonner';
 import {
   ChevronRight,
   LayoutDashboard,
-  Settings,
   Users,
   Plus,
   Search,
   Loader2,
-  GitBranch,
 } from 'lucide-react';
 
 import {
@@ -82,11 +80,6 @@ const navMain = [
     url: '/',
     icon: LayoutDashboard,
   },
-  {
-    title: 'Settings',
-    url: '/settings',
-    icon: Settings,
-  },
 ];
 
 export function AppSidebar({ clients, ...props }: AppSidebarProps) {
@@ -96,11 +89,11 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
     ? pathname.split('/workspace/')[1]?.split('/')[0]
     : null;
 
-  const [searchQuery, setSearchQuery] = React.useState('');
-  const [mainOpen, setMainOpen] = React.useState(true);
-  const [clientsOpen, setClientsOpen] = React.useState(true);
-  const [dialogOpen, setDialogOpen] = React.useState(false);
-  const [isPending, setIsPending] = React.useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [mainOpen, setMainOpen] = useState(true);
+  const [clientsOpen, setClientsOpen] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [isPending, setIsPending] = useState(false);
 
   const form = useForm<CreateClientFormData>({
     defaultValues: {
@@ -109,7 +102,7 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
     },
   });
 
-  const filteredClients = React.useMemo(() => {
+  const filteredClients = useMemo(() => {
     if (!searchQuery.trim()) return clients;
     const query = searchQuery.toLowerCase();
     return clients.filter(

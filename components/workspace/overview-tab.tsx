@@ -1,6 +1,6 @@
 'use client';
 
-import * as React from 'react';
+import { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -28,7 +28,7 @@ export function OverviewTab({
   accountsCount,
   seoConfigured,
 }: OverviewTabProps) {
-  const [notes, setNotes] = React.useState('');
+  const [notes, setNotes] = useState('');
 
   const enabledModules = client.enabledModules || [];
   const socialEnabled = enabledModules.includes('social');
@@ -96,4 +96,3 @@ export function OverviewTab({
     </div>
   );
 }
-

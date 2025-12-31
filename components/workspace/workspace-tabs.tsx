@@ -1,6 +1,6 @@
 'use client';
 
-import * as React from 'react';
+import { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { OverviewTab } from './overview-tab';
 import { SocialTab } from './social-tab';
@@ -13,9 +13,16 @@ type Client = {
   enabledModules: string[] | null;
 };
 
+interface ConnectedAccount {
+  id: string;
+  platform: string;
+  platformUsername: string | null;
+  tokenExpiresAt: Date | null;
+}
+
 interface WorkspaceTabsProps {
   client: Client;
-  accountsCount: number;
+  accounts: ConnectedAccount[];
   seoConfigured?: boolean;
 }
 
@@ -39,10 +46,10 @@ const moduleDescriptions: Record<string, string> = {
 
 export function WorkspaceTabs({
   client,
-  accountsCount,
+  accounts,
   seoConfigured,
 }: WorkspaceTabsProps) {
-  const [activeTab, setActiveTab] = React.useState('overview');
+  const [activeTab, setActiveTab] = useState('overview');
 
   // Get enabled modules from client
   const enabledModules = client.enabledModules || [];
@@ -69,7 +76,7 @@ export function WorkspaceTabs({
       <TabsContent value='overview' className='mt-4'>
         <OverviewTab
           client={client}
-          accountsCount={accountsCount}
+          accountsCount={accounts.length}
           seoConfigured={seoConfigured}
         />
       </TabsContent>
@@ -78,7 +85,7 @@ export function WorkspaceTabs({
         if (moduleType === 'social') {
           return (
             <TabsContent key={moduleType} value={moduleType} className='mt-4'>
-              <SocialTab clientId={client.id} />
+              <SocialTab clientId={client.id} accounts={accounts} />
             </TabsContent>
           );
         }
@@ -90,12 +97,23 @@ export function WorkspaceTabs({
           );
         }
         // Other modules (website_gmb, ai_receptionist, automations, assets)
-        const validPlaceholderTypes = ['website_gmb', 'ai_receptionist', 'automations', 'assets'] as const;
-        if (validPlaceholderTypes.includes(moduleType as typeof validPlaceholderTypes[number])) {
+        const validPlaceholderTypes = [
+          'website_gmb',
+          'ai_receptionist',
+          'automations',
+          'assets',
+        ] as const;
+        if (
+          validPlaceholderTypes.includes(
+            moduleType as (typeof validPlaceholderTypes)[number]
+          )
+        ) {
           return (
             <TabsContent key={moduleType} value={moduleType} className='mt-4'>
               <PlaceholderModuleTab
-                moduleType={moduleType as typeof validPlaceholderTypes[number]}
+                moduleType={
+                  moduleType as (typeof validPlaceholderTypes)[number]
+                }
                 moduleName={moduleDisplayNames[moduleType]}
                 description={moduleDescriptions[moduleType]}
                 clientId={client.id}
@@ -109,4 +127,3 @@ export function WorkspaceTabs({
     </Tabs>
   );
 }
-

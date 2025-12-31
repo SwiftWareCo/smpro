@@ -1,7 +1,13 @@
 'use client';
 
-import * as React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState } from 'react';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { updateClientModules } from '@/lib/actions/clients';
 import { toast } from 'sonner';
@@ -23,7 +29,7 @@ export function PlaceholderModuleTab({
   enabledModules,
 }: PlaceholderModuleTabProps) {
   const router = useRouter();
-  const [isPending, setIsPending] = React.useState(false);
+  const [isPending, setIsPending] = useState(false);
 
   const handleDisable = async () => {
     setIsPending(true);
@@ -48,7 +54,11 @@ export function PlaceholderModuleTab({
         <CardContent className='space-y-4'>
           <p className='text-muted-foreground'>{description}</p>
           <div className='flex justify-end'>
-            <Button variant='outline' onClick={handleDisable} disabled={isPending}>
+            <Button
+              variant='outline'
+              onClick={handleDisable}
+              disabled={isPending}
+            >
               Disable Module
             </Button>
           </div>
@@ -57,4 +67,3 @@ export function PlaceholderModuleTab({
     </div>
   );
 }
-

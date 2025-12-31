@@ -1,6 +1,6 @@
 'use client';
 
-import * as React from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -63,8 +63,8 @@ export function ClientSettingsDialog({
   client,
 }: ClientSettingsDialogProps) {
   const router = useRouter();
-  const [isPending, setIsPending] = React.useState(false);
-  const [showDeleteAlert, setShowDeleteAlert] = React.useState(false);
+  const [isPending, setIsPending] = useState(false);
+  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
 
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientFormSchema),

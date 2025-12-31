@@ -1,6 +1,6 @@
 'use client';
 
-import * as React from 'react';
+import { useState } from 'react';
 import { Settings, Plus, ListTodo, Circle, CheckCircle2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -37,12 +37,9 @@ const statusLabels: Record<string, string> = {
   churned: 'Churned',
 };
 
-export function WorkspaceHeader({
-  client,
-  setupStatus,
-}: WorkspaceHeaderProps) {
-  const [moduleDialogOpen, setModuleDialogOpen] = React.useState(false);
-  const [settingsDialogOpen, setSettingsDialogOpen] = React.useState(false);
+export function WorkspaceHeader({ client, setupStatus }: WorkspaceHeaderProps) {
+  const [moduleDialogOpen, setModuleDialogOpen] = useState(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
 
   // Get missing items from setup status
   const missingItems = setupStatus.items

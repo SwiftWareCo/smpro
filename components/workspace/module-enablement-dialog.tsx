@@ -1,6 +1,6 @@
 'use client';
 
-import * as React from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -20,7 +20,7 @@ interface ModuleEnablementDialogProps {
   onOpenChange: (open: boolean) => void;
   clientId: string;
   enabledModules?: string[];
-  children?: React.ReactNode;
+  children?: ReactNode;
 }
 
 const availableModules = [
@@ -64,7 +64,7 @@ export function ModuleEnablementDialog({
   children,
 }: ModuleEnablementDialogProps) {
   const router = useRouter();
-  const [isPending, setIsPending] = React.useState<Record<string, boolean>>({});
+  const [isPending, setIsPending] = useState<Record<string, boolean>>({});
 
   // Build module states from enabledModules prop
   const getModuleState = (moduleType: string) => {
@@ -82,7 +82,11 @@ export function ModuleEnablementDialog({
     const result = await updateClientModules(clientId, newModules);
 
     if (result.success) {
-      toast.success(`${availableModules.find((m) => m.type === moduleType)?.name} module ${currentState ? 'disabled' : 'enabled'}`);
+      toast.success(
+        `${availableModules.find((m) => m.type === moduleType)?.name} module ${
+          currentState ? 'disabled' : 'enabled'
+        }`
+      );
       router.refresh();
     } else {
       toast.error(result.error || 'Failed to update module');
@@ -107,17 +111,24 @@ export function ModuleEnablementDialog({
             const pending = isPending[module.type] ?? false;
 
             return (
-              <div key={module.type} className='flex items-center justify-between space-x-2'>
+              <div
+                key={module.type}
+                className='flex items-center justify-between space-x-2'
+              >
                 <div className='flex-1 space-y-1'>
                   <Label htmlFor={module.type} className='text-sm font-medium'>
                     {module.name}
                   </Label>
-                  <p className='text-xs text-muted-foreground'>{module.description}</p>
+                  <p className='text-xs text-muted-foreground'>
+                    {module.description}
+                  </p>
                 </div>
                 <Switch
                   id={module.type}
                   checked={isEnabled}
-                  onCheckedChange={(checked) => handleToggle(module.type, !checked)}
+                  onCheckedChange={(checked) =>
+                    handleToggle(module.type, !checked)
+                  }
                   disabled={pending}
                 />
               </div>
@@ -128,4 +139,3 @@ export function ModuleEnablementDialog({
     </Dialog>
   );
 }
-
