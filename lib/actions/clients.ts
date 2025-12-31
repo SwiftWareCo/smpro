@@ -3,7 +3,7 @@
 import { auth } from '@clerk/nextjs/server';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
-import { clients, connectedAccounts, content, projects, projectModules } from '@/lib/db/schema';
+import { clients, connectedAccounts, content } from '@/lib/db/schema';
 import { generateVideoEmbeddings } from '@/lib/ai/embedding';
 import { eq, and } from 'drizzle-orm';
 import { nanoid } from '@/lib/utils';
@@ -19,54 +19,80 @@ export async function createClient(data: { name: string; description?: string })
   }
 
   try {
-    // Step 1: Create client
+    // Create client with default 'social' module enabled
     const [newClient] = await db
       .insert(clients)
       .values({
         userId,
         name: data.name,
         description: data.description || null,
+        status: 'active',
+        enabledModules: ['social'], // Default to social module
       })
       .returning();
 
-    try {
-      // Step 2: Create default "General" project (wrapped in inner try for rollback)
-      const [defaultProject] = await db
-        .insert(projects)
-        .values({
-          clientId: newClient.id,
-          userId,
-          name: 'General',
-          description: 'Default project',
-          status: 'active',
-          isDefault: true,
-        })
-        .returning();
+    revalidatePath('/import');
+    revalidatePath('/content');
+    revalidatePath('/'); // Refresh dashboard and sidebar
 
-      // Step 3: Enable 'social' module for the project
-      await db.insert(projectModules).values({
-        projectId: defaultProject.id,
-        moduleType: 'social',
-        isEnabled: true,
-      });
-
-      revalidatePath('/import');
-      revalidatePath('/content');
-      revalidatePath('/'); // Refresh dashboard and sidebar
-
-      return {
-        success: true,
-        client: newClient,
-        project: defaultProject
-      };
-    } catch (projectError) {
-      // Rollback: delete the client if project creation fails
-      await db.delete(clients).where(eq(clients.id, newClient.id));
-      throw projectError;
-    }
+    return {
+      success: true,
+      client: newClient,
+    };
   } catch (error) {
     console.error('Create client error:', error);
     return { success: false, error: 'Failed to create client' };
+  }
+}
+
+export async function updateClient(
+  clientId: string,
+  data: {
+    name?: string;
+    description?: string | null;
+    avatarUrl?: string | null;
+    status?: 'lead' | 'onboarding' | 'active' | 'paused' | 'churned';
+  }
+) {
+  const { userId } = await auth();
+  if (!userId) {
+    return { success: false, error: 'Unauthorized' };
+  }
+
+  try {
+    // Verify ownership
+    const client = await db
+      .select()
+      .from(clients)
+      .where(and(eq(clients.id, clientId), eq(clients.userId, userId)))
+      .limit(1);
+
+    if (client.length === 0) {
+      return { success: false, error: 'Client not found' };
+    }
+
+    // Build update object with only provided fields
+    const updateData: {
+      name?: string;
+      description?: string | null;
+      avatarUrl?: string | null;
+      status?: 'lead' | 'onboarding' | 'active' | 'paused' | 'churned';
+    } = {};
+
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.avatarUrl !== undefined) updateData.avatarUrl = data.avatarUrl;
+    if (data.status !== undefined) updateData.status = data.status;
+
+    await db.update(clients).set(updateData).where(eq(clients.id, clientId));
+
+    revalidatePath('/');
+    revalidatePath(`/workspace/${clientId}`);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Update client error:', error);
+    return { success: false, error: 'Failed to update client' };
   }
 }
 
@@ -430,5 +456,78 @@ export async function importFacebookData(
   } catch (error) {
     console.error('Import Facebook error:', error);
     return { success: false, error: 'Failed to import Facebook data' };
+  }
+}
+
+// ============================================================================
+// Module Management
+// ============================================================================
+
+export async function updateClientModules(clientId: string, modules: string[]) {
+  const { userId } = await auth();
+  if (!userId) {
+    return { success: false, error: 'Unauthorized' };
+  }
+
+  try {
+    // Verify ownership
+    const client = await db
+      .select()
+      .from(clients)
+      .where(and(eq(clients.id, clientId), eq(clients.userId, userId)))
+      .limit(1);
+
+    if (client.length === 0) {
+      return { success: false, error: 'Client not found' };
+    }
+
+    await db
+      .update(clients)
+      .set({ enabledModules: modules })
+      .where(eq(clients.id, clientId));
+
+    revalidatePath('/');
+    revalidatePath(`/workspace/${clientId}`);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Update client modules error:', error);
+    return { success: false, error: 'Failed to update modules' };
+  }
+}
+
+export async function updateClientStatus(
+  clientId: string,
+  status: 'lead' | 'onboarding' | 'active' | 'paused' | 'churned'
+) {
+  const { userId } = await auth();
+  if (!userId) {
+    return { success: false, error: 'Unauthorized' };
+  }
+
+  try {
+    // Verify ownership
+    const client = await db
+      .select()
+      .from(clients)
+      .where(and(eq(clients.id, clientId), eq(clients.userId, userId)))
+      .limit(1);
+
+    if (client.length === 0) {
+      return { success: false, error: 'Client not found' };
+    }
+
+    await db
+      .update(clients)
+      .set({ status })
+      .where(eq(clients.id, clientId));
+
+    revalidatePath('/');
+    revalidatePath('/pipeline');
+
+    return { success: true };
+  } catch (error) {
+    console.error('Update client status error:', error);
+    return { success: false, error: 'Failed to update status' };
   }
 }

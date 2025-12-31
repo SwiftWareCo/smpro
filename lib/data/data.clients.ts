@@ -3,8 +3,7 @@ import 'server-only';
 import { auth } from '@clerk/nextjs/server';
 import { db } from '@/lib/db';
 import { clients } from '@/lib/db/schema';
-import { eq, desc } from 'drizzle-orm';
-import { getProjectsByClient } from './data.projects';
+import { eq, desc, sql } from 'drizzle-orm';
 
 export async function getClients() {
   const { userId } = await auth();
@@ -15,32 +14,6 @@ export async function getClients() {
     .from(clients)
     .where(eq(clients.userId, userId))
     .orderBy(desc(clients.createdAt));
-}
-
-export async function getClientsWithProjects() {
-  const { userId } = await auth();
-  if (!userId) throw new Error('Unauthorized');
-
-  const clientList = await getClients();
-  
-  // Fetch projects for each client
-  const clientsWithProjects = await Promise.all(
-    clientList.map(async (client) => {
-      const clientProjects = await getProjectsByClient(client.id);
-      // Sort: default first, then by creation date
-      const sortedProjects = [...clientProjects].sort((a, b) => {
-        if (a.isDefault && !b.isDefault) return -1;
-        if (!a.isDefault && b.isDefault) return 1;
-        return b.createdAt.getTime() - a.createdAt.getTime();
-      });
-      return {
-        ...client,
-        projects: sortedProjects,
-      };
-    })
-  );
-
-  return clientsWithProjects;
 }
 
 export async function getClient(clientId: string) {
@@ -61,4 +34,47 @@ export async function getClient(clientId: string) {
   }
 
   return client || null;
+}
+
+export async function updateClientModules(clientId: string, modules: string[]) {
+  const { userId } = await auth();
+  if (!userId) throw new Error('Unauthorized');
+
+  // Verify ownership
+  const client = await getClient(clientId);
+  if (!client) throw new Error('Client not found');
+
+  const [updated] = await db
+    .update(clients)
+    .set({
+      enabledModules: modules,
+      updatedAt: sql`now()`,
+    })
+    .where(eq(clients.id, clientId))
+    .returning();
+
+  return updated;
+}
+
+export async function updateClientStatus(
+  clientId: string,
+  status: 'lead' | 'onboarding' | 'active' | 'paused' | 'churned'
+) {
+  const { userId } = await auth();
+  if (!userId) throw new Error('Unauthorized');
+
+  // Verify ownership
+  const client = await getClient(clientId);
+  if (!client) throw new Error('Client not found');
+
+  const [updated] = await db
+    .update(clients)
+    .set({
+      status,
+      updatedAt: sql`now()`,
+    })
+    .where(eq(clients.id, clientId))
+    .returning();
+
+  return updated;
 }

@@ -7,21 +7,14 @@ import { SocialTab } from './social-tab';
 import { SeoTab } from './seo-tab';
 import { PlaceholderModuleTab } from './placeholder-module-tab';
 
-type ProjectModule = {
-  id: string;
-  projectId: string;
-  moduleType: 'social' | 'seo' | 'website_gmb' | 'ai_receptionist' | 'automations' | 'assets';
-  isEnabled: boolean;
-};
-
-type Project = {
+type Client = {
   id: string;
   name: string;
-  modules: ProjectModule[];
+  enabledModules: string[] | null;
 };
 
 interface WorkspaceTabsProps {
-  project: Project;
+  client: Client;
 }
 
 const moduleDisplayNames: Record<string, string> = {
@@ -42,18 +35,18 @@ const moduleDescriptions: Record<string, string> = {
   assets: 'Brand assets and media library',
 };
 
-export function WorkspaceTabs({ project }: WorkspaceTabsProps) {
+export function WorkspaceTabs({ client }: WorkspaceTabsProps) {
   const [activeTab, setActiveTab] = React.useState('overview');
 
-  // Get enabled modules
-  const enabledModules = project.modules.filter((m) => m.isEnabled);
+  // Get enabled modules from client
+  const enabledModules = client.enabledModules || [];
 
   // Build tabs list
   const tabs = [
     { id: 'overview', label: 'Overview' },
-    ...enabledModules.map((module) => ({
-      id: module.moduleType,
-      label: moduleDisplayNames[module.moduleType] || module.moduleType,
+    ...enabledModules.map((moduleType) => ({
+      id: moduleType,
+      label: moduleDisplayNames[moduleType] || moduleType,
     })),
   ];
 
@@ -68,34 +61,40 @@ export function WorkspaceTabs({ project }: WorkspaceTabsProps) {
       </TabsList>
 
       <TabsContent value='overview' className='mt-4'>
-        <OverviewTab project={project} />
+        <OverviewTab clientId={client.id} />
       </TabsContent>
 
-      {enabledModules.map((module) => {
-        if (module.moduleType === 'social') {
+      {enabledModules.map((moduleType) => {
+        if (moduleType === 'social') {
           return (
-            <TabsContent key={module.id} value={module.moduleType} className='mt-4'>
-              <SocialTab projectId={project.id} />
+            <TabsContent key={moduleType} value={moduleType} className='mt-4'>
+              <SocialTab clientId={client.id} />
             </TabsContent>
           );
         }
-        if (module.moduleType === 'seo') {
+        if (moduleType === 'seo') {
           return (
-            <TabsContent key={module.id} value={module.moduleType} className='mt-4'>
-              <SeoTab projectId={project.id} />
+            <TabsContent key={moduleType} value={moduleType} className='mt-4'>
+              <SeoTab clientId={client.id} />
             </TabsContent>
           );
         }
-        return (
-          <TabsContent key={module.id} value={module.moduleType} className='mt-4'>
-            <PlaceholderModuleTab
-              moduleType={module.moduleType}
-              moduleName={moduleDisplayNames[module.moduleType]}
-              description={moduleDescriptions[module.moduleType]}
-              projectId={project.id}
-            />
-          </TabsContent>
-        );
+        // Other modules (website_gmb, ai_receptionist, automations, assets)
+        const validPlaceholderTypes = ['website_gmb', 'ai_receptionist', 'automations', 'assets'] as const;
+        if (validPlaceholderTypes.includes(moduleType as typeof validPlaceholderTypes[number])) {
+          return (
+            <TabsContent key={moduleType} value={moduleType} className='mt-4'>
+              <PlaceholderModuleTab
+                moduleType={moduleType as typeof validPlaceholderTypes[number]}
+                moduleName={moduleDisplayNames[moduleType]}
+                description={moduleDescriptions[moduleType]}
+                clientId={client.id}
+                enabledModules={enabledModules}
+              />
+            </TabsContent>
+          );
+        }
+        return null;
       })}
     </Tabs>
   );

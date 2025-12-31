@@ -2,53 +2,70 @@ import 'server-only';
 
 import { auth } from '@clerk/nextjs/server';
 import { db } from '@/lib/db';
-import { projectSeoSettings, projects } from '@/lib/db/schema';
-import { eq, and, inArray } from 'drizzle-orm';
+import { clientSeoSettings } from '@/lib/db/schema';
+import { eq, sql } from 'drizzle-orm';
+import { getClient } from './data.clients';
 
-export async function getSeoSettings(projectId: string) {
+export async function getSeoSettings(clientId: string) {
   const { userId } = await auth();
   if (!userId) throw new Error('Unauthorized');
 
-  // Verify project ownership
-  const project = await db
-    .select()
-    .from(projects)
-    .where(and(eq(projects.id, projectId), eq(projects.userId, userId)))
-    .limit(1);
-
-  if (!project[0]) {
-    throw new Error('Project not found or unauthorized');
-  }
+  // Verify client ownership
+  const client = await getClient(clientId);
+  if (!client) throw new Error('Client not found');
 
   const result = await db
     .select()
-    .from(projectSeoSettings)
-    .where(eq(projectSeoSettings.projectId, projectId))
+    .from(clientSeoSettings)
+    .where(eq(clientSeoSettings.clientId, clientId))
     .limit(1);
 
   return result[0] || null;
 }
 
-export async function getSeoSettingsByClient(clientId: string) {
+export async function upsertSeoSettings(
+  clientId: string,
+  settings: {
+    websiteUrl?: string | null;
+    targetKeywords?: string[] | null;
+    targetLocations?: string[] | null;
+    metaTitle?: string | null;
+    metaDescription?: string | null;
+  }
+) {
   const { userId } = await auth();
   if (!userId) throw new Error('Unauthorized');
 
-  // Get all projects for the client
-  const clientProjects = await db
-    .select({ id: projects.id })
-    .from(projects)
-    .where(and(eq(projects.clientId, clientId), eq(projects.userId, userId)));
+  // Verify client ownership
+  const client = await getClient(clientId);
+  if (!client) throw new Error('Client not found');
 
-  if (clientProjects.length === 0) {
-    return [];
+  // Check if settings exist
+  const existing = await getSeoSettings(clientId);
+
+  if (existing) {
+    // Update existing settings
+    const [updated] = await db
+      .update(clientSeoSettings)
+      .set({
+        ...settings,
+        updatedAt: sql`now()`,
+      })
+      .where(eq(clientSeoSettings.id, existing.id))
+      .returning();
+
+    return updated;
+  } else {
+    // Create new settings
+    const [created] = await db
+      .insert(clientSeoSettings)
+      .values({
+        clientId,
+        ...settings,
+      })
+      .returning();
+
+    return created;
   }
-
-  const projectIds = clientProjects.map((p) => p.id);
-
-  // Use IN clause for better performance
-  return await db
-    .select()
-    .from(projectSeoSettings)
-    .where(inArray(projectSeoSettings.projectId, projectIds));
 }
 

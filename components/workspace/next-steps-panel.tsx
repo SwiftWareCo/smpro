@@ -1,32 +1,29 @@
 'use client';
 
 import * as React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { ChevronDown, Circle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-
-type ProjectModule = {
-  id: string;
-  moduleType: string;
-  isEnabled: boolean;
-};
-
-type Project = {
-  id: string;
-  name: string;
-  modules: ProjectModule[];
-};
 
 interface NextStepsPanelProps {
-  project: Project;
+  enabledModules: string[];
 }
 
-export function NextStepsPanel({ project }: NextStepsPanelProps) {
+export function NextStepsPanel({ enabledModules }: NextStepsPanelProps) {
   const [isOpen, setIsOpen] = React.useState(true);
 
   // Check which modules are enabled
-  const seoEnabled = project.modules.some((m) => m.moduleType === 'seo' && m.isEnabled);
+  const seoEnabled = enabledModules.includes('seo');
 
   // Hardcoded missing items (Phase 3 will make this dynamic)
   const missingItems = [
@@ -44,7 +41,9 @@ export function NextStepsPanel({ project }: NextStepsPanelProps) {
               <div className='flex items-center justify-between'>
                 <CardTitle className='text-base'>Next Steps</CardTitle>
                 <ChevronDown
-                  className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                  className={`h-4 w-4 transition-transform ${
+                    isOpen ? 'rotate-180' : ''
+                  }`}
                 />
               </div>
               <CardDescription>Missing items to complete setup</CardDescription>
@@ -53,7 +52,9 @@ export function NextStepsPanel({ project }: NextStepsPanelProps) {
           <CollapsibleContent>
             <CardContent>
               {missingItems.length === 0 ? (
-                <p className='text-sm text-muted-foreground'>All setup complete!</p>
+                <p className='text-sm text-muted-foreground'>
+                  All setup complete!
+                </p>
               ) : (
                 <ul className='space-y-2'>
                   {missingItems.map((item, index) => (
@@ -71,4 +72,3 @@ export function NextStepsPanel({ project }: NextStepsPanelProps) {
     </div>
   );
 }
-

@@ -8,7 +8,6 @@ import {
 } from 'drizzle-orm/pg-core';
 import { nanoid } from '@/lib/utils';
 import { clients } from './clients';
-import { projects } from './projects';
 
 export const connectedAccounts = pgTable(
   'connected_accounts',
@@ -18,12 +17,9 @@ export const connectedAccounts = pgTable(
       .$defaultFn(() => nanoid()),
     userId: varchar('user_id', { length: 191 }).notNull(), // Clerk user ID
     clientId: varchar('client_id', { length: 191 }).references(
-      () => clients.id
-    ), // Optional: link to a client/brand (kept for backward compatibility)
-    projectId: varchar('project_id', { length: 191 }).references(
-      () => projects.id,
+      () => clients.id,
       { onDelete: 'cascade' }
-    ), // Link to a project
+    ), // Link to a client
     platform: varchar('platform', { length: 50 }).notNull(), // tiktok, youtube, instagram, facebook
     accessToken: text('access_token').notNull(),
     refreshToken: text('refresh_token'),

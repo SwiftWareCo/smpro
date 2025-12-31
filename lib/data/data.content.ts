@@ -9,7 +9,6 @@ export async function getContent(options?: {
   platform?: string;
   limit?: number;
   clientId?: string;
-  projectId?: string;
 }) {
   const { userId } = await auth();
   if (!userId) throw new Error('Unauthorized');
@@ -17,15 +16,12 @@ export async function getContent(options?: {
   // Build account query conditions
   const accountConditions = [eq(connectedAccounts.userId, userId)];
 
-  // Filter by project if specified (preferred over clientId)
-  if (options?.projectId) {
-    accountConditions.push(eq(connectedAccounts.projectId, options.projectId));
-  } else if (options?.clientId) {
-    // Fallback to clientId for backward compatibility
+  // Filter by client if specified
+  if (options?.clientId) {
     accountConditions.push(eq(connectedAccounts.clientId, options.clientId));
   }
 
-  // Get user's connected accounts (optionally filtered by project or client)
+  // Get user's connected accounts (optionally filtered by client)
   const userAccounts = await db
     .select({ id: connectedAccounts.id })
     .from(connectedAccounts)
@@ -51,12 +47,12 @@ export async function getContent(options?: {
     .limit(options?.limit || 50);
 }
 
-export async function getContentByProject(projectId: string, options?: {
+export async function getContentByClient(clientId: string, options?: {
   platform?: string;
   limit?: number;
 }) {
   return getContent({
-    projectId,
+    clientId,
     platform: options?.platform,
     limit: options?.limit,
   });

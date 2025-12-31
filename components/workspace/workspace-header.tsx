@@ -5,95 +5,90 @@ import { Settings, Plus, ListTodo, Circle, CheckCircle2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
-import { ProjectDropdown } from './project-dropdown';
 import { ModuleEnablementDialog } from './module-enablement-dialog';
-
-type Client = {
-  id: string;
-  name: string;
-  avatarUrl: string | null;
-};
-
-type ProjectModule = {
-  id: string;
-  moduleType: 'social' | 'seo' | 'website_gmb' | 'ai_receptionist' | 'automations' | 'assets';
-  isEnabled: boolean;
-};
-
-type Project = {
-  id: string;
-  name: string;
-  status: string;
-  isDefault: boolean;
-  modules?: ProjectModule[];
-};
+import { ClientSettingsDialog } from './client-settings-dialog';
+import { type Client } from '@/lib/db/schema/clients';
 
 interface WorkspaceHeaderProps {
   client: Client;
-  projects: Project[];
-  selectedProject: Project & { modules: ProjectModule[] };
 }
-
-export function WorkspaceHeader({ client, projects, selectedProject }: WorkspaceHeaderProps) {
+const statusColors: Record<string, string> = {
+  lead: 'bg-blue-500/90 text-white border-transparent',
+  onboarding: 'bg-yellow-500/90 text-white border-transparent',
+  active: 'bg-green-500/90 text-white border-transparent',
+  paused: 'bg-gray-500/90 text-white border-transparent',
+  churned: 'bg-red-500/90 text-white border-transparent',
+};
+const statusLabels: Record<string, string> = {
+  lead: 'Lead',
+  onboarding: 'Onboarding',
+  active: 'Active',
+  paused: 'Paused',
+  churned: 'Churned',
+};
+export function WorkspaceHeader({ client }: WorkspaceHeaderProps) {
   const [moduleDialogOpen, setModuleDialogOpen] = React.useState(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = React.useState(false);
 
-  // Check which modules are enabled
-  const seoEnabled = selectedProject.modules.some((m) => m.moduleType === 'seo' && m.isEnabled);
+  // Calculate missing items and completion percentage
+  const enabledModules = client.enabledModules || [];
+  const seoEnabled = enabledModules.includes('seo');
 
-  // Get next steps based on enabled modules
+  // Hardcoded missing items (Phase 3 will make this dynamic)
   const missingItems = [
     'Connect Instagram account',
     'Connect Facebook account',
     ...(seoEnabled ? ['Add website URL', 'Set target keywords'] : []),
   ];
 
-  const completionPercentage = Math.round((0 / (missingItems.length || 1)) * 100);
+  const totalItems = 2 + (seoEnabled ? 2 : 0); // Base items + SEO items if enabled
+  const completedItems = totalItems - missingItems.length;
+  const completionPercentage =
+    totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 100;
 
   return (
-    <div className='border-b bg-card px-4 py-3'>
-      <div className='flex items-center justify-between gap-4'>
-        <div className='flex items-center gap-3'>
-          <Avatar>
-            <AvatarImage src={client.avatarUrl || undefined} alt={client.name} />
+    <div className='border-b bg-background'>
+      <div className='flex items-center justify-between px-6 py-4'>
+        {/* Client info */}
+        <div className='flex items-center gap-4'>
+          <Avatar className='h-10 w-10'>
+            <AvatarImage src={client.avatarUrl || ''} alt={client.name} />
             <AvatarFallback>
               {client.name.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          <div className='flex items-center gap-2'>
+          <div className='flex items-center gap-3'>
             <h1 className='text-xl font-semibold'>{client.name}</h1>
-            <Badge variant='secondary'>Active</Badge>
+            <Badge
+              variant='secondary'
+              className={`text-xs capitalize ${
+                statusColors[client.status] ||
+                'bg-gray-500/90 text-white border-transparent'
+              }`}
+            >
+              {statusLabels[client.status] || client.status}
+            </Badge>
           </div>
         </div>
 
-        <div className='flex items-center gap-3'>
-          <ProjectDropdown
-            projects={projects}
-            selectedProject={selectedProject}
-            clientId={client.id}
-          />
-
-          <ModuleEnablementDialog
-            open={moduleDialogOpen}
-            onOpenChange={setModuleDialogOpen}
-            projectId={selectedProject.id}
-            enabledModules={selectedProject.modules}
-          >
-            <Button variant='outline' size='sm'>
-              <Plus className='h-4 w-4 mr-2' />
-              Add Module
-            </Button>
-          </ModuleEnablementDialog>
-
-          {/* Next Steps Popover */}
+        {/* Actions */}
+        <div className='flex items-center gap-2'>
           <Popover>
             <PopoverTrigger asChild>
               <Button variant='outline' size='sm' className='relative'>
                 <ListTodo className='h-4 w-4 mr-2' />
                 Next Steps
                 {missingItems.length > 0 && (
-                  <Badge variant='destructive' className='ml-2 h-5 px-1.5 text-xs'>
+                  <Badge
+                    variant='destructive'
+                    className='ml-2 h-5 px-1.5 text-xs'
+                  >
                     {missingItems.length}
                   </Badge>
                 )}
@@ -104,7 +99,9 @@ export function WorkspaceHeader({ client, projects, selectedProject }: Workspace
                 <div className='space-y-2'>
                   <div className='flex items-center justify-between'>
                     <h4 className='font-semibold text-sm'>Setup Progress</h4>
-                    <span className='text-xs text-muted-foreground'>{completionPercentage}%</span>
+                    <span className='text-xs text-muted-foreground'>
+                      {completionPercentage}%
+                    </span>
                   </div>
                   <div className='h-2 bg-secondary rounded-full overflow-hidden'>
                     <div
@@ -128,7 +125,10 @@ export function WorkspaceHeader({ client, projects, selectedProject }: Workspace
                   ) : (
                     <ul className='space-y-2'>
                       {missingItems.map((item, index) => (
-                        <li key={index} className='flex items-start gap-2 text-sm'>
+                        <li
+                          key={index}
+                          className='flex items-start gap-2 text-sm'
+                        >
                           <Circle className='h-4 w-4 mt-0.5 text-muted-foreground shrink-0' />
                           <span>{item}</span>
                         </li>
@@ -139,13 +139,38 @@ export function WorkspaceHeader({ client, projects, selectedProject }: Workspace
               </div>
             </PopoverContent>
           </Popover>
-
-          <Button variant='ghost' size='sm'>
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={() => setModuleDialogOpen(true)}
+          >
+            <Plus className='h-4 w-4 mr-2' />
+            Add Module
+          </Button>
+          <Button
+            variant='ghost'
+            size='icon'
+            onClick={() => setSettingsDialogOpen(true)}
+          >
             <Settings className='h-4 w-4' />
           </Button>
         </div>
       </div>
+
+      {/* Module Enablement Dialog */}
+      <ModuleEnablementDialog
+        open={moduleDialogOpen}
+        onOpenChange={setModuleDialogOpen}
+        clientId={client.id}
+        enabledModules={client.enabledModules || []}
+      />
+
+      {/* Client Settings Dialog */}
+      <ClientSettingsDialog
+        open={settingsDialogOpen}
+        onOpenChange={setSettingsDialogOpen}
+        client={client}
+      />
     </div>
   );
 }
-

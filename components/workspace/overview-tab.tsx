@@ -4,35 +4,22 @@ import * as React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { CheckCircle2, Circle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-
-type ProjectModule = {
-  id: string;
-  moduleType: string;
-  isEnabled: boolean;
-};
-
-type Project = {
-  id: string;
-  name: string;
-  modules: ProjectModule[];
-};
 
 interface OverviewTabProps {
-  project: Project;
+  clientId: string;
 }
 
-export function OverviewTab({ project }: OverviewTabProps) {
+export function OverviewTab({ clientId }: OverviewTabProps) {
   const [notes, setNotes] = React.useState('');
 
-  // Check which modules are enabled
-  const socialEnabled = project.modules.some((m) => m.moduleType === 'social' && m.isEnabled);
-  const seoEnabled = project.modules.some((m) => m.moduleType === 'seo' && m.isEnabled);
+  // TODO: Fetch client data and enabled modules
+  // For now, placeholder with social enabled by default
+  const socialEnabled = true;
+  const seoEnabled = false;
 
-  // Hardcoded checklist items (Phase 3 will make this dynamic)
+  // Hardcoded checklist items (will be made dynamic later)
   const checklistItems = [
     { id: 'client-created', label: 'Client created', completed: true },
-    { id: 'project-created', label: 'Project created', completed: true },
     { id: 'instagram-connected', label: 'Connect Instagram account', completed: false },
     { id: 'facebook-connected', label: 'Connect Facebook account', completed: false },
     ...(seoEnabled
@@ -78,25 +65,13 @@ export function OverviewTab({ project }: OverviewTabProps) {
           </Card>
         )}
 
-        {project.modules
-          .filter((m) => m.isEnabled && m.moduleType !== 'social' && m.moduleType !== 'seo')
-          .map((module) => (
-            <Card key={module.id}>
-              <CardHeader>
-                <CardTitle className='text-base capitalize'>{module.moduleType.replace('_', ' ')}</CardTitle>
-                <CardDescription>Module status</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Badge variant='secondary'>Coming Soon</Badge>
-              </CardContent>
-            </Card>
-          ))}
+        {/* TODO: Add other module tiles based on client.enabledModules */}
       </div>
 
       {/* Setup Checklist */}
       <Card>
         <CardHeader>
-          <CardTitle>Project Setup Progress</CardTitle>
+          <CardTitle>Client Setup Progress</CardTitle>
           <CardDescription>
             {completedCount} of {totalCount} complete
           </CardDescription>
@@ -119,15 +94,15 @@ export function OverviewTab({ project }: OverviewTabProps) {
         </CardContent>
       </Card>
 
-      {/* Project Notes */}
+      {/* Client Notes */}
       <Card>
         <CardHeader>
-          <CardTitle>Project Notes</CardTitle>
+          <CardTitle>Client Notes</CardTitle>
           <CardDescription>Internal notes and reminders</CardDescription>
         </CardHeader>
         <CardContent>
           <Textarea
-            placeholder='Add notes about this project...'
+            placeholder='Add notes about this client...'
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={4}

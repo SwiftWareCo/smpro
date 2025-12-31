@@ -7,17 +7,17 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { nanoid } from '@/lib/utils';
-import { projects } from './projects';
+import { clients } from './clients';
 
-export const projectSeoSettings = pgTable(
-  'project_seo_settings',
+export const clientSeoSettings = pgTable(
+  'client_seo_settings',
   {
     id: varchar('id', { length: 191 })
       .primaryKey()
       .$defaultFn(() => nanoid()),
-    projectId: varchar('project_id', { length: 191 })
+    clientId: varchar('client_id', { length: 191 })
       .notNull()
-      .references(() => projects.id, { onDelete: 'cascade' }),
+      .references(() => clients.id, { onDelete: 'cascade' }),
     websiteUrl: text('website_url'),
     targetKeywords: text('target_keywords').array(), // Array of keywords
     targetLocations: text('target_locations').array(), // Array of locations
@@ -32,11 +32,10 @@ export const projectSeoSettings = pgTable(
   },
   (table) => [
     {
-      // Unique constraint: one SEO settings record per project
-      uniqueProjectSeoSettings: uniqueIndex('unique_project_seo_settings').on(
-        table.projectId
+      // Unique constraint: one SEO settings record per client
+      uniqueClientSeoSettings: uniqueIndex('unique_client_seo_settings').on(
+        table.clientId
       ),
     },
   ]
 );
-

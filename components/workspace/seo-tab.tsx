@@ -3,10 +3,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface SeoTabProps {
-  projectId: string;
+  clientId: string;
 }
 
-export function SeoTab({ projectId }: SeoTabProps) {
+export function SeoTab({ clientId }: SeoTabProps) {
   return (
     <div className='space-y-6'>
       <Card>

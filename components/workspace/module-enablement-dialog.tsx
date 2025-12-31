@@ -9,24 +9,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { enableModule, disableModule } from '@/lib/actions/projects';
+import { updateClientModules } from '@/lib/actions/clients';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-
-type ProjectModule = {
-  id: string;
-  moduleType: 'social' | 'seo' | 'website_gmb' | 'ai_receptionist' | 'automations' | 'assets';
-  isEnabled: boolean;
-};
 
 interface ModuleEnablementDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  projectId: string;
-  enabledModules?: ProjectModule[];
+  clientId: string;
+  enabledModules?: string[];
   children?: React.ReactNode;
 }
 
@@ -66,7 +59,7 @@ const availableModules = [
 export function ModuleEnablementDialog({
   open,
   onOpenChange,
-  projectId,
+  clientId,
   enabledModules = [],
   children,
 }: ModuleEnablementDialogProps) {
@@ -75,15 +68,18 @@ export function ModuleEnablementDialog({
 
   // Build module states from enabledModules prop
   const getModuleState = (moduleType: string) => {
-    return enabledModules.some((m) => m.moduleType === moduleType && m.isEnabled);
+    return enabledModules.includes(moduleType);
   };
 
   const handleToggle = async (moduleType: string, currentState: boolean) => {
     setIsPending((prev) => ({ ...prev, [moduleType]: true }));
-    
-    const result = currentState
-      ? await disableModule(projectId, moduleType as any)
-      : await enableModule(projectId, moduleType as any);
+
+    // Toggle module in the array
+    const newModules = currentState
+      ? enabledModules.filter((m) => m !== moduleType)
+      : [...enabledModules, moduleType];
+
+    const result = await updateClientModules(clientId, newModules);
 
     if (result.success) {
       toast.success(`${availableModules.find((m) => m.type === moduleType)?.name} module ${currentState ? 'disabled' : 'enabled'}`);
@@ -91,7 +87,7 @@ export function ModuleEnablementDialog({
     } else {
       toast.error(result.error || 'Failed to update module');
     }
-    
+
     setIsPending((prev) => ({ ...prev, [moduleType]: false }));
   };
 
@@ -102,7 +98,7 @@ export function ModuleEnablementDialog({
         <DialogHeader>
           <DialogTitle>Manage Modules</DialogTitle>
           <DialogDescription>
-            Enable or disable modules for this project
+            Enable or disable modules for this client
           </DialogDescription>
         </DialogHeader>
         <div className='space-y-4 py-4'>

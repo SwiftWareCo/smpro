@@ -3,10 +3,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface SocialTabProps {
-  projectId: string;
+  clientId: string;
 }
 
-export function SocialTab({ projectId }: SocialTabProps) {
+export function SocialTab({ clientId }: SocialTabProps) {
   return (
     <div className='space-y-6'>
       <Card>

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/dashboard/app-sidebar';
 import { TopBar } from '@/components/dashboard/top-bar';
-import { getClientsWithProjects } from '@/lib/data/data.clients';
+import { getClients } from '@/lib/data/data.clients';
 
 export const metadata: Metadata = {
   title: 'SM Pro Dashboard',
@@ -14,7 +14,7 @@ export default async function DashboardLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const clients = await getClientsWithProjects();
+  const clients = await getClients();
 
   return (
     <SidebarProvider>
