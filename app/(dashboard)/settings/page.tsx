@@ -25,7 +25,7 @@ export default async function SettingsPage() {
   const accounts = await getConnectedAccounts();
 
   return (
-    <div className='space-y-6'>
+    <div className='space-y-6 p-4'>
       <Suspense fallback={null}>
         <SettingsToast />
       </Suspense>

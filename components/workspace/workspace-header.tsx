@@ -53,7 +53,7 @@ export function WorkspaceHeader({
 
   return (
     <div className='border-b bg-background'>
-      <div className='flex items-center justify-between px-6 py-4'>
+      <div className='flex items-center justify-between p-4'>
         {/* Client info */}
         <div className='flex items-center gap-4'>
           <Avatar className='h-10 w-10'>
