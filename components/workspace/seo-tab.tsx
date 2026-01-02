@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import {
   Globe,
@@ -11,6 +11,7 @@ import {
   RefreshCw,
   Pencil,
   Check,
+  Layers,
 } from 'lucide-react';
 import {
   Card,
@@ -33,14 +34,22 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { Slider } from '@/components/ui/slider';
 import { updateSeoSettings, getSeoSettings } from '@/lib/actions/seo';
-import { INDUSTRY_OPTIONS, type IndustryType } from '@/lib/constants/seo';
+import {
+  INDUSTRY_OPTIONS,
+  type IndustryType,
+  DEFAULT_MAX_PAGES,
+  MAX_PAGES_TO_CRAWL,
+} from '@/lib/constants/seo';
+import { CrawlProgress } from './crawl-progress';
 
 interface SeoTabProps {
   clientId: string;
 }
 
-type WizardStep = 'input' | 'analyzing' | 'review' | 'saved';
+type WizardStep = 'input' | 'analyzing' | 'crawling' | 'review' | 'saved';
+type CrawlMode = 'single' | 'multi';
 
 interface AnalysisData {
   websiteUrl: string;
@@ -66,6 +75,9 @@ export function SeoTab({ clientId }: SeoTabProps) {
   const [step, setStep] = useState<WizardStep>('input');
   const [url, setUrl] = useState('');
   const [provider, setProvider] = useState<'jina' | 'firecrawl'>('jina');
+  const [crawlMode, setCrawlMode] = useState<CrawlMode>('single');
+  const [maxPages, setMaxPages] = useState(DEFAULT_MAX_PAGES);
+  const [crawlRunId, setCrawlRunId] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
   const [savedSettings, setSavedSettings] = useState<SavedSettings | null>(
@@ -74,6 +86,7 @@ export function SeoTab({ clientId }: SeoTabProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [pagesAnalyzed, setPagesAnalyzed] = useState(0);
 
   // Editable fields
   const [editKeywords, setEditKeywords] = useState<string[]>([]);
@@ -118,6 +131,41 @@ export function SeoTab({ clientId }: SeoTabProps) {
 
     const fullUrl = url.startsWith('http') ? url : `https://${url}`;
     setUrl(fullUrl);
+
+    // Multi-page mode uses workflow-based crawling
+    if (crawlMode === 'multi') {
+      setStep('crawling');
+      try {
+        const response = await fetch('/api/seo/crawl', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: fullUrl,
+            clientId,
+            provider,
+            maxPages,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Failed to start crawl');
+        }
+
+        setCrawlRunId(data.runId);
+        // CrawlProgress component will handle polling and call onComplete
+      } catch (error) {
+        console.error('Crawl start error:', error);
+        toast.error(
+          error instanceof Error ? error.message : 'Failed to start crawl'
+        );
+        setStep('input');
+      }
+      return;
+    }
+
+    // Single-page mode uses direct analysis
     setStep('analyzing');
     setAnalyzing(true);
 
@@ -145,6 +193,7 @@ export function SeoTab({ clientId }: SeoTabProps) {
       setEditMetaDescription(result.metaDescription || '');
 
       setStep('review');
+      setPagesAnalyzed(1);
       toast.success('Analysis complete!');
     } catch (error) {
       console.error('Analysis error:', error);
@@ -154,6 +203,74 @@ export function SeoTab({ clientId }: SeoTabProps) {
       setAnalyzing(false);
     }
   };
+
+  // Handle crawl completion from CrawlProgress component
+  const handleCrawlComplete = useCallback(
+    (result: {
+      success: boolean;
+      analysis?: {
+        keywords: string[];
+        location: string | null;
+        industry: string;
+        metaTitle: string | null;
+        metaDescription: string | null;
+        pagesSummary?: {
+          totalAnalyzed: number;
+          keyPages: string[];
+        };
+      };
+      pagesDiscovered: number;
+      pagesScraped: number;
+      pagesAnalyzed: number;
+      error?: string;
+    }) => {
+      if (!result.success || !result.analysis) {
+        toast.error(result.error || 'Crawl analysis failed');
+        setStep('input');
+        setCrawlRunId(null);
+        return;
+      }
+
+      const analysisResult = result.analysis;
+
+      // Validate industry is a valid IndustryType
+      const industry = INDUSTRY_OPTIONS.includes(
+        analysisResult.industry as IndustryType
+      )
+        ? (analysisResult.industry as IndustryType)
+        : 'other';
+
+      setAnalysisData({
+        websiteUrl: url,
+        keywords: analysisResult.keywords,
+        location: analysisResult.location,
+        industry,
+        metaTitle: analysisResult.metaTitle,
+        metaDescription: analysisResult.metaDescription,
+      });
+
+      // Initialize edit fields with results
+      setEditKeywords(analysisResult.keywords);
+      setEditLocation(analysisResult.location || '');
+      setEditIndustry(industry);
+      setEditMetaTitle(analysisResult.metaTitle || '');
+      setEditMetaDescription(analysisResult.metaDescription || '');
+
+      setPagesAnalyzed(result.pagesAnalyzed);
+      setCrawlRunId(null);
+      setStep('review');
+      toast.success(
+        `Analysis complete! ${result.pagesAnalyzed} pages analyzed.`
+      );
+    },
+    [url]
+  );
+
+  const handleCrawlError = useCallback((error: string) => {
+    toast.error(error);
+    setStep('input');
+    setCrawlRunId(null);
+  }, []);
 
   const handleSave = async () => {
     setSaving(true);
@@ -262,6 +379,56 @@ export function SeoTab({ clientId }: SeoTabProps) {
               />
             </div>
 
+            <Separator />
+
+            {/* Crawl Mode Toggle */}
+            <div className='space-y-3'>
+              <div className='flex items-center justify-between'>
+                <div className='space-y-0.5'>
+                  <Label htmlFor='crawl-mode' className='text-sm font-medium'>
+                    Multi-Page Crawl
+                  </Label>
+                  <p className='text-xs text-muted-foreground'>
+                    Crawl entire website for comprehensive analysis
+                  </p>
+                </div>
+                <Switch
+                  id='crawl-mode'
+                  checked={crawlMode === 'multi'}
+                  onCheckedChange={(checked) =>
+                    setCrawlMode(checked ? 'multi' : 'single')
+                  }
+                />
+              </div>
+
+              {/* Max Pages Slider (only shown in multi-page mode) */}
+              {crawlMode === 'multi' && (
+                <div className='space-y-2 pl-4 border-l-2 border-muted'>
+                  <div className='flex items-center justify-between'>
+                    <Label htmlFor='max-pages' className='text-sm'>
+                      Max Pages
+                    </Label>
+                    <span className='text-sm font-medium'>{maxPages}</span>
+                  </div>
+                  <Slider
+                    id='max-pages'
+                    min={5}
+                    max={MAX_PAGES_TO_CRAWL}
+                    step={5}
+                    value={[maxPages]}
+                    onValueChange={([value]) => setMaxPages(value)}
+                    className='w-full'
+                  />
+                  <p className='text-xs text-muted-foreground'>
+                    Important pages (homepage, about, services) are prioritized
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Provider Toggle */}
             <div className='flex items-center justify-between'>
               <div className='flex items-center gap-2'>
                 <Label
@@ -284,14 +451,23 @@ export function SeoTab({ clientId }: SeoTabProps) {
             </div>
 
             <Button onClick={handleAnalyze} className='w-full'>
-              <Sparkles className='mr-2 h-4 w-4' />
-              Analyze Website
+              {crawlMode === 'multi' ? (
+                <>
+                  <Layers className='mr-2 h-4 w-4' />
+                  Crawl & Analyze Website
+                </>
+              ) : (
+                <>
+                  <Sparkles className='mr-2 h-4 w-4' />
+                  Analyze Website
+                </>
+              )}
             </Button>
           </CardContent>
         </Card>
       )}
 
-      {/* Analyzing Step */}
+      {/* Analyzing Step (Single Page) */}
       {step === 'analyzing' && (
         <Card>
           <CardContent className='flex flex-col items-center justify-center py-12'>
@@ -304,6 +480,39 @@ export function SeoTab({ clientId }: SeoTabProps) {
               Using {provider === 'jina' ? 'Jina Reader' : 'Firecrawl'} + Gemini
               AI
             </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Crawling Step (Multi-Page) */}
+      {step === 'crawling' && crawlRunId && (
+        <Card>
+          <CardHeader>
+            <CardTitle className='flex items-center gap-2'>
+              <Layers className='h-5 w-5' />
+              Crawling Website
+            </CardTitle>
+            <CardDescription>
+              Discovering and analyzing multiple pages on the website
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CrawlProgress
+              runId={crawlRunId}
+              onComplete={handleCrawlComplete}
+              onError={handleCrawlError}
+            />
+            <div className='mt-4 pt-4 border-t'>
+              <Button
+                variant='outline'
+                onClick={() => {
+                  setStep('input');
+                  setCrawlRunId(null);
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -444,6 +653,23 @@ export function SeoTab({ clientId }: SeoTabProps) {
               >
                 <RefreshCw className='mr-2 h-4 w-4' />
                 Re-analyze
+              </Button>
+              <Button
+                variant='outline'
+                className='text-destructive hover:text-destructive'
+                onClick={() => {
+                  if (
+                    confirm(
+                      'Are you sure you want to discard these results and start over?'
+                    )
+                  ) {
+                    handleReanalyze();
+                  }
+                }}
+                disabled={saving}
+              >
+                <X className='mr-2 h-4 w-4' />
+                Reject & Start Over
               </Button>
               <Button onClick={handleSave} disabled={saving} className='flex-1'>
                 {saving ? (

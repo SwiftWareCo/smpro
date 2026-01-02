@@ -1,12 +1,26 @@
 import { env } from '@/lib/env.mjs';
+import type { PageContent } from './content-aggregator';
 
 export type ScrapingProvider = 'jina' | 'firecrawl';
 
-interface ScrapeResult {
+export interface ScrapeResult {
   success: boolean;
   content?: string;
   error?: string;
   provider: ScrapingProvider;
+}
+
+export interface BatchScrapeResult {
+  pages: PageContent[];
+  errors: Array<{ url: string; error: string }>;
+  totalScraped: number;
+  totalFailed: number;
+}
+
+export interface CrawlResult {
+  success: boolean;
+  pages: PageContent[];
+  error?: string;
 }
 
 /**
@@ -33,17 +47,22 @@ export async function scrapeWebsite(
 
 /**
  * Jina Reader - Zero setup, just prepend URL
- * Free tier: 20 req/min without API key
+ * Free tier: 20 req/min without API key, higher with API key
  */
 async function scrapeWithJina(url: string): Promise<ScrapeResult> {
   try {
     const jinaUrl = `https://r.jina.ai/${url}`;
 
-    const response = await fetch(jinaUrl, {
-      headers: {
-        Accept: 'text/plain',
-      },
-    });
+    const headers: Record<string, string> = {
+      Accept: 'text/plain',
+    };
+
+    // Add API key if available for higher rate limits
+    if (env.JINA_API_KEY) {
+      headers['Authorization'] = `Bearer ${env.JINA_API_KEY}`;
+    }
+
+    const response = await fetch(jinaUrl, { headers });
 
     if (!response.ok) {
       return {
@@ -132,6 +151,168 @@ async function scrapeWithFirecrawl(url: string): Promise<ScrapeResult> {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown scraping error',
       provider: 'firecrawl',
+    };
+  }
+}
+
+// Rate limiting delay between Jina requests (milliseconds)
+// Without API key: ~3s delay for 20 req/min
+// With API key: no delay needed
+const JINA_RATE_LIMIT_DELAY = 3100;
+
+/**
+ * Batch scrape multiple URLs using Jina Reader with rate limiting.
+ * URLs should be sorted by priority (important pages first).
+ *
+ * @param urls - Array of URLs to scrape
+ * @param onProgress - Optional callback for progress updates
+ * @returns BatchScrapeResult with pages and errors
+ */
+export async function batchScrapeWithJina(
+  urls: string[],
+  onProgress?: (completed: number, total: number, currentUrl: string) => void
+): Promise<BatchScrapeResult> {
+  const pages: PageContent[] = [];
+  const errors: Array<{ url: string; error: string }> = [];
+  const hasApiKey = Boolean(env.JINA_API_KEY);
+
+  for (let i = 0; i < urls.length; i++) {
+    const url = urls[i];
+    onProgress?.(i + 1, urls.length, url);
+
+    const result = await scrapeWithJina(url);
+
+    if (result.success && result.content) {
+      pages.push({ url, content: result.content });
+    } else {
+      errors.push({ url, error: result.error || 'Unknown error' });
+    }
+
+    // Rate limiting for free tier (skip if we have API key or it's the last URL)
+    if (!hasApiKey && i < urls.length - 1) {
+      await new Promise((resolve) => setTimeout(resolve, JINA_RATE_LIMIT_DELAY));
+    }
+  }
+
+  return {
+    pages,
+    errors,
+    totalScraped: pages.length,
+    totalFailed: errors.length,
+  };
+}
+
+/**
+ * Use Firecrawl's native multi-page crawl API.
+ * Starts a crawl job and polls until completion.
+ *
+ * @param rootUrl - The root URL to crawl from
+ * @param options - Crawl options
+ * @returns CrawlResult with all pages
+ */
+export async function crawlWithFirecrawl(
+  rootUrl: string,
+  options: {
+    maxPages?: number;
+    onProgress?: (status: string, pagesFound?: number) => void;
+  } = {}
+): Promise<CrawlResult> {
+  const apiKey = env.FIRECRAWL_API_KEY;
+
+  if (!apiKey) {
+    return {
+      success: false,
+      pages: [],
+      error: 'FIRECRAWL_API_KEY not configured',
+    };
+  }
+
+  try {
+    // Start crawl job
+    const startResponse = await fetch('https://api.firecrawl.dev/v1/crawl', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        url: rootUrl,
+        limit: options.maxPages || 50,
+        scrapeOptions: {
+          formats: ['markdown'],
+        },
+      }),
+    });
+
+    if (!startResponse.ok) {
+      const errorData = await startResponse.json().catch(() => ({}));
+      return {
+        success: false,
+        pages: [],
+        error: `Failed to start crawl: ${errorData.message || startResponse.statusText}`,
+      };
+    }
+
+    const startData = await startResponse.json();
+    const crawlId = startData.id;
+
+    if (!crawlId) {
+      return {
+        success: false,
+        pages: [],
+        error: 'No crawl ID returned from Firecrawl',
+      };
+    }
+
+    // Poll for completion
+    const maxPolls = 300; // 10 minutes max (2s intervals)
+    for (let poll = 0; poll < maxPolls; poll++) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      const statusResponse = await fetch(
+        `https://api.firecrawl.dev/v1/crawl/${crawlId}`,
+        {
+          headers: { Authorization: `Bearer ${apiKey}` },
+        }
+      );
+
+      if (!statusResponse.ok) {
+        continue; // Retry on network errors
+      }
+
+      const statusData = await statusResponse.json();
+      options.onProgress?.(statusData.status, statusData.data?.length);
+
+      if (statusData.status === 'completed') {
+        const pages: PageContent[] = (statusData.data || [])
+          .filter((page: { markdown?: string }) => page.markdown)
+          .map((page: { sourceURL?: string; markdown: string }) => ({
+            url: page.sourceURL || rootUrl,
+            content: page.markdown,
+          }));
+
+        return { success: true, pages };
+      }
+
+      if (statusData.status === 'failed') {
+        return {
+          success: false,
+          pages: [],
+          error: statusData.error || 'Crawl failed',
+        };
+      }
+    }
+
+    return {
+      success: false,
+      pages: [],
+      error: 'Crawl timed out after 10 minutes',
+    };
+  } catch (error) {
+    return {
+      success: false,
+      pages: [],
+      error: error instanceof Error ? error.message : 'Unknown crawl error',
     };
   }
 }

@@ -18,7 +18,8 @@
     "incremental": true,
     "plugins": [
       {
-        "name": "next"
+        "name":"next",
+        "workflow":"workflow"
       }
     ],
     "paths": {
