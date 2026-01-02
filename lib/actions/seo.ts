@@ -2,7 +2,10 @@
 
 import { auth } from '@clerk/nextjs/server';
 import { revalidatePath } from 'next/cache';
-import { upsertSeoSettings, getSeoSettings as getClientSeoSettings } from '@/lib/data/data.seo';
+import {
+  upsertSeoSettings,
+  getSeoSettings as getClientSeoSettings,
+} from '@/lib/data/data.seo';
 import { getClient } from '@/lib/data/data.clients';
 
 export interface SeoSettingsInput {
@@ -11,6 +14,9 @@ export interface SeoSettingsInput {
   targetLocations?: string[];
   metaTitle?: string | null;
   metaDescription?: string | null;
+  industry?: string | null;
+  analyzedAt?: Date | null;
+  analysisProvider?: string | null;
 }
 
 export async function updateSeoSettings(
@@ -63,4 +69,3 @@ export async function getSeoSettings(clientId: string) {
     return { success: false, error: 'Failed to get SEO settings' };
   }
 }
-

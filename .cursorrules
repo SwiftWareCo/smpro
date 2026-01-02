@@ -141,3 +141,18 @@ Only enabled modules show in the workspace tabs. Each module has:
 3. **Create new files** when needed for organization
 4. **Use absolute imports** with `@/` prefix
 5. **Test changes** with type checks before committing
+
+---
+
+## Database Commands
+
+**NEVER auto-run database commands.** These include:
+- `pnpm db:generate` - Generate migrations
+- `pnpm db:migrate` - Run migrations
+- `pnpm db:push` - Push schema changes
+- `pnpm db:drop` - Drop migrations
+
+Instead, **explain at the end** of implementation:
+1. What command(s) need to be run
+2. Why they are needed (e.g., "New `industry` field added to schema")
+3. Any data implications (e.g., "Existing rows will have NULL value")

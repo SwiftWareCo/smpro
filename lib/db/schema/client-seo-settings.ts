@@ -23,6 +23,10 @@ export const clientSeoSettings = pgTable(
     targetLocations: text('target_locations').array(), // Array of locations
     metaTitle: text('meta_title'),
     metaDescription: text('meta_description'),
+    // New fields for AI analysis
+    industry: varchar('industry', { length: 50 }), // e.g., 'restaurant', 'healthcare', etc.
+    analyzedAt: timestamp('analyzed_at'), // When AI analysis was last performed
+    analysisProvider: varchar('analysis_provider', { length: 20 }), // 'jina' or 'firecrawl'
     createdAt: timestamp('created_at')
       .default(sql`now()`)
       .notNull(),

@@ -18,7 +18,7 @@ Build an SEO wizard that:
 | Component       | Tool             | Why                                                       |
 | --------------- | ---------------- | --------------------------------------------------------- |
 | **Scraping**    | Jina Reader      | Zero-setup, 1-line fetch, 20 RPM free, LLM-ready markdown |
-| **AI Analysis** | Gemini 1.5 Flash | Massive 1M context window, 15 RPM free, you have it       |
+| **AI Analysis** | Gemini 2.5 Flash | 1M token context window, free tier, thinking budgets      |
 
 **Cost**: $0 (within free tiers)  
 **Implementation Time**: ~2 hours
@@ -116,37 +116,36 @@ const markdown = await response.text();
 
 | Provider          | Model             | Free Tier             | Context Window | Speed          |
 | ----------------- | ----------------- | --------------------- | -------------- | -------------- |
-| **Google Gemini** | 1.5/2.0 Flash     | 15 RPM, 1,500 req/day | 1M tokens      | Fast           |
+| **Google Gemini** | 2.5 Flash         | Free (500 RPD shared) | 1M tokens      | Fast           |
 | **Groq**          | Llama 3 / Mixtral | Moving to paid        | 8K-128K        | Instant (LPUs) |
 | **Hugging Face**  | Various           | 1 req/hr (unauth)     | <32K           | Slow           |
 
 ---
 
-### ⭐ Google Gemini 1.5 Flash (MVP Choice)
+### ⭐ Google Gemini 2.5 Flash (MVP Choice)
 
 **Why it wins**:
 
-- **Massive context window** (1M tokens) - can fit entire webpage
-- **Generous free tier** - 15 RPM, ~1,500 requests/day
-- **You already have access**
+- **1M token context window** - can fit entire website (multi-page)
+- **Free tier** - Input/output free of charge
+- **Thinking budgets** - Hybrid reasoning model
+- **Privacy note**: Free tier data may be used for training (acceptable for public websites)
 
-**Privacy Note**: Free tier data _may_ be used for model training. Since we're analyzing public websites, this is acceptable. Paid tier ($0.35/1M tokens) disables this.
-
-**Usage via AI Studio**:
+**Usage via @google/genai SDK**:
 
 ```typescript
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-const result = await model.generateContent(`
-  Analyze this website content. Return JSON:
-  { keywords: string[], location: string, businessType: string, metaDescription: string }
-  
-  Content:
-  ${markdown}
-`);
+const response = await genAI.models.generateContent({
+  model: 'gemini-2.5-flash',
+  contents: `Analyze this website content. Return JSON:
+    { keywords: string[], location: string, businessType: string, metaDescription: string }
+    
+    Content:
+    ${markdown}`,
+});
 ```
 
 ---
@@ -243,10 +242,41 @@ When you outgrow free tiers or need privacy:
    - Run Llama 3 on your own server
    - Zero API costs, full privacy
 
-### Phase 3: Deep Crawling
+### Phase 2: Multi-Page Crawling (Crawlee + Jina)
 
-- Use Firecrawl to crawl entire site (not just homepage)
-- Analyze multiple pages for comprehensive SEO audit
+**Goal**: Enable multi-page analysis for Jina Reader to fairly compare with Firecrawl.
+
+**Approach**:
+
+1. **URL Discovery**: Use Crawlee to crawl site and collect all page URLs
+2. **Content Extraction**: Feed each URL to Jina Reader → get markdown
+3. **Aggregation**: Combine markdown iteratively until token limit reached
+4. **Analysis**: Send aggregated content to Gemini
+
+**Token Budget Strategy**:
+
+```typescript
+const MAX_AGGREGATE_TOKENS = 800000; // ~800k chars, safe margin from 1M limit
+let aggregatedContent = '';
+
+for (const url of discoveredUrls) {
+  const pageContent = await scrapeWithJina(url);
+  if ((aggregatedContent + pageContent).length < MAX_AGGREGATE_TOKENS) {
+    aggregatedContent += `\n\n--- ${url} ---\n\n${pageContent}`;
+  }
+}
+```
+
+**Page Priority**: Prioritize key pages (homepage, about, services) before blog posts.
+
+**Comparison with Firecrawl**: Both providers get multi-page capability for fair comparison of content quality.
+
+---
+
+### Phase 3: Deep Site Analysis
+
+- Use Firecrawl native crawl for entire site
+- Compare results with Crawlee + Jina approach
 - Generate site-wide keyword strategy
 
 ### Phase 4: Monitoring
@@ -278,9 +308,9 @@ When you outgrow free tiers or need privacy:
 
 ## Decision
 
-✅ **Proceed with Jina Reader + Gemini 1.5 Flash**
+✅ **Proceed with Jina Reader + Gemini 2.5 Flash**
 
 - Fastest to implement (zero SDK for scraping)
-- Completely free for <20 clients
+- Completely free within tier limits
 - Clean markdown output for LLM
-- 1M context window handles any page size
+- 1M context window handles multi-page content

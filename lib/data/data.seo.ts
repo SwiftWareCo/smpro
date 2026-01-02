@@ -31,6 +31,9 @@ export async function upsertSeoSettings(
     targetLocations?: string[] | null;
     metaTitle?: string | null;
     metaDescription?: string | null;
+    industry?: string | null;
+    analyzedAt?: Date | null;
+    analysisProvider?: string | null;
   }
 ) {
   const { userId } = await auth();
@@ -68,4 +71,3 @@ export async function upsertSeoSettings(
     return created;
   }
 }
-

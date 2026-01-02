@@ -82,6 +82,23 @@ Clients enable modules via `enabledModules` array. Each module should:
 
 ---
 
+## Database Commands
+
+**NEVER auto-run database commands.** These include:
+
+- `pnpm db:generate` - Generate migrations
+- `pnpm db:migrate` - Run migrations
+- `pnpm db:push` - Push schema changes
+- `pnpm db:drop` - Drop migrations
+
+Instead, **explain at the end** of implementation:
+
+1. What command(s) need to be run
+2. Why they are needed
+3. Any data implications
+
+---
+
 ## Validation
 
 // turbo-all
