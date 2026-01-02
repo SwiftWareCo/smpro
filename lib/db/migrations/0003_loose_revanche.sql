@@ -1,4 +1,4 @@
-CREATE TABLE "client_seo_settings" (
+CREATE TABLE IF NOT EXISTS "client_seo_settings" (
 	"id" varchar(191) PRIMARY KEY NOT NULL,
 	"client_id" varchar(191) NOT NULL,
 	"website_url" text,
@@ -13,7 +13,7 @@ CREATE TABLE "client_seo_settings" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "clients" (
+CREATE TABLE IF NOT EXISTS "clients" (
 	"id" varchar(191) PRIMARY KEY NOT NULL,
 	"user_id" varchar(191) NOT NULL,
 	"name" varchar(191) NOT NULL,
@@ -25,7 +25,7 @@ CREATE TABLE "clients" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "content" (
+CREATE TABLE IF NOT EXISTS "content" (
 	"id" varchar(191) PRIMARY KEY NOT NULL,
 	"account_id" varchar(191),
 	"platform" varchar(50) NOT NULL,
@@ -47,10 +47,22 @@ CREATE TABLE "content" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "videos" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
-DROP TABLE "videos" CASCADE;--> statement-breakpoint
-DROP INDEX "unique_connection";--> statement-breakpoint
-ALTER TABLE "connected_accounts" ADD COLUMN "client_id" varchar(191);--> statement-breakpoint
-ALTER TABLE "client_seo_settings" ADD CONSTRAINT "client_seo_settings_client_id_clients_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."clients"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "content" ADD CONSTRAINT "content_account_id_connected_accounts_id_fk" FOREIGN KEY ("account_id") REFERENCES "public"."connected_accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "connected_accounts" ADD CONSTRAINT "connected_accounts_client_id_clients_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."clients"("id") ON DELETE cascade ON UPDATE no action;
+ALTER TABLE "connected_accounts" ADD COLUMN IF NOT EXISTS "client_id" varchar(191);--> statement-breakpoint
+DROP INDEX IF EXISTS "unique_connection";--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "client_seo_settings" ADD CONSTRAINT "client_seo_settings_client_id_clients_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."clients"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "content" ADD CONSTRAINT "content_account_id_connected_accounts_id_fk" FOREIGN KEY ("account_id") REFERENCES "public"."connected_accounts"("id") ON DELETE no action ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "connected_accounts" ADD CONSTRAINT "connected_accounts_client_id_clients_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."clients"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;

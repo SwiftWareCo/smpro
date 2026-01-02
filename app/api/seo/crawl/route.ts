@@ -10,9 +10,9 @@ export const maxDuration = 300; // 5 minutes max for workflow start
 export async function POST(request: NextRequest) {
   const { userId } = await auth();
 
-  // if (!userId) {
-  //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  // }
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   try {
     const body = await request.json();
@@ -34,21 +34,24 @@ export async function POST(request: NextRequest) {
     }
 
     if (!clientId || typeof clientId !== 'string') {
-      return NextResponse.json({ error: 'Client ID is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Client ID is required' },
+        { status: 400 }
+      );
     }
 
     // Validate URL format
     try {
       new URL(url.startsWith('http') ? url : `https://${url}`);
     } catch {
-      return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Invalid URL format' },
+        { status: 400 }
+      );
     }
 
     // Clamp maxPages to valid range
-    const clampedMaxPages = Math.min(
-      Math.max(1, maxPages),
-      MAX_PAGES_TO_CRAWL
-    );
+    const clampedMaxPages = Math.min(Math.max(1, maxPages), MAX_PAGES_TO_CRAWL);
 
     // Start the workflow
     const params: CrawlParams = {

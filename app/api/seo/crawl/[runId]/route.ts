@@ -9,9 +9,9 @@ export async function GET(
 ) {
   const { userId } = await auth();
 
-  // if (!userId) {
-  //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  // }
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   try {
     const { runId } = await params;
@@ -25,11 +25,6 @@ export async function GET(
 
     // Get workflow run status
     const run = await getRun<CrawlWorkflowResult>(runId);
-
-    console.log(
-      '[API DEBUG] Workflow Run Object:',
-      JSON.stringify(run, null, 2)
-    );
 
     if (!run) {
       return NextResponse.json(
