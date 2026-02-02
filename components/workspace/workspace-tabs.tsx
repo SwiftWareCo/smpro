@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { OverviewTab } from "./overview-tab";
 import { SocialTab } from "./social-tab";
@@ -46,26 +46,32 @@ export function WorkspaceTabs({
     const [activeTab, setActiveTab] = useState("overview");
 
     // Get enabled modules from client
-    const enabledModules = client.enabledModules || [];
+    const enabledModules = useMemo(
+        () => client.enabledModules ?? [],
+        [client.enabledModules],
+    );
 
     // Build tabs list
-    const tabs = [
-        { id: "overview", label: "Overview" },
-        ...enabledModules.map((moduleType) => ({
-            id: moduleType,
-            label: moduleDisplayNames[moduleType] || moduleType,
-        })),
-    ];
+    const tabs = useMemo(
+        () => [
+            { id: "overview", label: "Overview" },
+            ...enabledModules.map((moduleType) => ({
+                id: moduleType,
+                label: moduleDisplayNames[moduleType] || moduleType,
+            })),
+        ],
+        [enabledModules],
+    );
 
-    useEffect(() => {
-        const tabIds = new Set(tabs.map((tab) => tab.id));
-        if (!tabIds.has(activeTab)) {
-            setActiveTab("overview");
-        }
-    }, [activeTab, tabs]);
+    const tabIds = useMemo(() => new Set(tabs.map((tab) => tab.id)), [tabs]);
+    const safeActiveTab = tabIds.has(activeTab) ? activeTab : "overview";
 
     return (
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs
+            value={safeActiveTab}
+            onValueChange={setActiveTab}
+            className="w-full"
+        >
             <TabsList>
                 {tabs.map((tab) => (
                     <TabsTrigger key={tab.id} value={tab.id}>

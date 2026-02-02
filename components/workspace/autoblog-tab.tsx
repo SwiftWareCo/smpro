@@ -49,6 +49,12 @@ type PostStatus = "draft" | "scheduled" | "publishing" | "published" | "failed";
 
 type AutoblogPost = Doc<"autoblogPosts">;
 
+const postingCadenceOptions = ["weekly", "biweekly", "monthly"] as const;
+type PostingCadence = (typeof postingCadenceOptions)[number];
+
+const layoutOptions = ["callout", "story", "guide"] as const;
+type Layout = (typeof layoutOptions)[number];
+
 interface AutoblogTabProps {
     clientId: Id<"clients">;
 }
@@ -77,6 +83,12 @@ const parseTopicSeeds = (value: string) => {
     return seeds.length ? seeds : null;
 };
 
+const isPostingCadence = (value: string): value is PostingCadence =>
+    postingCadenceOptions.includes(value as PostingCadence);
+
+const isLayout = (value: string): value is Layout =>
+    layoutOptions.includes(value as Layout);
+
 export function AutoblogTab({ clientId }: AutoblogTabProps) {
     const settings = useQuery(api.autoblog.getSettings, { clientId });
     const posts = useQuery(api.autoblog.listPosts, { clientId });
@@ -86,14 +98,11 @@ export function AutoblogTab({ clientId }: AutoblogTabProps) {
     const [repoName, setRepoName] = useState("");
     const [contentPath, setContentPath] = useState("content/blog");
     const [defaultBranch, setDefaultBranch] = useState("main");
-    const [postingCadence, setPostingCadence] = useState<
-        "weekly" | "biweekly" | "monthly"
-    >("weekly");
+    const [postingCadence, setPostingCadence] =
+        useState<PostingCadence>("weekly");
     const [postsPerMonth, setPostsPerMonth] = useState("4");
     const [topicSeeds, setTopicSeeds] = useState("");
-    const [layout, setLayout] = useState<"callout" | "story" | "guide">(
-        "callout",
-    );
+    const [layout, setLayout] = useState<Layout>("callout");
     const [requiresApproval, setRequiresApproval] = useState(true);
     const [autoPublish, setAutoPublish] = useState(false);
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(
@@ -415,8 +424,10 @@ export function AutoblogTab({ clientId }: AutoblogTabProps) {
                                     <Select
                                         value={postingCadence}
                                         onValueChange={(value) => {
-                                            setPostingCadence(value);
-                                            markDirty();
+                                            if (isPostingCadence(value)) {
+                                                setPostingCadence(value);
+                                                markDirty();
+                                            }
                                         }}
                                     >
                                         <SelectTrigger>
@@ -466,8 +477,10 @@ export function AutoblogTab({ clientId }: AutoblogTabProps) {
                                     <Select
                                         value={layout}
                                         onValueChange={(value) => {
-                                            setLayout(value);
-                                            markDirty();
+                                            if (isLayout(value)) {
+                                                setLayout(value);
+                                                markDirty();
+                                            }
                                         }}
                                     >
                                         <SelectTrigger>
