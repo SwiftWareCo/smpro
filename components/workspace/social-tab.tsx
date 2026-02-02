@@ -48,8 +48,8 @@ export function SocialTab({ clientId, accounts }: SocialTabProps) {
                     </CardHeader>
                     <CardContent>
                         <p className="text-sm text-muted-foreground">
-                            Click the "Connected Accounts" button above to
-                            connect Instagram, Facebook, and more.
+                            Click the &quot;Connected Accounts&quot; button
+                            above to connect Instagram, Facebook, and more.
                         </p>
                     </CardContent>
                 </Card>
@@ -64,7 +64,8 @@ export function SocialTab({ clientId, accounts }: SocialTabProps) {
                     <CardContent>
                         <p className="text-sm text-muted-foreground">
                             Content feed with filtering coming soon. Use
-                            "Connected Accounts" to sync your latest posts.
+                            &quot;Connected Accounts&quot; to sync your latest
+                            posts.
                         </p>
                     </CardContent>
                 </Card>

@@ -45,6 +45,7 @@ import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { z } from "zod";
+import { useRouter } from "next/navigation";
 
 const clientStatusOptions = [
     "lead",
@@ -90,6 +91,7 @@ export function ClientSettingsDialog({
     onOpenChange,
     client,
 }: ClientSettingsDialogProps) {
+    const router = useRouter();
     const [isPending, setIsPending] = useState(false);
     const [showDeleteAlert, setShowDeleteAlert] = useState(false);
     const updateClient = useMutation(api.clients.update);

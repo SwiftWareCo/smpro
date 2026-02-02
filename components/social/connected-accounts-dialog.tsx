@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -73,6 +74,7 @@ export function ConnectedAccountsDialog({
     const [open, setOpen] = useState(false);
     const [syncing, setSyncing] = useState<string | null>(null);
     const [isPending, startTransition] = useTransition();
+    const router = useRouter();
     const syncInstagram = useAction(api.content.syncInstagram);
     const syncFacebook = useAction(api.content.syncFacebook);
     const disconnectAccount = useMutation(api.accounts.remove);
@@ -83,7 +85,7 @@ export function ConnectedAccountsDialog({
 
     const handleConnect = (platform: Platform) => {
         if (platform.id === "meta") {
-            window.location.href = `/api/oauth/meta?clientId=${clientId}`;
+            router.push(`/api/oauth/meta?clientId=${clientId}`);
         }
     };
 

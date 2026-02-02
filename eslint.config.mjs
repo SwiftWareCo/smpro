@@ -1,5 +1,6 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
+import convexPlugin from "@convex-dev/eslint-plugin";
 
 const eslintConfig = defineConfig([
     ...nextVitals,
@@ -11,6 +12,9 @@ const eslintConfig = defineConfig([
         "out/**",
         "build/**",
         "next-env.d.ts",
+        // Generated files
+        "convex/_generated/**",
+        "app/.well-known/workflow/**",
     ]),
 ]);
 
