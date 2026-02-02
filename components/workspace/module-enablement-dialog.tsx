@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
     Dialog,
     DialogContent,
@@ -36,6 +36,11 @@ const availableModules = [
         description: "SEO settings and optimization",
     },
     {
+        type: "autoblog" as const,
+        name: "Auto-Blog",
+        description: "AI-powered blog automation with MDX publishing",
+    },
+    {
         type: "website_gmb" as const,
         name: "Website/GMB",
         description: "Website and Google My Business management",
@@ -65,31 +70,39 @@ export function ModuleEnablementDialog({
     children,
 }: ModuleEnablementDialogProps) {
     const [isPending, setIsPending] = useState<Record<string, boolean>>({});
+    const [localEnabledModules, setLocalEnabledModules] =
+        useState<string[]>(enabledModules);
     const updateClientModules = useMutation(api.clients.updateModules);
 
-    // Build module states from enabledModules prop
+    useEffect(() => {
+        setLocalEnabledModules(enabledModules);
+    }, [enabledModules]);
+
+    // Build module states from localEnabledModules
     const getModuleState = (moduleType: string) => {
-        return enabledModules.includes(moduleType);
+        return localEnabledModules.includes(moduleType);
     };
 
-    const handleToggle = async (moduleType: string, currentState: boolean) => {
+    const handleToggle = async (moduleType: string, nextState: boolean) => {
         setIsPending((prev) => ({ ...prev, [moduleType]: true }));
 
         // Toggle module in the array
-        const newModules = currentState
-            ? enabledModules.filter((m) => m !== moduleType)
-            : [...enabledModules, moduleType];
+        const newModules = nextState
+            ? [...localEnabledModules, moduleType]
+            : localEnabledModules.filter((m) => m !== moduleType);
+        setLocalEnabledModules(newModules);
 
         try {
             await updateClientModules({ clientId, modules: newModules });
             toast.success(
                 `${availableModules.find((m) => m.type === moduleType)?.name} module ${
-                    currentState ? "disabled" : "enabled"
+                    nextState ? "enabled" : "disabled"
                 }`,
             );
         } catch (error) {
             console.error("Update modules error:", error);
             toast.error("Failed to update module");
+            setLocalEnabledModules(enabledModules);
         }
 
         setIsPending((prev) => ({ ...prev, [moduleType]: false }));
@@ -130,7 +143,7 @@ export function ModuleEnablementDialog({
                                     id={module.type}
                                     checked={isEnabled}
                                     onCheckedChange={(checked) =>
-                                        handleToggle(module.type, !checked)
+                                        handleToggle(module.type, checked)
                                     }
                                     disabled={pending}
                                 />

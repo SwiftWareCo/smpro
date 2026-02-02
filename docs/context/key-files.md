@@ -5,6 +5,7 @@
 - `convex/schema/connected-accounts.schema.ts` - Connected accounts (clientId scoped)
 - `convex/schema/content.schema.ts` - Synced social content
 - `convex/schema/client-seo-settings.schema.ts` - SEO settings per client
+- `convex/schema/autoblog.schema.ts` - Auto-Blog settings, ideas, posts, publish logs
 
 ## Core Components
 - `components/dashboard/app-sidebar.tsx` - Main navigation

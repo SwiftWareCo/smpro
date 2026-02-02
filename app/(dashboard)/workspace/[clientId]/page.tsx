@@ -1,8 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { fetchQuery } from "convex/nextjs";
 import { redirect } from "next/navigation";
-import { WorkspaceHeader } from "@/components/workspace/workspace-header";
-import { WorkspaceTabs } from "@/components/workspace/workspace-tabs";
+import { WorkspaceClient } from "@/components/workspace/workspace-client";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 
@@ -37,15 +36,12 @@ export default async function WorkspacePage({ params }: WorkspacePageProps) {
     const seoConfigured = Boolean(seoSettings?.websiteUrl);
 
     return (
-        <div className="flex flex-1 flex-col">
-            <WorkspaceHeader client={client} setupStatus={setupStatus} />
-            <div className="flex flex-1 p-4">
-                <WorkspaceTabs
-                    client={client}
-                    accounts={accounts}
-                    seoConfigured={seoConfigured}
-                />
-            </div>
-        </div>
+        <WorkspaceClient
+            clientId={clientId}
+            initialClient={client}
+            initialAccounts={accounts}
+            initialSetupStatus={setupStatus}
+            initialSeoConfigured={seoConfigured}
+        />
     );
 }

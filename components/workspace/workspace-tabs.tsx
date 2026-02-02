@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { OverviewTab } from "./overview-tab";
 import { SocialTab } from "./social-tab";
 import { SeoTab } from "./seo-tab";
+import { AutoblogTab } from "./autoblog-tab";
 import { PlaceholderModuleTab } from "./placeholder-module-tab";
 import type { Doc } from "@/convex/_generated/dataModel";
 
@@ -20,6 +21,7 @@ interface WorkspaceTabsProps {
 const moduleDisplayNames: Record<string, string> = {
     social: "Social",
     seo: "SEO",
+    autoblog: "Auto-Blog",
     website_gmb: "Website/GMB",
     ai_receptionist: "AI Receptionist",
     automations: "Automations",
@@ -29,6 +31,7 @@ const moduleDisplayNames: Record<string, string> = {
 const moduleDescriptions: Record<string, string> = {
     social: "Manage social media accounts and content",
     seo: "SEO settings and optimization",
+    autoblog: "AI-powered blog automation with MDX publishing",
     website_gmb: "Website and Google My Business management",
     ai_receptionist: "AI-powered call handling and automation",
     automations: "Workflow automation and scheduling",
@@ -53,6 +56,13 @@ export function WorkspaceTabs({
             label: moduleDisplayNames[moduleType] || moduleType,
         })),
     ];
+
+    useEffect(() => {
+        const tabIds = new Set(tabs.map((tab) => tab.id));
+        if (!tabIds.has(activeTab)) {
+            setActiveTab("overview");
+        }
+    }, [activeTab, tabs]);
 
     return (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -95,6 +105,17 @@ export function WorkspaceTabs({
                             className="mt-4"
                         >
                             <SeoTab clientId={client._id} />
+                        </TabsContent>
+                    );
+                }
+                if (moduleType === "autoblog") {
+                    return (
+                        <TabsContent
+                            key={moduleType}
+                            value={moduleType}
+                            className="mt-4"
+                        >
+                            <AutoblogTab clientId={client._id} />
                         </TabsContent>
                     );
                 }
