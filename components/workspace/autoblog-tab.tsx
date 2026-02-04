@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { format, isSameDay } from "date-fns";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import type { Doc, Id } from "@/convex/_generated/dataModel";
-import { Badge } from "@/components/ui/badge";
+import type { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import {
     Card,
@@ -15,13 +13,6 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -33,21 +24,19 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar } from "@/components/ui/calendar";
+import { useSearchParams } from "next/navigation";
+import { cn } from "@/lib/utils";
+import { X, Check, ChevronRight } from "lucide-react";
 
-type PostStatus = "draft" | "scheduled" | "publishing" | "published" | "failed";
-
-type AutoblogPost = Doc<"autoblogPosts">;
+interface GitHubRepo {
+    id: number;
+    fullName: string;
+    name: string;
+    owner: string;
+    defaultBranch: string;
+    private: boolean;
+}
 
 const postingCadenceOptions = ["weekly", "biweekly", "monthly"] as const;
 type PostingCadence = (typeof postingCadenceOptions)[number];
@@ -58,22 +47,6 @@ type Layout = (typeof layoutOptions)[number];
 interface AutoblogTabProps {
     clientId: Id<"clients">;
 }
-
-const statusVariants: Record<
-    PostStatus,
-    "default" | "secondary" | "outline" | "destructive"
-> = {
-    draft: "outline",
-    scheduled: "secondary",
-    publishing: "secondary",
-    published: "default",
-    failed: "destructive",
-};
-
-const formatDate = (timestamp?: number | null) => {
-    if (!timestamp) return "-";
-    return format(new Date(timestamp), "MMM d, yyyy");
-};
 
 const parseTopicSeeds = (value: string) => {
     const seeds = value
@@ -89,15 +62,26 @@ const isPostingCadence = (value: string): value is PostingCadence =>
 const isLayout = (value: string): value is Layout =>
     layoutOptions.includes(value as Layout);
 
+type WizardStep = "connect" | "repository" | "settings";
+
 export function AutoblogTab({ clientId }: AutoblogTabProps) {
     const settings = useQuery(api.autoblog.getSettings, { clientId });
-    const posts = useQuery(api.autoblog.listPosts, { clientId });
     const upsertSettings = useMutation(api.autoblog.upsertSettings);
+    const saveGithubInstallation = useMutation(
+        api.autoblog.saveGithubInstallation,
+    );
+    const listInstallationRepos = useAction(api.github.listInstallationRepos);
+    const searchParams = useSearchParams();
 
-    const [repoOwner, setRepoOwner] = useState("");
-    const [repoName, setRepoName] = useState("");
+    const [availableRepos, setAvailableRepos] = useState<GitHubRepo[] | null>(
+        null,
+    );
+    const [loadingRepos, setLoadingRepos] = useState(false);
+    const [selectedRepoFullName, setSelectedRepoFullName] =
+        useState<string>("");
+
+    // Form states
     const [contentPath, setContentPath] = useState("content/blog");
-    const [defaultBranch, setDefaultBranch] = useState("main");
     const [postingCadence, setPostingCadence] =
         useState<PostingCadence>("weekly");
     const [postsPerMonth, setPostsPerMonth] = useState("4");
@@ -105,130 +89,128 @@ export function AutoblogTab({ clientId }: AutoblogTabProps) {
     const [layout, setLayout] = useState<Layout>("callout");
     const [requiresApproval, setRequiresApproval] = useState(true);
     const [autoPublish, setAutoPublish] = useState(false);
-    const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-        new Date(),
-    );
-    const [activePost, setActivePost] = useState<AutoblogPost | null>(null);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [isDirty, setIsDirty] = useState(false);
-    const [hasLoadedSettings, setHasLoadedSettings] = useState(false);
-    const [savingConnection, setSavingConnection] = useState(false);
     const [savingSettings, setSavingSettings] = useState(false);
 
+    // Track if we've already processed the installation callback
+    const hasProcessedInstallation = useRef(false);
+
+    // Load settings from DB
     useEffect(() => {
-        if (settings === undefined || isDirty) return;
+        if (settings === undefined) return;
 
         const config = settings?.config;
 
-        setRepoOwner(settings?.repoOwner ?? "");
-        setRepoName(settings?.repoName ?? "");
         setContentPath(settings?.contentPath ?? "content/blog");
-        setDefaultBranch(settings?.defaultBranch ?? "main");
         setPostingCadence(config?.postingCadence ?? "weekly");
         setPostsPerMonth(String(config?.postsPerMonth ?? 4));
         setTopicSeeds((config?.topicSeeds ?? []).join("\n"));
         setLayout(config?.layout ?? "callout");
         setRequiresApproval(config?.requiresApproval ?? true);
         setAutoPublish(config?.autoPublish ?? false);
-        setHasLoadedSettings(true);
-    }, [settings, isDirty]);
+    }, [settings]);
 
-    const settingsActive = Boolean(settings?.isActive);
-    const isConnected = Boolean(
-        settings?.githubInstallationId ||
-        (settings?.repoOwner && settings?.repoName),
-    );
-    const canViewSchedule = isConnected && settingsActive;
-    const hasPosts = (posts?.length ?? 0) > 0;
-    const isLoading = settings === undefined || posts === undefined;
+    // Detect GitHub App installation callback and save installation ID
+    useEffect(() => {
+        const installationIdParam = searchParams.get("installation_id");
 
-    const sortedPosts = useMemo(() => {
-        if (!posts) return [];
-        return [...posts].sort((a, b) => {
-            const aTime = a.scheduledFor ?? a.publishedAt ?? a.updatedAt ?? 0;
-            const bTime = b.scheduledFor ?? b.publishedAt ?? b.updatedAt ?? 0;
-            return bTime - aTime;
-        });
-    }, [posts]);
+        if (!installationIdParam || hasProcessedInstallation.current) return;
 
-    const scheduledPosts = useMemo(
-        () => sortedPosts.filter((post) => post.scheduledFor),
-        [sortedPosts],
-    );
-
-    const scheduledDays = useMemo(() => {
-        const seen = new Set<string>();
-        const dates: Date[] = [];
-        scheduledPosts.forEach((post) => {
-            if (!post.scheduledFor) return;
-            const date = new Date(post.scheduledFor);
-            const key = format(date, "yyyy-MM-dd");
-            if (!seen.has(key)) {
-                seen.add(key);
-                dates.push(date);
-            }
-        });
-        return dates;
-    }, [scheduledPosts]);
-
-    const selectedDayPosts = useMemo(() => {
-        if (!selectedDate) return [];
-        return scheduledPosts.filter((post) =>
-            post.scheduledFor
-                ? isSameDay(new Date(post.scheduledFor), selectedDate)
-                : false,
-        );
-    }, [scheduledPosts, selectedDate]);
-
-    const markDirty = () => {
-        if (!isDirty) setIsDirty(true);
-    };
-
-    const openPost = (post: AutoblogPost) => {
-        setActivePost(post);
-        setIsDialogOpen(true);
-    };
-
-    const handleSaveConnection = async () => {
-        if (!repoOwner.trim() || !repoName.trim()) {
-            toast.error("Enter both repo owner and repo name");
+        const parsedId = Number(installationIdParam);
+        if (!Number.isFinite(parsedId)) {
+            toast.error("Invalid installation ID");
             return;
         }
 
-        setSavingConnection(true);
-        try {
-            await upsertSettings({
+        hasProcessedInstallation.current = true;
+
+        // Clean the URL immediately
+        const url = new URL(window.location.href);
+        url.searchParams.delete("installation_id");
+        url.searchParams.delete("setup_action");
+        url.searchParams.delete("state");
+        window.history.replaceState({}, "", url.toString());
+
+        // Save installation
+        toast.promise(
+            saveGithubInstallation({
                 clientId,
-                repoOwner: repoOwner.trim(),
-                repoName: repoName.trim(),
-                contentPath: contentPath.trim() || null,
-                defaultBranch: defaultBranch.trim() || null,
-                isActive: settings?.isActive ?? false,
-                config: {
-                    postingCadence,
-                    postsPerMonth: Math.max(
-                        1,
-                        Number.parseInt(postsPerMonth, 10) || 1,
-                    ),
-                    topicSeeds: parseTopicSeeds(topicSeeds),
-                    layout,
-                    requiresApproval,
-                    autoPublish,
-                },
-            });
-            toast.success("GitHub connection saved");
-            setIsDirty(false);
-        } catch (error) {
-            console.error("Save connection error:", error);
-            toast.error("Failed to save GitHub connection");
-        } finally {
-            setSavingConnection(false);
-        }
+                installationId: parsedId,
+            }),
+            {
+                loading: "Connecting GitHub...",
+                success: "GitHub App connected!",
+                error: "Failed to connect GitHub.",
+            },
+        );
+    }, [searchParams, clientId, saveGithubInstallation]);
+
+    // Determine current step
+    const isGithubAppConnected = Boolean(settings?.githubInstallationId);
+    const hasRepoConfig = Boolean(settings?.repoOwner && settings?.repoName);
+    const isFullyConfigured = hasRepoConfig && Boolean(settings?.isActive);
+
+    const getCurrentStep = (): WizardStep => {
+        if (!isGithubAppConnected) return "connect";
+        if (!hasRepoConfig) return "repository";
+        return "settings";
     };
 
-    const handleSaveSettings = async () => {
-        if (!isConnected) {
-            toast.error("Connect GitHub before saving settings");
+    const currentStep = getCurrentStep();
+    const isLoading = settings === undefined;
+
+    // Auto-fetch repos when on repository step
+    const hasFetchedRepos = useRef(false);
+    useEffect(() => {
+        if (
+            currentStep === "repository" &&
+            settings?.githubInstallationId &&
+            !availableRepos &&
+            !loadingRepos &&
+            !hasFetchedRepos.current
+        ) {
+            hasFetchedRepos.current = true;
+            setLoadingRepos(true);
+            listInstallationRepos({
+                clientId,
+                installationId: settings.githubInstallationId,
+            })
+                .then((repos) => {
+                    setAvailableRepos(repos);
+                    if (repos.length === 1) {
+                        setSelectedRepoFullName(repos[0].fullName);
+                    }
+                })
+                .catch((err) => {
+                    toast.error("Failed to load repositories");
+                    console.error(err);
+                    hasFetchedRepos.current = false; // Allow retry
+                })
+                .finally(() => setLoadingRepos(false));
+        }
+    }, [
+        currentStep,
+        settings?.githubInstallationId,
+        availableRepos,
+        loadingRepos,
+        clientId,
+        listInstallationRepos,
+    ]);
+
+    const handleRepoSelect = (fullName: string) => {
+        setSelectedRepoFullName(fullName);
+    };
+
+    const handleSaveRepository = async () => {
+        if (!settings?.githubInstallationId || !selectedRepoFullName) {
+            toast.error("Please select a repository");
+            return;
+        }
+
+        const repo = availableRepos?.find(
+            (r) => r.fullName === selectedRepoFullName,
+        );
+        if (!repo) {
+            toast.error("Repository not found");
             return;
         }
 
@@ -236,10 +218,29 @@ export function AutoblogTab({ clientId }: AutoblogTabProps) {
         try {
             await upsertSettings({
                 clientId,
-                repoOwner: repoOwner.trim() || null,
-                repoName: repoName.trim() || null,
-                contentPath: contentPath.trim() || null,
-                defaultBranch: defaultBranch.trim() || null,
+                githubInstallationId: settings.githubInstallationId,
+                repoOwner: repo.owner,
+                repoName: repo.name,
+                contentPath: contentPath.trim() || "content/blog",
+                defaultBranch: repo.defaultBranch,
+                isActive: false,
+            });
+            toast.success("Repository connected!");
+            setAvailableRepos(null);
+            setSelectedRepoFullName("");
+        } catch (error) {
+            console.error("Save repository error:", error);
+            toast.error("Failed to save repository");
+        } finally {
+            setSavingSettings(false);
+        }
+    };
+
+    const handleSaveSettings = async () => {
+        setSavingSettings(true);
+        try {
+            await upsertSettings({
+                clientId,
                 isActive: true,
                 config: {
                     postingCadence,
@@ -253,172 +254,293 @@ export function AutoblogTab({ clientId }: AutoblogTabProps) {
                     autoPublish,
                 },
             });
-            toast.success("Auto-Blog settings saved");
-            setIsDirty(false);
+            toast.success("Settings saved!");
         } catch (error) {
             console.error("Save settings error:", error);
-            toast.error("Failed to save Auto-Blog settings");
+            toast.error("Failed to save settings");
         } finally {
             setSavingSettings(false);
         }
     };
 
-    return (
-        <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+    const startGitHubInstall = () => {
+        const state = btoa(JSON.stringify({ clientId }));
+        const appSlug = process.env.NEXT_PUBLIC_GITHUB_APP_SLUG;
+        window.location.href = `https://github.com/apps/${appSlug}/installations/new?state=${state}`;
+    };
+
+    const handleClose = () => {
+        // Could navigate away or collapse the wizard
+        toast("Setup cancelled");
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center py-12">
+                <Spinner className="size-6" />
+            </div>
+        );
+    }
+
+    // If fully configured, show summary view
+    if (isFullyConfigured) {
+        return (
+            <div className="space-y-6">
                 <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="text-lg font-semibold">Auto-Blog</h2>
-                        <Badge variant="secondary" className="text-xs">
-                            UI Preview
-                        </Badge>
-                        {settingsActive && (
-                            <Badge variant="outline" className="text-xs">
-                                Settings saved
-                            </Badge>
-                        )}
-                        {isLoading && (
-                            <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <Spinner className="size-3" />
-                                Loading
-                            </span>
-                        )}
-                    </div>
+                    <h2 className="text-lg font-semibold">Auto-Blog</h2>
                     <p className="text-sm text-muted-foreground">
-                        AI-powered blog automation that publishes SEO-optimized
-                        MDX to your client&apos;s GitHub repo on a schedule.
+                        AI-powered blog automation for {settings?.repoOwner}/
+                        {settings?.repoName}
                     </p>
                 </div>
-                <Button
-                    variant="outline"
-                    disabled={!isConnected}
-                    onClick={() => {
-                        if (!hasPosts) {
-                            toast("No posts available yet");
-                            return;
-                        }
-                        openPost(sortedPosts[0]);
-                    }}
-                >
-                    Generate Sample Post
-                </Button>
-            </div>
 
-            <div className="grid gap-6 lg:grid-cols-3">
                 <Card>
                     <CardHeader>
                         <div className="flex items-center justify-between">
-                            <CardTitle>GitHub Connection</CardTitle>
-                            <Badge
-                                variant={isConnected ? "secondary" : "outline"}
+                            <CardTitle>Configuration</CardTitle>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={startGitHubInstall}
                             >
-                                {isConnected ? "Connected" : "Not connected"}
-                            </Badge>
+                                Change Repository
+                            </Button>
                         </div>
-                        <CardDescription>
-                            Link the client repo and content folder.
-                        </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                        <Button
-                            className="w-full"
-                            variant={isConnected ? "secondary" : "outline"}
-                            onClick={handleSaveConnection}
-                            disabled={savingConnection || isLoading}
-                        >
-                            {savingConnection
-                                ? "Saving..."
-                                : isConnected
-                                  ? "Update Connection"
-                                  : "Connect GitHub"}
-                        </Button>
-                        <div className="space-y-3">
-                            <div className="space-y-2">
-                                <Label>Repo Owner</Label>
-                                <Input
-                                    value={repoOwner}
-                                    onChange={(event) => {
-                                        setRepoOwner(event.target.value);
-                                        markDirty();
-                                    }}
-                                    placeholder="acme-agency"
-                                />
+                    <CardContent className="space-y-6">
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="space-y-1">
+                                <Label className="text-muted-foreground">
+                                    Repository
+                                </Label>
+                                <p className="text-sm font-medium">
+                                    {settings?.repoOwner}/{settings?.repoName}
+                                </p>
                             </div>
-                            <div className="space-y-2">
-                                <Label>Repo Name</Label>
-                                <Input
-                                    value={repoName}
-                                    onChange={(event) => {
-                                        setRepoName(event.target.value);
-                                        markDirty();
-                                    }}
-                                    placeholder="client-site"
-                                />
+                            <div className="space-y-1">
+                                <Label className="text-muted-foreground">
+                                    Content Path
+                                </Label>
+                                <p className="text-sm font-medium">
+                                    {settings?.contentPath}
+                                </p>
                             </div>
-                            <div className="space-y-2">
-                                <Label>Content Path</Label>
-                                <Input
-                                    value={contentPath}
-                                    onChange={(event) => {
-                                        setContentPath(event.target.value);
-                                        markDirty();
-                                    }}
-                                    placeholder="content/blog"
-                                />
+                            <div className="space-y-1">
+                                <Label className="text-muted-foreground">
+                                    Posting Cadence
+                                </Label>
+                                <p className="text-sm font-medium capitalize">
+                                    {settings?.config.postingCadence}
+                                </p>
                             </div>
-                            <div className="space-y-2">
-                                <Label>Default Branch</Label>
-                                <Select
-                                    value={defaultBranch}
-                                    onValueChange={(value) => {
-                                        setDefaultBranch(value);
-                                        markDirty();
-                                    }}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select branch" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="main">
-                                            main
-                                        </SelectItem>
-                                        <SelectItem value="content">
-                                            content
-                                        </SelectItem>
-                                        <SelectItem value="staging">
-                                            staging
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
+                            <div className="space-y-1">
+                                <Label className="text-muted-foreground">
+                                    Posts Per Month
+                                </Label>
+                                <p className="text-sm font-medium">
+                                    {settings?.config.postsPerMonth}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-4">
+                            <div className="flex items-center gap-2">
+                                {settings?.config.requiresApproval ? (
+                                    <Check className="size-4 text-green-600" />
+                                ) : (
+                                    <X className="size-4 text-muted-foreground" />
+                                )}
+                                <span className="text-sm">
+                                    Require Approval
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {settings?.config.autoPublish ? (
+                                    <Check className="size-4 text-green-600" />
+                                ) : (
+                                    <X className="size-4 text-muted-foreground" />
+                                )}
+                                <span className="text-sm">Auto-Publish</span>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
+            </div>
+        );
+    }
 
-                {isConnected ? (
-                    <>
-                        <Card>
-                            <CardHeader>
-                                <div className="flex items-center justify-between gap-4">
-                                    <div>
-                                        <CardTitle>Content Plan</CardTitle>
-                                        <CardDescription>
-                                            Set cadence, topics, and output
-                                            style.
-                                        </CardDescription>
+    // Wizard view
+    const steps: { id: WizardStep; label: string }[] = [
+        { id: "connect", label: "Connect GitHub" },
+        { id: "repository", label: "Select Repository" },
+        { id: "settings", label: "Configure" },
+    ];
+
+    const currentStepIndex = steps.findIndex((s) => s.id === currentStep);
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                    <h2 className="text-lg font-semibold">Auto-Blog Setup</h2>
+                    <p className="text-sm text-muted-foreground">
+                        Connect your GitHub repository to enable automated blog
+                        publishing.
+                    </p>
+                </div>
+                <Button variant="ghost" size="icon" onClick={handleClose}>
+                    <X className="size-4" />
+                </Button>
+            </div>
+
+            {/* Step indicators */}
+            <div className="flex items-center gap-2">
+                {steps.map((step, index) => (
+                    <div key={step.id} className="flex items-center">
+                        <div
+                            className={cn(
+                                "flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+                                index < currentStepIndex &&
+                                    "bg-green-100 text-green-700",
+                                index === currentStepIndex &&
+                                    "bg-primary text-primary-foreground",
+                                index > currentStepIndex &&
+                                    "bg-muted text-muted-foreground",
+                            )}
+                        >
+                            {index < currentStepIndex ? (
+                                <Check className="size-4" />
+                            ) : (
+                                <span className="flex size-5 items-center justify-center rounded-full border text-xs">
+                                    {index + 1}
+                                </span>
+                            )}
+                            <span className="hidden sm:inline">
+                                {step.label}
+                            </span>
+                        </div>
+                        {index < steps.length - 1 && (
+                            <ChevronRight className="mx-2 size-4 text-muted-foreground" />
+                        )}
+                    </div>
+                ))}
+            </div>
+
+            {/* Step content */}
+            <Card>
+                <CardContent className="pt-6">
+                    {/* Step 1: Connect GitHub */}
+                    {currentStep === "connect" && (
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <h3 className="font-semibold">
+                                    Install GitHub App
+                                </h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Install our GitHub App to grant access to
+                                    your repositories. You&apos;ll be redirected
+                                    to GitHub to complete the installation.
+                                </p>
+                            </div>
+                            <Button onClick={startGitHubInstall}>
+                                Install GitHub App
+                            </Button>
+                        </div>
+                    )}
+
+                    {/* Step 2: Select Repository */}
+                    {currentStep === "repository" && (
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <h3 className="font-semibold">
+                                    Select Repository
+                                </h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Choose which repository to publish blog
+                                    posts to.
+                                </p>
+                            </div>
+
+                            {loadingRepos && (
+                                <div className="flex items-center gap-2 py-4">
+                                    <Spinner className="size-4" />
+                                    <span className="text-sm text-muted-foreground">
+                                        Loading repositories...
+                                    </span>
+                                </div>
+                            )}
+
+                            {availableRepos && !loadingRepos && (
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label>Repository</Label>
+                                        <Select
+                                            value={selectedRepoFullName}
+                                            onValueChange={handleRepoSelect}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Choose a repository" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {availableRepos.map((repo) => (
+                                                    <SelectItem
+                                                        key={repo.id}
+                                                        value={repo.fullName}
+                                                    >
+                                                        {repo.fullName}
+                                                        {repo.private &&
+                                                            " (private)"}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
+
+                                    <div className="space-y-2">
+                                        <Label>Content Path</Label>
+                                        <Input
+                                            value={contentPath}
+                                            onChange={(e) =>
+                                                setContentPath(e.target.value)
+                                            }
+                                            placeholder="content/blog"
+                                        />
+                                        <p className="text-xs text-muted-foreground">
+                                            Path where blog posts will be saved
+                                            in your repository.
+                                        </p>
+                                    </div>
+
                                     <Button
-                                        size="sm"
-                                        onClick={handleSaveSettings}
-                                        disabled={savingSettings || isLoading}
+                                        onClick={handleSaveRepository}
+                                        disabled={
+                                            !selectedRepoFullName ||
+                                            savingSettings
+                                        }
                                     >
                                         {savingSettings
                                             ? "Saving..."
-                                            : "Save Settings"}
+                                            : "Continue"}
                                     </Button>
                                 </div>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
+                            )}
+                        </div>
+                    )}
+
+                    {/* Step 3: Configure Settings */}
+                    {currentStep === "settings" && (
+                        <div className="space-y-6">
+                            <div className="space-y-2">
+                                <h3 className="font-semibold">
+                                    Configure Auto-Blog
+                                </h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Set your publishing preferences for{" "}
+                                    {settings?.repoOwner}/{settings?.repoName}.
+                                </p>
+                            </div>
+
+                            <div className="grid gap-4 sm:grid-cols-2">
                                 <div className="space-y-2">
                                     <Label>Posting Cadence</Label>
                                     <Select
@@ -426,12 +548,11 @@ export function AutoblogTab({ clientId }: AutoblogTabProps) {
                                         onValueChange={(value) => {
                                             if (isPostingCadence(value)) {
                                                 setPostingCadence(value);
-                                                markDirty();
                                             }
                                         }}
                                     >
                                         <SelectTrigger>
-                                            <SelectValue placeholder="Select cadence" />
+                                            <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="weekly">
@@ -446,399 +567,104 @@ export function AutoblogTab({ clientId }: AutoblogTabProps) {
                                         </SelectContent>
                                     </Select>
                                 </div>
+
                                 <div className="space-y-2">
                                     <Label>Posts Per Month</Label>
                                     <Input
                                         type="number"
                                         min={1}
                                         value={postsPerMonth}
-                                        onChange={(event) => {
-                                            setPostsPerMonth(
-                                                event.target.value,
-                                            );
-                                            markDirty();
-                                        }}
+                                        onChange={(e) =>
+                                            setPostsPerMonth(e.target.value)
+                                        }
                                     />
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>Topic Seeds</Label>
-                                    <Textarea
-                                        rows={4}
-                                        placeholder="Ex: HVAC maintenance tips, seasonal tune-ups, energy savings"
-                                        value={topicSeeds}
-                                        onChange={(event) => {
-                                            setTopicSeeds(event.target.value);
-                                            markDirty();
-                                        }}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>MDX Layout</Label>
-                                    <Select
-                                        value={layout}
-                                        onValueChange={(value) => {
-                                            if (isLayout(value)) {
-                                                setLayout(value);
-                                                markDirty();
-                                            }
-                                        }}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select layout" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="callout">
-                                                Callouts + Stats
-                                            </SelectItem>
-                                            <SelectItem value="story">
-                                                Story + Quotes
-                                            </SelectItem>
-                                            <SelectItem value="guide">
-                                                Step-by-step Guide
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </CardContent>
-                        </Card>
+                            </div>
 
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Approval & Publishing</CardTitle>
-                                <CardDescription>
-                                    Control review flow and publishing rules.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
+                            <div className="space-y-2">
+                                <Label>Topic Seeds</Label>
+                                <Textarea
+                                    rows={3}
+                                    placeholder="Ex: HVAC maintenance tips, seasonal tune-ups, energy savings"
+                                    value={topicSeeds}
+                                    onChange={(e) =>
+                                        setTopicSeeds(e.target.value)
+                                    }
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Topics to guide AI-generated content.
+                                    Separate with commas or new lines.
+                                </p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>MDX Layout</Label>
+                                <Select
+                                    value={layout}
+                                    onValueChange={(value) => {
+                                        if (isLayout(value)) {
+                                            setLayout(value);
+                                        }
+                                    }}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="callout">
+                                            Callouts + Stats
+                                        </SelectItem>
+                                        <SelectItem value="story">
+                                            Story + Quotes
+                                        </SelectItem>
+                                        <SelectItem value="guide">
+                                            Step-by-step Guide
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-4 rounded-lg border p-4">
                                 <div className="flex items-center justify-between">
-                                    <div className="space-y-1">
+                                    <div className="space-y-0.5">
                                         <Label>Require Approval</Label>
                                         <p className="text-xs text-muted-foreground">
-                                            Review drafts before they go live.
+                                            Review drafts before publishing.
                                         </p>
                                     </div>
                                     <Switch
                                         checked={requiresApproval}
-                                        onCheckedChange={(checked) => {
-                                            setRequiresApproval(checked);
-                                            markDirty();
-                                        }}
+                                        onCheckedChange={setRequiresApproval}
                                     />
                                 </div>
+
                                 <div className="flex items-center justify-between">
-                                    <div className="space-y-1">
+                                    <div className="space-y-0.5">
                                         <Label>Auto-Publish</Label>
                                         <p className="text-xs text-muted-foreground">
-                                            Commit MDX on schedule.
+                                            Automatically commit posts on
+                                            schedule.
                                         </p>
                                     </div>
                                     <Switch
                                         checked={autoPublish}
-                                        onCheckedChange={(checked) => {
-                                            setAutoPublish(checked);
-                                            markDirty();
-                                        }}
+                                        onCheckedChange={setAutoPublish}
                                     />
                                 </div>
-                                <div className="rounded-lg border p-3 text-xs text-muted-foreground">
-                                    Publishing triggers a Vercel build and
-                                    deploy for the connected repo.
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </>
-                ) : (
-                    <Card className="lg:col-span-2">
-                        <CardHeader>
-                            <CardTitle>Connect GitHub to Continue</CardTitle>
-                            <CardDescription>
-                                Content planning, approvals, and publishing
-                                settings unlock after a repo is connected.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                                Connect a GitHub repo to enable Auto-Blog
-                                settings and scheduling.
                             </div>
-                        </CardContent>
-                    </Card>
-                )}
 
-                <Card className="lg:col-span-3">
-                    <CardHeader>
-                        <CardTitle>Workflow Preview</CardTitle>
-                        <CardDescription>
-                            Auto-Blog pipeline from idea to deploy.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                            <div className="rounded-lg border p-3">
-                                <p className="text-sm font-medium">Connect</p>
-                                <p className="text-xs text-muted-foreground">
-                                    Link GitHub repo and content folder.
-                                </p>
-                            </div>
-                            <div className="rounded-lg border p-3">
-                                <p className="text-sm font-medium">Generate</p>
-                                <p className="text-xs text-muted-foreground">
-                                    AI drafts MDX with layouts and images.
-                                </p>
-                            </div>
-                            <div className="rounded-lg border p-3">
-                                <p className="text-sm font-medium">Approve</p>
-                                <p className="text-xs text-muted-foreground">
-                                    Optional review inside the dashboard.
-                                </p>
-                            </div>
-                            <div className="rounded-lg border p-3">
-                                <p className="text-sm font-medium">Publish</p>
-                                <p className="text-xs text-muted-foreground">
-                                    Convex commits and Vercel deploys.
-                                </p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {isConnected && !settingsActive && hasLoadedSettings && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Schedule & Posts</CardTitle>
-                        <CardDescription>
-                            Save Auto-Blog settings to unlock the schedule view
-                            and post list.
-                        </CardDescription>
-                    </CardHeader>
-                </Card>
-            )}
-
-            {canViewSchedule && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Schedule & Posts</CardTitle>
-                        <CardDescription>
-                            Track upcoming drafts, scheduled publishes, and
-                            history.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Tabs defaultValue="table" className="w-full">
-                            <TabsList>
-                                <TabsTrigger value="table">Table</TabsTrigger>
-                                <TabsTrigger value="calendar">
-                                    Calendar
-                                </TabsTrigger>
-                            </TabsList>
-                            <TabsContent value="table" className="mt-4">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Title</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead>Scheduled</TableHead>
-                                            <TableHead>Updated</TableHead>
-                                            <TableHead className="text-right">
-                                                Action
-                                            </TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {sortedPosts.length > 0 ? (
-                                            sortedPosts.map((post) => (
-                                                <TableRow key={post._id}>
-                                                    <TableCell className="font-medium">
-                                                        {post.title}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge
-                                                            variant={
-                                                                statusVariants[
-                                                                    post.status as PostStatus
-                                                                ]
-                                                            }
-                                                        >
-                                                            {post.status}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {formatDate(
-                                                            post.scheduledFor,
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {formatDate(
-                                                            post.updatedAt,
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() =>
-                                                                openPost(post)
-                                                            }
-                                                        >
-                                                            View
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))
-                                        ) : (
-                                            <TableRow>
-                                                <TableCell
-                                                    colSpan={5}
-                                                    className="text-center text-sm text-muted-foreground"
-                                                >
-                                                    No posts yet. Drafts will
-                                                    appear here after
-                                                    generation.
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </TabsContent>
-                            <TabsContent value="calendar" className="mt-4">
-                                <div className="grid gap-6 lg:grid-cols-[auto,1fr]">
-                                    <Calendar
-                                        mode="single"
-                                        selected={selectedDate}
-                                        onSelect={setSelectedDate}
-                                        modifiers={{ scheduled: scheduledDays }}
-                                        modifiersClassNames={{
-                                            scheduled:
-                                                "bg-primary/10 text-primary rounded-md",
-                                        }}
-                                    />
-                                    <div className="space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-sm font-medium">
-                                                Scheduled for{" "}
-                                                {selectedDate
-                                                    ? format(
-                                                          selectedDate,
-                                                          "MMM d, yyyy",
-                                                      )
-                                                    : "Select a day"}
-                                            </p>
-                                            <Badge variant="outline">
-                                                {selectedDayPosts.length} posts
-                                            </Badge>
-                                        </div>
-                                        {selectedDayPosts.length > 0 ? (
-                                            <div className="space-y-2">
-                                                {selectedDayPosts.map(
-                                                    (post) => (
-                                                        <button
-                                                            key={post._id}
-                                                            type="button"
-                                                            onClick={() =>
-                                                                openPost(post)
-                                                            }
-                                                            className="flex w-full items-center justify-between rounded-lg border p-3 text-left transition hover:bg-muted/50"
-                                                        >
-                                                            <div>
-                                                                <p className="text-sm font-medium">
-                                                                    {post.title}
-                                                                </p>
-                                                                <p className="text-xs text-muted-foreground">
-                                                                    {post.slug}
-                                                                </p>
-                                                            </div>
-                                                            <Badge
-                                                                variant={
-                                                                    statusVariants[
-                                                                        post.status as PostStatus
-                                                                    ]
-                                                                }
-                                                            >
-                                                                {post.status}
-                                                            </Badge>
-                                                        </button>
-                                                    ),
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <p className="text-sm text-muted-foreground">
-                                                No posts scheduled for this day.
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            </TabsContent>
-                        </Tabs>
-                    </CardContent>
-                </Card>
-            )}
-
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogContent className="sm:max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle>
-                            {activePost?.title ?? "Post preview"}
-                        </DialogTitle>
-                        <DialogDescription>
-                            Review the draft details before publishing.
-                        </DialogDescription>
-                    </DialogHeader>
-                    {activePost && (
-                        <div className="space-y-4">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <Badge
-                                    variant={
-                                        statusVariants[
-                                            activePost.status as PostStatus
-                                        ]
-                                    }
-                                >
-                                    {activePost.status}
-                                </Badge>
-                                {activePost.scheduledFor && (
-                                    <Badge variant="outline">
-                                        Scheduled{" "}
-                                        {formatDate(activePost.scheduledFor)}
-                                    </Badge>
-                                )}
-                                {activePost.publishedAt && (
-                                    <Badge variant="outline">
-                                        Published{" "}
-                                        {formatDate(activePost.publishedAt)}
-                                    </Badge>
-                                )}
-                            </div>
-                            <div className="grid gap-3 md:grid-cols-2">
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground">
-                                        Slug
-                                    </p>
-                                    <p className="text-sm font-medium">
-                                        {activePost.slug}
-                                    </p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground">
-                                        Last updated
-                                    </p>
-                                    <p className="text-sm font-medium">
-                                        {formatDate(activePost.updatedAt)}
-                                    </p>
-                                </div>
-                            </div>
-                            {activePost.excerpt && (
-                                <div className="rounded-lg border p-3 text-sm text-muted-foreground">
-                                    {activePost.excerpt}
-                                </div>
-                            )}
-                            <div className="rounded-lg border bg-muted/30 p-4 text-sm leading-relaxed whitespace-pre-wrap">
-                                {activePost.content}
-                            </div>
+                            <Button
+                                onClick={handleSaveSettings}
+                                disabled={savingSettings}
+                            >
+                                {savingSettings
+                                    ? "Saving..."
+                                    : "Complete Setup"}
+                            </Button>
                         </div>
                     )}
-                </DialogContent>
-            </Dialog>
+                </CardContent>
+            </Card>
         </div>
     );
 }

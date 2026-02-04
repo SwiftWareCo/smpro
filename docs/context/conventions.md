@@ -13,6 +13,8 @@
 - Convex functions live in `convex/` as queries/mutations/actions
 - Schemas are split in `convex/schema/*.schema.ts`
 
+For external API calls requiring secrets (JWT signing, token exchange), use Convex actions with `"use node";` directive.
+
 ## Data Fetching (Next.js + Convex)
 - Use `preloadQuery` + `usePreloadedQuery` only for data needed on initial paint (e.g., sidebar clients).
 - Prefer `useQuery` in Client Components for reactive UI updates.

@@ -40,6 +40,25 @@ export const listPosts = query({
     },
 });
 
+export const saveGithubInstallation = mutation({
+    args: {
+        clientId: v.id("clients"),
+        installationId: v.number(),
+    },
+    handler: async (ctx, args) => {
+        const userId = await requireUserId(ctx);
+        const client = await ClientsRead.getById(ctx, args.clientId);
+        if (!client || client.userId !== userId) {
+            throw new Error("Unauthorized");
+        }
+
+        return AutoblogWrite.upsertSettings(ctx, {
+            clientId: args.clientId,
+            githubInstallationId: args.installationId,
+        });
+    },
+});
+
 export const upsertSettings = mutation({
     args: {
         clientId: v.id("clients"),

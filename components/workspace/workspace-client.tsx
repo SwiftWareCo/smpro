@@ -32,7 +32,8 @@ export function WorkspaceClient({
     const seoSettings = useQuery(api.seo.getByClient, { clientId });
 
     const resolvedClient = client === undefined ? initialClient : client;
-    const resolvedAccounts = accounts === undefined ? initialAccounts : accounts;
+    const resolvedAccounts =
+        accounts === undefined ? initialAccounts : accounts;
     const resolvedSetupStatus =
         setupStatus === undefined ? initialSetupStatus : setupStatus;
     const resolvedSeoConfigured =

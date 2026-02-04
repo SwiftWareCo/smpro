@@ -27,6 +27,7 @@ import type * as db_ideas_write from "../db/ideas/write.js";
 import type * as db_seo_read from "../db/seo/read.js";
 import type * as db_seo_write from "../db/seo/write.js";
 import type * as embeddings from "../embeddings.js";
+import type * as github from "../github.js";
 import type * as ideas from "../ideas.js";
 import type * as seo from "../seo.js";
 
@@ -56,6 +57,7 @@ declare const fullApi: ApiFromModules<{
   "db/seo/read": typeof db_seo_read;
   "db/seo/write": typeof db_seo_write;
   embeddings: typeof embeddings;
+  github: typeof github;
   ideas: typeof ideas;
   seo: typeof seo;
 }>;
