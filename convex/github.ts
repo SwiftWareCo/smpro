@@ -119,3 +119,153 @@ export const listInstallationRepos = action({
         return getInstallationRepos(args.installationId);
     },
 });
+
+interface CommitFileResult {
+    success: boolean;
+    commitSha?: string;
+    error?: string;
+}
+
+async function getFileContent(
+    token: string,
+    owner: string,
+    repo: string,
+    path: string,
+    branch: string,
+): Promise<{ sha: string; content: string } | null> {
+    const res = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`,
+        {
+            headers: {
+                Authorization: `token ${token}`,
+                Accept: "application/vnd.github+json",
+            },
+        },
+    );
+
+    if (res.status === 404) {
+        return null;
+    }
+
+    if (!res.ok) {
+        const error = await res.text();
+        throw new Error(`Failed to get file: ${error}`);
+    }
+
+    const data = await res.json();
+    return {
+        sha: data.sha,
+        content: Buffer.from(data.content, "base64").toString("utf-8"),
+    };
+}
+
+async function createOrUpdateFile(
+    token: string,
+    owner: string,
+    repo: string,
+    path: string,
+    content: string,
+    message: string,
+    branch: string,
+    existingSha?: string,
+): Promise<CommitFileResult> {
+    const body: Record<string, string> = {
+        message,
+        content: Buffer.from(content).toString("base64"),
+        branch,
+    };
+
+    if (existingSha) {
+        body.sha = existingSha;
+    }
+
+    const res = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+        {
+            method: "PUT",
+            headers: {
+                Authorization: `token ${token}`,
+                Accept: "application/vnd.github+json",
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body),
+        },
+    );
+
+    if (!res.ok) {
+        const error = await res.text();
+        return {
+            success: false,
+            error: `Failed to commit file: ${res.status} - ${error}`,
+        };
+    }
+
+    const data = await res.json();
+    return {
+        success: true,
+        commitSha: data.commit.sha,
+    };
+}
+
+export const commitFile = action({
+    args: {
+        clientId: v.id("clients"),
+        filePath: v.string(),
+        content: v.string(),
+        commitMessage: v.string(),
+    },
+    handler: async (ctx, args): Promise<CommitFileResult> => {
+        // Get autoblog settings for installation ID and repo info
+        const settings = await ctx.runQuery(api.autoblog.getSettings, {
+            clientId: args.clientId,
+        });
+
+        if (!settings) {
+            return { success: false, error: "Autoblog not configured" };
+        }
+
+        if (!settings.githubInstallationId) {
+            return { success: false, error: "GitHub not connected" };
+        }
+
+        if (!settings.repoOwner || !settings.repoName) {
+            return { success: false, error: "Repository not configured" };
+        }
+
+        const branch = settings.defaultBranch || "main";
+
+        try {
+            const token = await getInstallationToken(
+                settings.githubInstallationId,
+            );
+
+            // Check if file exists to get its SHA for update
+            const existingFile = await getFileContent(
+                token,
+                settings.repoOwner,
+                settings.repoName,
+                args.filePath,
+                branch,
+            );
+
+            // Create or update the file
+            const result = await createOrUpdateFile(
+                token,
+                settings.repoOwner,
+                settings.repoName,
+                args.filePath,
+                args.content,
+                args.commitMessage,
+                branch,
+                existingFile?.sha,
+            );
+
+            return result;
+        } catch (error) {
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : "Unknown error",
+            };
+        }
+    },
+});

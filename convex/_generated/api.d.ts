@@ -11,6 +11,11 @@
 import type * as _lib_auth from "../_lib/auth.js";
 import type * as accounts from "../accounts.js";
 import type * as autoblog from "../autoblog.js";
+import type * as autoblogInternal from "../autoblogInternal.js";
+import type * as autoblogPosts from "../autoblogPosts.js";
+import type * as autoblogPublish from "../autoblogPublish.js";
+import type * as autoblogScheduler from "../autoblogScheduler.js";
+import type * as autoblogTopics from "../autoblogTopics.js";
 import type * as clients from "../clients.js";
 import type * as content from "../content.js";
 import type * as db_accounts_read from "../db/accounts/read.js";
@@ -41,6 +46,11 @@ declare const fullApi: ApiFromModules<{
   "_lib/auth": typeof _lib_auth;
   accounts: typeof accounts;
   autoblog: typeof autoblog;
+  autoblogInternal: typeof autoblogInternal;
+  autoblogPosts: typeof autoblogPosts;
+  autoblogPublish: typeof autoblogPublish;
+  autoblogScheduler: typeof autoblogScheduler;
+  autoblogTopics: typeof autoblogTopics;
   clients: typeof clients;
   content: typeof content;
   "db/accounts/read": typeof db_accounts_read;

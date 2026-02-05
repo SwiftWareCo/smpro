@@ -10,10 +10,23 @@ const postingCadenceValidator = v.union(
     v.literal("biweekly"),
     v.literal("monthly"),
 );
-const layoutValidator = v.union(
-    v.literal("callout"),
-    v.literal("story"),
-    v.literal("guide"),
+const ideaStatusValidator = v.union(
+    v.literal("pending_review"),
+    v.literal("approved"),
+    v.literal("rejected"),
+    v.literal("converted_to_post"),
+);
+const postStatusValidator = v.union(
+    v.literal("draft"),
+    v.literal("scheduled"),
+    v.literal("publishing"),
+    v.literal("published"),
+    v.literal("failed"),
+);
+const approvalStatusValidator = v.union(
+    v.literal("pending"),
+    v.literal("approved"),
+    v.literal("rejected"),
 );
 
 export const getSettings = query({
@@ -71,11 +84,8 @@ export const upsertSettings = mutation({
         config: v.optional(
             v.object({
                 postingCadence: v.optional(postingCadenceValidator),
-                postsPerMonth: v.optional(v.number()),
                 topicSeeds: v.optional(v.union(v.array(v.string()), v.null())),
-                layout: v.optional(layoutValidator),
                 requiresApproval: v.optional(v.boolean()),
-                autoPublish: v.optional(v.boolean()),
             }),
         ),
     },
@@ -96,5 +106,212 @@ export const upsertSettings = mutation({
             isActive: args.isActive ?? null,
             config: args.config ?? undefined,
         });
+    },
+});
+
+// Ideas queries and mutations
+export const listIdeas = query({
+    args: {
+        clientId: v.id("clients"),
+        status: v.optional(ideaStatusValidator),
+    },
+    handler: async (ctx, args) => {
+        const userId = await requireUserId(ctx);
+        const client = await ClientsRead.getById(ctx, args.clientId);
+        if (!client || client.userId !== userId) {
+            return [];
+        }
+        return AutoblogRead.listIdeasByClient(ctx, args.clientId, args.status);
+    },
+});
+
+export const getIdea = query({
+    args: { ideaId: v.id("autoblogIdeas") },
+    handler: async (ctx, args) => {
+        const userId = await requireUserId(ctx);
+        const idea = await AutoblogRead.getIdeaById(ctx, args.ideaId);
+        if (!idea) return null;
+
+        const client = await ClientsRead.getById(ctx, idea.clientId);
+        if (!client || client.userId !== userId) {
+            return null;
+        }
+        return idea;
+    },
+});
+
+export const updateIdeaStatus = mutation({
+    args: {
+        ideaId: v.id("autoblogIdeas"),
+        status: ideaStatusValidator,
+    },
+    handler: async (ctx, args) => {
+        const userId = await requireUserId(ctx);
+        const idea = await AutoblogRead.getIdeaById(ctx, args.ideaId);
+        if (!idea) throw new Error("Idea not found");
+
+        const client = await ClientsRead.getById(ctx, idea.clientId);
+        if (!client || client.userId !== userId) {
+            throw new Error("Unauthorized");
+        }
+
+        return AutoblogWrite.updateIdeaStatus(ctx, {
+            ideaId: args.ideaId,
+            status: args.status,
+        });
+    },
+});
+
+export const createManualIdea = mutation({
+    args: {
+        clientId: v.id("clients"),
+        title: v.string(),
+        description: v.optional(v.string()),
+        keywords: v.optional(v.array(v.string())),
+        targetWordCount: v.optional(v.number()),
+    },
+    handler: async (ctx, args) => {
+        const userId = await requireUserId(ctx);
+        const client = await ClientsRead.getById(ctx, args.clientId);
+        if (!client || client.userId !== userId) {
+            throw new Error("Unauthorized");
+        }
+
+        return AutoblogWrite.createIdea(ctx, {
+            clientId: args.clientId,
+            title: args.title,
+            description: args.description ?? null,
+            keywords: args.keywords ?? null,
+            targetWordCount: args.targetWordCount ?? null,
+            generatedBy: "manual",
+        });
+    },
+});
+
+// Posts queries and mutations
+export const getPost = query({
+    args: { postId: v.id("autoblogPosts") },
+    handler: async (ctx, args) => {
+        const userId = await requireUserId(ctx);
+        const post = await AutoblogRead.getPostById(ctx, args.postId);
+        if (!post) return null;
+
+        const client = await ClientsRead.getById(ctx, post.clientId);
+        if (!client || client.userId !== userId) {
+            return null;
+        }
+        return post;
+    },
+});
+
+export const listPostsForCalendar = query({
+    args: {
+        clientId: v.id("clients"),
+        startDate: v.number(),
+        endDate: v.number(),
+    },
+    handler: async (ctx, args) => {
+        const userId = await requireUserId(ctx);
+        const client = await ClientsRead.getById(ctx, args.clientId);
+        if (!client || client.userId !== userId) {
+            return [];
+        }
+        return AutoblogRead.listPostsForCalendar(
+            ctx,
+            args.clientId,
+            args.startDate,
+            args.endDate,
+        );
+    },
+});
+
+export const updatePost = mutation({
+    args: {
+        postId: v.id("autoblogPosts"),
+        title: v.optional(v.string()),
+        slug: v.optional(v.string()),
+        content: v.optional(v.string()),
+        excerpt: v.optional(v.union(v.string(), v.null())),
+        metadata: v.optional(
+            v.object({
+                featuredImage: v.optional(v.union(v.string(), v.null())),
+                author: v.optional(v.union(v.string(), v.null())),
+                tags: v.optional(v.union(v.array(v.string()), v.null())),
+                readingTime: v.optional(v.union(v.number(), v.null())),
+            }),
+        ),
+        status: v.optional(postStatusValidator),
+        approvalStatus: v.optional(v.union(approvalStatusValidator, v.null())),
+    },
+    handler: async (ctx, args) => {
+        const userId = await requireUserId(ctx);
+        const post = await AutoblogRead.getPostById(ctx, args.postId);
+        if (!post) throw new Error("Post not found");
+
+        const client = await ClientsRead.getById(ctx, post.clientId);
+        if (!client || client.userId !== userId) {
+            throw new Error("Unauthorized");
+        }
+
+        return AutoblogWrite.updatePost(ctx, {
+            postId: args.postId,
+            title: args.title,
+            slug: args.slug,
+            content: args.content,
+            excerpt: args.excerpt,
+            metadata: args.metadata,
+            status: args.status,
+            approvalStatus: args.approvalStatus,
+        });
+    },
+});
+
+export const deletePost = mutation({
+    args: { postId: v.id("autoblogPosts") },
+    handler: async (ctx, args) => {
+        const userId = await requireUserId(ctx);
+        const post = await AutoblogRead.getPostById(ctx, args.postId);
+        if (!post) throw new Error("Post not found");
+
+        const client = await ClientsRead.getById(ctx, post.clientId);
+        if (!client || client.userId !== userId) {
+            throw new Error("Unauthorized");
+        }
+
+        return AutoblogWrite.deletePost(ctx, { postId: args.postId });
+    },
+});
+
+export const approvePost = mutation({
+    args: { postId: v.id("autoblogPosts") },
+    handler: async (ctx, args) => {
+        const userId = await requireUserId(ctx);
+        const post = await AutoblogRead.getPostById(ctx, args.postId);
+        if (!post) throw new Error("Post not found");
+
+        const client = await ClientsRead.getById(ctx, post.clientId);
+        if (!client || client.userId !== userId) {
+            throw new Error("Unauthorized");
+        }
+
+        return AutoblogWrite.updatePost(ctx, {
+            postId: args.postId,
+            approvalStatus: "approved",
+        });
+    },
+});
+
+export const listPublishLogs = query({
+    args: { postId: v.id("autoblogPosts") },
+    handler: async (ctx, args) => {
+        const userId = await requireUserId(ctx);
+        const post = await AutoblogRead.getPostById(ctx, args.postId);
+        if (!post) return [];
+
+        const client = await ClientsRead.getById(ctx, post.clientId);
+        if (!client || client.userId !== userId) {
+            return [];
+        }
+        return AutoblogRead.listPublishLogsByPost(ctx, args.postId);
     },
 });

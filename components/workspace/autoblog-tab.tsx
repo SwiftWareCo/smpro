@@ -6,13 +6,7 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -24,10 +18,11 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { X, Check, ChevronRight } from "lucide-react";
+import { Check, ChevronRight, Settings } from "lucide-react";
+import { CalendarView } from "./autoblog/calendar-view";
+import { IdeasPanel } from "./autoblog/ideas-panel";
 
 interface GitHubRepo {
     id: number;
@@ -41,26 +36,12 @@ interface GitHubRepo {
 const postingCadenceOptions = ["weekly", "biweekly", "monthly"] as const;
 type PostingCadence = (typeof postingCadenceOptions)[number];
 
-const layoutOptions = ["callout", "story", "guide"] as const;
-type Layout = (typeof layoutOptions)[number];
-
 interface AutoblogTabProps {
     clientId: Id<"clients">;
 }
 
-const parseTopicSeeds = (value: string) => {
-    const seeds = value
-        .split(/\n|,/)
-        .map((seed) => seed.trim())
-        .filter(Boolean);
-    return seeds.length ? seeds : null;
-};
-
 const isPostingCadence = (value: string): value is PostingCadence =>
     postingCadenceOptions.includes(value as PostingCadence);
-
-const isLayout = (value: string): value is Layout =>
-    layoutOptions.includes(value as Layout);
 
 type WizardStep = "connect" | "repository" | "settings";
 
@@ -71,6 +52,7 @@ export function AutoblogTab({ clientId }: AutoblogTabProps) {
         api.autoblog.saveGithubInstallation,
     );
     const listInstallationRepos = useAction(api.github.listInstallationRepos);
+    const generateTopics = useAction(api.autoblogTopics.generateTopics);
     const searchParams = useSearchParams();
 
     const [availableRepos, setAvailableRepos] = useState<GitHubRepo[] | null>(
@@ -84,11 +66,7 @@ export function AutoblogTab({ clientId }: AutoblogTabProps) {
     const [contentPath, setContentPath] = useState("content/blog");
     const [postingCadence, setPostingCadence] =
         useState<PostingCadence>("weekly");
-    const [postsPerMonth, setPostsPerMonth] = useState("4");
-    const [topicSeeds, setTopicSeeds] = useState("");
-    const [layout, setLayout] = useState<Layout>("callout");
     const [requiresApproval, setRequiresApproval] = useState(true);
-    const [autoPublish, setAutoPublish] = useState(false);
     const [savingSettings, setSavingSettings] = useState(false);
 
     // Track if we've already processed the installation callback
@@ -102,11 +80,7 @@ export function AutoblogTab({ clientId }: AutoblogTabProps) {
 
         setContentPath(settings?.contentPath ?? "content/blog");
         setPostingCadence(config?.postingCadence ?? "weekly");
-        setPostsPerMonth(String(config?.postsPerMonth ?? 4));
-        setTopicSeeds((config?.topicSeeds ?? []).join("\n"));
-        setLayout(config?.layout ?? "callout");
         setRequiresApproval(config?.requiresApproval ?? true);
-        setAutoPublish(config?.autoPublish ?? false);
     }, [settings]);
 
     // Detect GitHub App installation callback and save installation ID
@@ -244,17 +218,15 @@ export function AutoblogTab({ clientId }: AutoblogTabProps) {
                 isActive: true,
                 config: {
                     postingCadence,
-                    postsPerMonth: Math.max(
-                        1,
-                        Number.parseInt(postsPerMonth, 10) || 1,
-                    ),
-                    topicSeeds: parseTopicSeeds(topicSeeds),
-                    layout,
                     requiresApproval,
-                    autoPublish,
                 },
             });
-            toast.success("Settings saved!");
+            toast.success("Setup complete! Generating topic ideas...");
+            // Auto-generate first batch of topics after setup
+            generateTopics({ clientId }).catch((err) => {
+                console.error("Auto topic generation failed:", err);
+                toast.error("Failed to generate initial topics");
+            });
         } catch (error) {
             console.error("Save settings error:", error);
             toast.error("Failed to save settings");
@@ -269,11 +241,6 @@ export function AutoblogTab({ clientId }: AutoblogTabProps) {
         window.location.href = `https://github.com/apps/${appSlug}/installations/new?state=${state}`;
     };
 
-    const handleClose = () => {
-        // Could navigate away or collapse the wizard
-        toast("Setup cancelled");
-    };
-
     if (isLoading) {
         return (
             <div className="flex items-center justify-center py-12">
@@ -282,89 +249,44 @@ export function AutoblogTab({ clientId }: AutoblogTabProps) {
         );
     }
 
-    // If fully configured, show summary view
+    // If fully configured, show calendar view with ideas panel
     if (isFullyConfigured) {
         return (
             <div className="space-y-6">
-                <div className="space-y-1">
-                    <h2 className="text-lg font-semibold">Auto-Blog</h2>
-                    <p className="text-sm text-muted-foreground">
-                        AI-powered blog automation for {settings?.repoOwner}/
-                        {settings?.repoName}
-                    </p>
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                        <h2 className="text-lg font-semibold">Auto-Blog</h2>
+                        <p className="text-sm text-muted-foreground">
+                            Publishing to {settings?.repoOwner}/
+                            {settings?.repoName}
+                        </p>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                            // TODO: Open settings modal or navigate to settings
+                            toast("Settings coming soon");
+                        }}
+                    >
+                        <Settings className="size-4 mr-2" />
+                        Settings
+                    </Button>
                 </div>
 
-                <Card>
-                    <CardHeader>
-                        <div className="flex items-center justify-between">
-                            <CardTitle>Configuration</CardTitle>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={startGitHubInstall}
-                            >
-                                Change Repository
-                            </Button>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <div className="space-y-1">
-                                <Label className="text-muted-foreground">
-                                    Repository
-                                </Label>
-                                <p className="text-sm font-medium">
-                                    {settings?.repoOwner}/{settings?.repoName}
-                                </p>
-                            </div>
-                            <div className="space-y-1">
-                                <Label className="text-muted-foreground">
-                                    Content Path
-                                </Label>
-                                <p className="text-sm font-medium">
-                                    {settings?.contentPath}
-                                </p>
-                            </div>
-                            <div className="space-y-1">
-                                <Label className="text-muted-foreground">
-                                    Posting Cadence
-                                </Label>
-                                <p className="text-sm font-medium capitalize">
-                                    {settings?.config.postingCadence}
-                                </p>
-                            </div>
-                            <div className="space-y-1">
-                                <Label className="text-muted-foreground">
-                                    Posts Per Month
-                                </Label>
-                                <p className="text-sm font-medium">
-                                    {settings?.config.postsPerMonth}
-                                </p>
-                            </div>
-                        </div>
+                {/* Main content grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Calendar View - takes 2 columns on large screens */}
+                    <div className="lg:col-span-2">
+                        <CalendarView clientId={clientId} />
+                    </div>
 
-                        <div className="flex gap-4">
-                            <div className="flex items-center gap-2">
-                                {settings?.config.requiresApproval ? (
-                                    <Check className="size-4 text-green-600" />
-                                ) : (
-                                    <X className="size-4 text-muted-foreground" />
-                                )}
-                                <span className="text-sm">
-                                    Require Approval
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                {settings?.config.autoPublish ? (
-                                    <Check className="size-4 text-green-600" />
-                                ) : (
-                                    <X className="size-4 text-muted-foreground" />
-                                )}
-                                <span className="text-sm">Auto-Publish</span>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                    {/* Ideas Panel - takes 1 column */}
+                    <div>
+                        <IdeasPanel clientId={clientId} />
+                    </div>
+                </div>
             </div>
         );
     }
@@ -380,17 +302,12 @@ export function AutoblogTab({ clientId }: AutoblogTabProps) {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                    <h2 className="text-lg font-semibold">Auto-Blog Setup</h2>
-                    <p className="text-sm text-muted-foreground">
-                        Connect your GitHub repository to enable automated blog
-                        publishing.
-                    </p>
-                </div>
-                <Button variant="ghost" size="icon" onClick={handleClose}>
-                    <X className="size-4" />
-                </Button>
+            <div className="space-y-1">
+                <h2 className="text-lg font-semibold">Auto-Blog Setup</h2>
+                <p className="text-sm text-muted-foreground">
+                    Connect your GitHub repository to enable automated blog
+                    publishing.
+                </p>
             </div>
 
             {/* Step indicators */}
@@ -540,70 +457,13 @@ export function AutoblogTab({ clientId }: AutoblogTabProps) {
                                 </p>
                             </div>
 
-                            <div className="grid gap-4 sm:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label>Posting Cadence</Label>
-                                    <Select
-                                        value={postingCadence}
-                                        onValueChange={(value) => {
-                                            if (isPostingCadence(value)) {
-                                                setPostingCadence(value);
-                                            }
-                                        }}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="weekly">
-                                                Weekly
-                                            </SelectItem>
-                                            <SelectItem value="biweekly">
-                                                Every 2 weeks
-                                            </SelectItem>
-                                            <SelectItem value="monthly">
-                                                Monthly
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label>Posts Per Month</Label>
-                                    <Input
-                                        type="number"
-                                        min={1}
-                                        value={postsPerMonth}
-                                        onChange={(e) =>
-                                            setPostsPerMonth(e.target.value)
-                                        }
-                                    />
-                                </div>
-                            </div>
-
                             <div className="space-y-2">
-                                <Label>Topic Seeds</Label>
-                                <Textarea
-                                    rows={3}
-                                    placeholder="Ex: HVAC maintenance tips, seasonal tune-ups, energy savings"
-                                    value={topicSeeds}
-                                    onChange={(e) =>
-                                        setTopicSeeds(e.target.value)
-                                    }
-                                />
-                                <p className="text-xs text-muted-foreground">
-                                    Topics to guide AI-generated content.
-                                    Separate with commas or new lines.
-                                </p>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>MDX Layout</Label>
+                                <Label>Posting Cadence</Label>
                                 <Select
-                                    value={layout}
+                                    value={postingCadence}
                                     onValueChange={(value) => {
-                                        if (isLayout(value)) {
-                                            setLayout(value);
+                                        if (isPostingCadence(value)) {
+                                            setPostingCadence(value);
                                         }
                                     }}
                                 >
@@ -611,46 +471,30 @@ export function AutoblogTab({ clientId }: AutoblogTabProps) {
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="callout">
-                                            Callouts + Stats
+                                        <SelectItem value="weekly">
+                                            Weekly (~4 posts/month)
                                         </SelectItem>
-                                        <SelectItem value="story">
-                                            Story + Quotes
+                                        <SelectItem value="biweekly">
+                                            Every 2 weeks (~2 posts/month)
                                         </SelectItem>
-                                        <SelectItem value="guide">
-                                            Step-by-step Guide
+                                        <SelectItem value="monthly">
+                                            Monthly (1 post/month)
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
 
-                            <div className="space-y-4 rounded-lg border p-4">
-                                <div className="flex items-center justify-between">
-                                    <div className="space-y-0.5">
-                                        <Label>Require Approval</Label>
-                                        <p className="text-xs text-muted-foreground">
-                                            Review drafts before publishing.
-                                        </p>
-                                    </div>
-                                    <Switch
-                                        checked={requiresApproval}
-                                        onCheckedChange={setRequiresApproval}
-                                    />
+                            <div className="flex items-center justify-between rounded-lg border p-4">
+                                <div className="space-y-0.5">
+                                    <Label>Require Approval</Label>
+                                    <p className="text-xs text-muted-foreground">
+                                        Review drafts before publishing.
+                                    </p>
                                 </div>
-
-                                <div className="flex items-center justify-between">
-                                    <div className="space-y-0.5">
-                                        <Label>Auto-Publish</Label>
-                                        <p className="text-xs text-muted-foreground">
-                                            Automatically commit posts on
-                                            schedule.
-                                        </p>
-                                    </div>
-                                    <Switch
-                                        checked={autoPublish}
-                                        onCheckedChange={setAutoPublish}
-                                    />
-                                </div>
+                                <Switch
+                                    checked={requiresApproval}
+                                    onCheckedChange={setRequiresApproval}
+                                />
                             </div>
 
                             <Button

@@ -15,18 +15,8 @@ export const autoblogSettings = defineTable({
             v.literal("biweekly"),
             v.literal("monthly"),
         ),
-        postsPerMonth: v.number(),
         topicSeeds: v.optional(v.union(v.array(v.string()), v.null())),
-        layout: v.optional(
-            v.union(
-                v.literal("callout"),
-                v.literal("story"),
-                v.literal("guide"),
-                v.null(),
-            ),
-        ),
         requiresApproval: v.boolean(),
-        autoPublish: v.boolean(),
     }),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -81,6 +71,17 @@ export const autoblogPosts = defineTable({
     publishedAt: v.optional(v.union(v.number(), v.null())),
     githubCommitSha: v.optional(v.union(v.string(), v.null())),
     filePath: v.optional(v.union(v.string(), v.null())),
+    scheduledFunctionId: v.optional(
+        v.union(v.id("_scheduled_functions"), v.null()),
+    ),
+    approvalStatus: v.optional(
+        v.union(
+            v.literal("pending"),
+            v.literal("approved"),
+            v.literal("rejected"),
+            v.null(),
+        ),
+    ),
     generation: v.optional(
         v.object({
             model: v.string(),
@@ -96,7 +97,8 @@ export const autoblogPosts = defineTable({
     .index("by_client", ["clientId"])
     .index("by_client_status", ["clientId", "status"])
     .index("by_schedule", ["status", "scheduledFor"])
-    .index("by_slug", ["clientId", "slug"]);
+    .index("by_slug", ["clientId", "slug"])
+    .index("by_scheduled_function", ["scheduledFunctionId"]);
 
 export const autoblogPublishLogs = defineTable({
     postId: v.id("autoblogPosts"),
