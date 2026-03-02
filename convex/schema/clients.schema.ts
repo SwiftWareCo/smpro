@@ -6,6 +6,7 @@ export const clients = defineTable({
     name: v.string(),
     slug: v.string(),
     clerkOrganizationId: v.union(v.string(), v.null()),
+    portalAdminUserId: v.union(v.string(), v.null()),
     portalPrimaryColor: v.union(v.string(), v.null()),
     portalSecondaryColor: v.union(v.string(), v.null()),
     description: v.optional(v.union(v.string(), v.null())),
@@ -18,4 +19,5 @@ export const clients = defineTable({
     .index("by_user_id", ["userId"])
     .index("by_slug", ["slug"])
     .index("by_clerk_organization_id", ["clerkOrganizationId"])
+    .index("by_portal_admin_user_id", ["portalAdminUserId"])
     .index("by_status", ["status"]);

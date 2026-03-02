@@ -7,7 +7,7 @@ import { TopBar } from "@/components/dashboard/top-bar";
 import { api } from "@/convex/_generated/api";
 
 export const metadata: Metadata = {
-    title: "SM Pro Dashboard",
+    title: "Swiftware Dashboard",
     description: "Social Media Content Management Platform",
 };
 

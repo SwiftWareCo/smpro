@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import {
     ChevronRight,
@@ -51,18 +52,30 @@ import {
     FormMessage,
 } from "@/components/ui/form";
 
-import { useMutation, usePreloadedQuery } from "convex/react";
+import { useAction, usePreloadedQuery } from "convex/react";
 import type { Preloaded } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import {
+    clientOnboardingFormSchema,
+    DEFAULT_PORTAL_PRIMARY_COLOR,
+    DEFAULT_PORTAL_SECONDARY_COLOR,
+    type ClientOnboardingFormData,
+} from "@/lib/validation/client-onboarding";
+import { getErrorMessage } from "@/lib/errors/convex";
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
     clients: Preloaded<typeof api.clients.list>;
 }
 
-interface CreateClientFormData {
-    name: string;
-    description: string;
-}
+const createClientFormDefaults: ClientOnboardingFormData = {
+    name: "",
+    description: "",
+    slug: "",
+    adminEmail: "",
+    adminPassword: "",
+    portalPrimaryColor: DEFAULT_PORTAL_PRIMARY_COLOR,
+    portalSecondaryColor: DEFAULT_PORTAL_SECONDARY_COLOR,
+};
 
 const navMain = [
     {
@@ -84,13 +97,11 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
     const [clientsOpen, setClientsOpen] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [isPending, setIsPending] = useState(false);
-    const createClient = useMutation(api.clients.create);
-
-    const form = useForm<CreateClientFormData>({
-        defaultValues: {
-            name: "",
-            description: "",
-        },
+    const provisionClient = useAction(api.clientProvisioning.provisionClient);
+    const form = useForm<ClientOnboardingFormData>({
+        resolver: zodResolver(clientOnboardingFormSchema),
+        defaultValues: createClientFormDefaults,
+        mode: "onBlur",
     });
 
     const filteredClients = useMemo(() => {
@@ -103,19 +114,27 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
         );
     }, [clientList, searchQuery]);
 
-    async function onCreateClient(data: CreateClientFormData) {
+    async function onCreateClient(data: ClientOnboardingFormData) {
         setIsPending(true);
         try {
-            await createClient({
+            const result = await provisionClient({
                 name: data.name,
                 description: data.description || undefined,
+                slug: data.slug,
+                adminEmail: data.adminEmail,
+                adminPassword: data.adminPassword,
+                portalPrimaryColor: data.portalPrimaryColor,
+                portalSecondaryColor: data.portalSecondaryColor,
             });
-            toast.success(`Client "${data.name}" created successfully`);
-            form.reset();
+
+            toast.success(`Client "${data.name}" provisioned`, {
+                description: `Portal URL: ${result.portalUrl}`,
+            });
+            form.reset(createClientFormDefaults);
             setDialogOpen(false);
         } catch (error) {
             console.error("Create client error:", error);
-            toast.error("Failed to create client");
+            toast.error(getErrorMessage(error, "Failed to provision client"));
         }
         setIsPending(false);
     }
@@ -124,7 +143,7 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
         <Sidebar {...props}>
             <SidebarHeader>
                 <div className="flex items-center justify-center gap-2 px-4 py-3 mx-2 my-2 bg-card rounded-lg shadow-md border border-border">
-                    <h2 className="text-lg font-semibold">SM Pro</h2>
+                    <h2 className="text-lg font-semibold">Swiftware</h2>
                 </div>
                 <div className="px-2">
                     <div className="relative">
@@ -239,7 +258,14 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
                                     <SidebarMenuItem>
                                         <Dialog
                                             open={dialogOpen}
-                                            onOpenChange={setDialogOpen}
+                                            onOpenChange={(open) => {
+                                                setDialogOpen(open);
+                                                if (open) {
+                                                    form.reset(
+                                                        createClientFormDefaults,
+                                                    );
+                                                }
+                                            }}
                                         >
                                             <DialogTrigger asChild>
                                                 <SidebarMenuButton className="text-muted-foreground hover:text-foreground cursor-pointer">
@@ -250,12 +276,13 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
                                             <DialogContent>
                                                 <DialogHeader>
                                                     <DialogTitle>
-                                                        Create New Client
+                                                        Onboard Client Portal
                                                     </DialogTitle>
                                                     <DialogDescription>
-                                                        Add a new client/brand
-                                                        to organize your
-                                                        content.
+                                                        Create the client, Clerk
+                                                        organization, and portal
+                                                        admin account in one
+                                                        step.
                                                     </DialogDescription>
                                                 </DialogHeader>
                                                 <Form {...form}>
@@ -270,10 +297,6 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
                                                                 form.control
                                                             }
                                                             name="name"
-                                                            rules={{
-                                                                required:
-                                                                    "Client name is required",
-                                                            }}
                                                             render={({
                                                                 field,
                                                             }) => (
@@ -296,6 +319,139 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
                                                             control={
                                                                 form.control
                                                             }
+                                                            name="slug"
+                                                            render={({
+                                                                field,
+                                                            }) => (
+                                                                <FormItem>
+                                                                    <FormLabel>
+                                                                        Slug
+                                                                    </FormLabel>
+                                                                    <FormControl>
+                                                                        <Input
+                                                                            placeholder="e.g., acme-dental"
+                                                                            {...field}
+                                                                            onChange={(
+                                                                                event,
+                                                                            ) =>
+                                                                                field.onChange(
+                                                                                    event.target.value.toLowerCase(),
+                                                                                )
+                                                                            }
+                                                                        />
+                                                                    </FormControl>
+                                                                    <FormMessage />
+                                                                </FormItem>
+                                                            )}
+                                                        />
+
+                                                        <FormField
+                                                            control={
+                                                                form.control
+                                                            }
+                                                            name="adminEmail"
+                                                            render={({
+                                                                field,
+                                                            }) => (
+                                                                <FormItem>
+                                                                    <FormLabel>
+                                                                        Portal
+                                                                        Admin
+                                                                        Email
+                                                                    </FormLabel>
+                                                                    <FormControl>
+                                                                        <Input
+                                                                            type="email"
+                                                                            placeholder="admin@client.com"
+                                                                            {...field}
+                                                                        />
+                                                                    </FormControl>
+                                                                    <FormMessage />
+                                                                </FormItem>
+                                                            )}
+                                                        />
+
+                                                        <FormField
+                                                            control={
+                                                                form.control
+                                                            }
+                                                            name="adminPassword"
+                                                            render={({
+                                                                field,
+                                                            }) => (
+                                                                <FormItem>
+                                                                    <FormLabel>
+                                                                        Portal
+                                                                        Admin
+                                                                        Password
+                                                                    </FormLabel>
+                                                                    <FormControl>
+                                                                        <Input
+                                                                            type="password"
+                                                                            autoComplete="new-password"
+                                                                            placeholder="At least 8 chars with upper, lower, number"
+                                                                            {...field}
+                                                                        />
+                                                                    </FormControl>
+                                                                    <FormMessage />
+                                                                </FormItem>
+                                                            )}
+                                                        />
+
+                                                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                                            <FormField
+                                                                control={
+                                                                    form.control
+                                                                }
+                                                                name="portalPrimaryColor"
+                                                                render={({
+                                                                    field,
+                                                                }) => (
+                                                                    <FormItem>
+                                                                        <FormLabel>
+                                                                            Primary
+                                                                            Color
+                                                                        </FormLabel>
+                                                                        <FormControl>
+                                                                            <Input
+                                                                                type="color"
+                                                                                {...field}
+                                                                            />
+                                                                        </FormControl>
+                                                                        <FormMessage />
+                                                                    </FormItem>
+                                                                )}
+                                                            />
+
+                                                            <FormField
+                                                                control={
+                                                                    form.control
+                                                                }
+                                                                name="portalSecondaryColor"
+                                                                render={({
+                                                                    field,
+                                                                }) => (
+                                                                    <FormItem>
+                                                                        <FormLabel>
+                                                                            Secondary
+                                                                            Color
+                                                                        </FormLabel>
+                                                                        <FormControl>
+                                                                            <Input
+                                                                                type="color"
+                                                                                {...field}
+                                                                            />
+                                                                        </FormControl>
+                                                                        <FormMessage />
+                                                                    </FormItem>
+                                                                )}
+                                                            />
+                                                        </div>
+
+                                                        <FormField
+                                                            control={
+                                                                form.control
+                                                            }
                                                             name="description"
                                                             render={({
                                                                 field,
@@ -307,7 +463,7 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
                                                                     </FormLabel>
                                                                     <FormControl>
                                                                         <Input
-                                                                            placeholder="Brief description..."
+                                                                            placeholder="Brief description"
                                                                             {...field}
                                                                         />
                                                                     </FormControl>
@@ -339,7 +495,7 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
                                                                 ) : (
                                                                     <Plus className="h-4 w-4 mr-2" />
                                                                 )}
-                                                                Create
+                                                                Provision
                                                             </Button>
                                                         </div>
                                                     </form>

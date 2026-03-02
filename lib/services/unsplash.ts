@@ -166,9 +166,9 @@ export async function triggerDownload(downloadUrl: string): Promise<void> {
 }
 
 export function getAttributionHtml(image: UnsplashImage): string {
-    return `Photo by <a href="${image.photographerUrl}?utm_source=smpro&utm_medium=referral">${image.photographer}</a> on <a href="https://unsplash.com/?utm_source=smpro&utm_medium=referral">Unsplash</a>`;
+    return `Photo by <a href="${image.photographerUrl}?utm_source=swiftware&utm_medium=referral">${image.photographer}</a> on <a href="https://unsplash.com/?utm_source=swiftware&utm_medium=referral">Unsplash</a>`;
 }
 
 export function getAttributionMarkdown(image: UnsplashImage): string {
-    return `Photo by [${image.photographer}](${image.photographerUrl}?utm_source=smpro&utm_medium=referral) on [Unsplash](https://unsplash.com/?utm_source=smpro&utm_medium=referral)`;
+    return `Photo by [${image.photographer}](${image.photographerUrl}?utm_source=swiftware&utm_medium=referral) on [Unsplash](https://unsplash.com/?utm_source=swiftware&utm_medium=referral)`;
 }

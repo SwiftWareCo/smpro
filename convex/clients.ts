@@ -1,5 +1,5 @@
-import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { ConvexError, v } from "convex/values";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { requireUserId } from "./_lib/auth";
 import * as AccountsRead from "./db/accounts/read";
 import * as AccountsWrite from "./db/accounts/write";
@@ -195,6 +195,71 @@ export const create = mutation({
     },
 });
 
+export const isSlugAvailable = query({
+    args: { slug: v.string() },
+    handler: async (ctx, args) => {
+        await requireUserId(ctx);
+        const existingClient = await ClientsRead.getBySlug(ctx, args.slug);
+        return !existingClient;
+    },
+});
+
+export const createProvisioned = internalMutation({
+    args: {
+        name: v.string(),
+        description: v.optional(v.string()),
+        slug: v.string(),
+        clerkOrganizationId: v.string(),
+        portalAdminUserId: v.string(),
+        portalPrimaryColor: v.string(),
+        portalSecondaryColor: v.string(),
+    },
+    returns: v.id("clients"),
+    handler: async (ctx, args) => {
+        const userId = await requireUserId(ctx);
+
+        const existingSlug = await ClientsRead.getBySlug(ctx, args.slug);
+        if (existingSlug) {
+            throw new ConvexError({
+                code: "SLUG_TAKEN",
+                message: "Slug already exists",
+            });
+        }
+
+        const existingOrg = await ClientsRead.getByClerkOrganizationId(
+            ctx,
+            args.clerkOrganizationId,
+        );
+        if (existingOrg) {
+            throw new ConvexError({
+                code: "ORG_ALREADY_LINKED",
+                message: "Clerk organization is already linked",
+            });
+        }
+
+        const existingPortalAdmin = await ClientsRead.getByPortalAdminUserId(
+            ctx,
+            args.portalAdminUserId,
+        );
+        if (existingPortalAdmin) {
+            throw new ConvexError({
+                code: "PORTAL_ADMIN_ALREADY_LINKED",
+                message: "Portal admin user is already linked",
+            });
+        }
+
+        return ClientsWrite.createProvisioned(ctx, userId, {
+            name: args.name,
+            description: args.description ?? null,
+            slug: args.slug,
+            clerkOrganizationId: args.clerkOrganizationId,
+            portalAdminUserId: args.portalAdminUserId,
+            portalPrimaryColor: args.portalPrimaryColor,
+            portalSecondaryColor: args.portalSecondaryColor,
+        });
+    },
+});
+
 export const update = mutation({
     args: {
         clientId: v.id("clients"),
@@ -202,6 +267,8 @@ export const update = mutation({
         description: v.optional(v.union(v.string(), v.null())),
         avatarUrl: v.optional(v.union(v.string(), v.null())),
         status: v.optional(v.string()),
+        portalPrimaryColor: v.optional(v.union(v.string(), v.null())),
+        portalSecondaryColor: v.optional(v.union(v.string(), v.null())),
     },
     handler: async (ctx, args) => {
         const userId = await requireUserId(ctx);
@@ -218,6 +285,10 @@ export const update = mutation({
             patch.description = args.description;
         if (args.avatarUrl !== undefined) patch.avatarUrl = args.avatarUrl;
         if (args.status !== undefined) patch.status = args.status;
+        if (args.portalPrimaryColor !== undefined)
+            patch.portalPrimaryColor = args.portalPrimaryColor;
+        if (args.portalSecondaryColor !== undefined)
+            patch.portalSecondaryColor = args.portalSecondaryColor;
 
         await ClientsWrite.patchById(ctx, client._id, patch);
         return { success: true };

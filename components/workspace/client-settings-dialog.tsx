@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -40,12 +40,18 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
+import { Copy, Trash2 } from "lucide-react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
+import {
+    DEFAULT_PORTAL_PRIMARY_COLOR,
+    DEFAULT_PORTAL_SECONDARY_COLOR,
+} from "@/lib/validation/client-onboarding";
+import { getClientPortalUrl } from "@/lib/tenant-url";
+import { getErrorMessage } from "@/lib/errors/convex";
 
 const clientStatusOptions = [
     "lead",
@@ -74,6 +80,12 @@ const clientFormSchema = z.object({
         .nullable()
         .or(z.literal("")),
     status: z.enum(clientStatusOptions),
+    portalPrimaryColor: z
+        .string()
+        .regex(/^#(?:[0-9a-fA-F]{6})$/, "Enter a valid hex color"),
+    portalSecondaryColor: z
+        .string()
+        .regex(/^#(?:[0-9a-fA-F]{6})$/, "Enter a valid hex color"),
 });
 
 type ClientFormValues = z.infer<typeof clientFormSchema>;
@@ -97,20 +109,31 @@ export function ClientSettingsDialog({
     const updateClient = useMutation(api.clients.update);
     const deleteClient = useMutation(api.clients.remove);
 
-    const form = useForm<ClientFormValues>({
-        resolver: zodResolver(clientFormSchema),
-        defaultValues: {
+    const portalUrl = useMemo(
+        () => getClientPortalUrl(client.slug),
+        [client.slug],
+    );
+    const formDefaults = useMemo(
+        () => ({
             name: client.name,
             description: client.description || "",
             avatarUrl: client.avatarUrl || "",
             status: client.status as ClientStatus,
-        },
+            portalPrimaryColor:
+                client.portalPrimaryColor ?? DEFAULT_PORTAL_PRIMARY_COLOR,
+            portalSecondaryColor:
+                client.portalSecondaryColor ?? DEFAULT_PORTAL_SECONDARY_COLOR,
+        }),
+        [client],
+    );
+
+    const form = useForm<ClientFormValues>({
+        resolver: zodResolver(clientFormSchema),
+        defaultValues: formDefaults,
     });
 
     const handleOpenChange = (isOpen: boolean) => {
-        if (!isOpen) {
-            form.reset();
-        }
+        form.reset(formDefaults);
         onOpenChange(isOpen);
     };
 
@@ -124,12 +147,14 @@ export function ClientSettingsDialog({
                 description: data.description || null,
                 avatarUrl: data.avatarUrl || null,
                 status: data.status,
+                portalPrimaryColor: data.portalPrimaryColor,
+                portalSecondaryColor: data.portalSecondaryColor,
             });
 
             toast.success("Client updated successfully");
             onOpenChange(false);
-        } catch {
-            toast.error("An error occurred");
+        } catch (error) {
+            toast.error(getErrorMessage(error, "Failed to update client"));
         } finally {
             setIsPending(false);
         }
@@ -142,22 +167,31 @@ export function ClientSettingsDialog({
             await deleteClient({ clientId: client._id });
             toast.success("Client deleted successfully");
             router.push("/");
-        } catch {
-            toast.error("An error occurred");
+        } catch (error) {
+            toast.error(getErrorMessage(error, "Failed to delete client"));
         } finally {
             setIsPending(false);
             setShowDeleteAlert(false);
         }
     };
 
+    const copyPortalUrl = async () => {
+        try {
+            await navigator.clipboard.writeText(portalUrl);
+            toast.success("Portal URL copied");
+        } catch {
+            toast.error("Failed to copy portal URL");
+        }
+    };
+
     return (
         <>
             <Dialog open={open} onOpenChange={handleOpenChange}>
-                <DialogContent className="sm:max-w-[500px]">
+                <DialogContent className="sm:max-w-[560px] max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Client Settings</DialogTitle>
                         <DialogDescription>
-                            Update client information or delete this client
+                            Manage client profile and portal configuration
                         </DialogDescription>
                     </DialogHeader>
 
@@ -180,6 +214,101 @@ export function ClientSettingsDialog({
                                         </FormItem>
                                     )}
                                 />
+
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                    <FormItem>
+                                        <FormLabel>Portal Slug</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                value={client.slug}
+                                                readOnly
+                                            />
+                                        </FormControl>
+                                    </FormItem>
+
+                                    <FormItem>
+                                        <FormLabel>
+                                            Clerk Organization ID
+                                        </FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                value={
+                                                    client.clerkOrganizationId ??
+                                                    "Not provisioned"
+                                                }
+                                                readOnly
+                                            />
+                                        </FormControl>
+                                    </FormItem>
+                                </div>
+
+                                <FormItem>
+                                    <FormLabel>Portal Admin User ID</FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            value={
+                                                client.portalAdminUserId ??
+                                                "Not provisioned"
+                                            }
+                                            readOnly
+                                        />
+                                    </FormControl>
+                                </FormItem>
+
+                                <FormItem>
+                                    <FormLabel>Portal URL</FormLabel>
+                                    <div className="flex gap-2">
+                                        <Input value={portalUrl} readOnly />
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={copyPortalUrl}
+                                        >
+                                            <Copy className="h-4 w-4 mr-2" />
+                                            Copy
+                                        </Button>
+                                    </div>
+                                </FormItem>
+
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                    <FormField
+                                        control={form.control}
+                                        name="portalPrimaryColor"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>
+                                                    Portal Primary
+                                                </FormLabel>
+                                                <FormControl>
+                                                    <Input
+                                                        type="color"
+                                                        {...field}
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+
+                                    <FormField
+                                        control={form.control}
+                                        name="portalSecondaryColor"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>
+                                                    Portal Secondary
+                                                </FormLabel>
+                                                <FormControl>
+                                                    <Input
+                                                        type="color"
+                                                        {...field}
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
 
                                 <FormField
                                     control={form.control}
@@ -284,7 +413,6 @@ export function ClientSettingsDialog({
                 </DialogContent>
             </Dialog>
 
-            {/* Delete Confirmation Alert */}
             <AlertDialog
                 open={showDeleteAlert}
                 onOpenChange={setShowDeleteAlert}

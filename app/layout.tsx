@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ConvexClientProvider } from "./convex-client-provider";
 
 export const metadata: Metadata = {
-    title: "SM Pro",
+    title: "Swiftware",
     description: "Social Media Content Management Platform",
 };
 

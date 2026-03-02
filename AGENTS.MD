@@ -1,4 +1,4 @@
-# SM Pro - Agency CRM (Context Index)
+# Swiftware - Agency CRM (Context Index)
 
 ## Read This First
 Start with the general context docs in `docs/context/` (in order):
@@ -15,7 +15,7 @@ For feature-specific work, **do not load all docs**. Open only the relevant file
 This keeps context focused and prevents pulling in unrelated modules.
 
 ## Core Concepts (Quick Reference)
-- SM Pro is an internal agency CRM (not a self-serve SaaS).
+- Swiftware is an internal agency CRM (not a self-serve SaaS).
 - Modules are verticals (Social, SEO, AI Receptionist). Client workspaces show tabs based on `enabledModules`.
 - Follow the Convex DB helper + API layer convention:
   - `convex/db/**` for reusable read/write helpers

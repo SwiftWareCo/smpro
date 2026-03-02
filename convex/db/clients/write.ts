@@ -40,6 +40,7 @@ export async function create(
         name: data.name,
         slug,
         clerkOrganizationId: null,
+        portalAdminUserId: null,
         portalPrimaryColor: null,
         portalSecondaryColor: null,
         description: data.description ?? null,
@@ -52,6 +53,40 @@ export async function create(
 
     const clientId = await ctx.db.insert("clients", client);
     return ctx.db.get(clientId);
+}
+
+export async function createProvisioned(
+    ctx: MutationCtx,
+    userId: string,
+    data: {
+        name: string;
+        description?: string | null;
+        slug: string;
+        clerkOrganizationId: string;
+        portalAdminUserId: string;
+        portalPrimaryColor: string;
+        portalSecondaryColor: string;
+    },
+) {
+    const now = Date.now();
+    const client = {
+        userId,
+        name: data.name,
+        slug: data.slug,
+        clerkOrganizationId: data.clerkOrganizationId,
+        portalAdminUserId: data.portalAdminUserId,
+        portalPrimaryColor: data.portalPrimaryColor,
+        portalSecondaryColor: data.portalSecondaryColor,
+        description: data.description ?? null,
+        avatarUrl: null,
+        status: "active",
+        enabledModules: ["social"],
+        createdAt: now,
+        updatedAt: now,
+    };
+
+    const clientId = await ctx.db.insert("clients", client);
+    return clientId;
 }
 
 export async function patchById(

@@ -1,6 +1,6 @@
-# SM Pro MDX Components
+# Swiftware MDX Components
 
-This directory contains the MDX components used by the SM Pro autoblog feature. Copy these components to your Next.js project to render AI-generated blog posts.
+This directory contains the MDX components used by the Swiftware autoblog feature. Copy these components to your Next.js project to render AI-generated blog posts.
 
 ## Installation
 

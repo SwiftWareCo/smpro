@@ -33,6 +33,18 @@ export async function getByClerkOrganizationId(
         .unique();
 }
 
+export async function getByPortalAdminUserId(
+    ctx: QueryCtx,
+    portalAdminUserId: string,
+) {
+    return ctx.db
+        .query("clients")
+        .withIndex("by_portal_admin_user_id", (q) =>
+            q.eq("portalAdminUserId", portalAdminUserId),
+        )
+        .unique();
+}
+
 export async function getSummary(ctx: QueryCtx, clientId: Id<"clients">) {
     const client = await getById(ctx, clientId);
     if (!client) return null;
