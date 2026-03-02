@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
     Info,
@@ -78,6 +79,9 @@ interface Frontmatter {
     tags?: string[];
     featuredImage?: string;
 }
+
+const FALLBACK_IMAGE_SRC =
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='675' viewBox='0 0 1200 675'%3E%3Crect width='1200' height='675' fill='%23e5e7eb'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%236b7280' font-family='sans-serif' font-size='36'%3EImage%20Not%20Found%3C/text%3E%3C/svg%3E";
 
 function parseMDX(content: string): { frontmatter: Frontmatter; body: string } {
     const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
@@ -750,16 +754,21 @@ function ImageWithCaptionComponent({
     caption?: string;
     credit?: string;
 }) {
+    const [imageSrc, setImageSrc] = useState(src);
+    useEffect(() => {
+        setImageSrc(src);
+    }, [src]);
+
     return (
         <figure className="not-prose my-6">
-            <img
-                src={src}
+            <Image
+                src={imageSrc}
                 alt={alt}
+                width={1200}
+                height={675}
+                unoptimized
                 className="w-full rounded-lg"
-                onError={(e) => {
-                    (e.target as HTMLImageElement).src =
-                        "https://via.placeholder.com/800x400?text=Image+Not+Found";
-                }}
+                onError={() => setImageSrc(FALLBACK_IMAGE_SRC)}
             />
             {(caption || credit) && (
                 <figcaption className="text-sm text-muted-foreground mt-2 text-center">

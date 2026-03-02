@@ -232,7 +232,7 @@ export function IdeasPanel({ clientId }: IdeasPanelProps) {
                         <Lightbulb className="size-8 mx-auto mb-2 opacity-50" />
                         <p className="text-sm">No topic ideas yet.</p>
                         <p className="text-xs">
-                            Click "Generate" to create some!
+                            Click &quot;Generate&quot; to create some!
                         </p>
                     </div>
                 ) : (

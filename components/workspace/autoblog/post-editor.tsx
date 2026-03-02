@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useAction } from "convex/react";
@@ -73,7 +74,9 @@ export function PostEditor({
     const [slug, setSlug] = useState(initialPost.slug);
     const [content, setContent] = useState(initialPost.content);
     const [excerpt, setExcerpt] = useState(initialPost.excerpt || "");
-    const [tags, setTags] = useState(initialPost.metadata.tags?.join(", ") || "");
+    const [tags, setTags] = useState(
+        initialPost.metadata.tags?.join(", ") || "",
+    );
     const [isSaving, setIsSaving] = useState(false);
     const [isScheduling, setIsScheduling] = useState(false);
     const [isPublishing, setIsPublishing] = useState(false);
@@ -81,7 +84,7 @@ export function PostEditor({
     const [scheduleDate, setScheduleDate] = useState<Date | undefined>(
         initialPost.scheduledFor
             ? new Date(initialPost.scheduledFor)
-            : addDays(new Date(), 7)
+            : addDays(new Date(), 7),
     );
     const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
 
@@ -89,7 +92,9 @@ export function PostEditor({
     const approvePost = useMutation(api.autoblog.approvePost);
     const schedulePost = useMutation(api.autoblogScheduler.schedulePost);
     const publishNow = useMutation(api.autoblogScheduler.publishNow);
-    const cancelScheduled = useMutation(api.autoblogScheduler.cancelScheduledPost);
+    const cancelScheduled = useMutation(
+        api.autoblogScheduler.cancelScheduledPost,
+    );
     const regeneratePost = useAction(api.autoblogPosts.regenerate);
 
     const hasChanges =
@@ -144,7 +149,16 @@ export function PostEditor({
         } finally {
             setIsSaving(false);
         }
-    }, [postId, title, slug, content, excerpt, tags, post.metadata, updatePost]);
+    }, [
+        postId,
+        title,
+        slug,
+        content,
+        excerpt,
+        tags,
+        post.metadata,
+        updatePost,
+    ]);
 
     const handleApprove = async () => {
         try {
@@ -257,7 +271,7 @@ export function PostEditor({
                                 variant="secondary"
                                 className={cn(
                                     "text-white text-xs",
-                                    statusColors[post.status as PostStatus]
+                                    statusColors[post.status as PostStatus],
                                 )}
                             >
                                 {statusLabels[post.status as PostStatus]}
@@ -267,12 +281,16 @@ export function PostEditor({
                                     Needs Approval
                                 </Badge>
                             )}
-                            {post.scheduledFor && post.status === "scheduled" && (
-                                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                    <Clock className="size-3" />
-                                    {format(new Date(post.scheduledFor), "PPP 'at' p")}
-                                </span>
-                            )}
+                            {post.scheduledFor &&
+                                post.status === "scheduled" && (
+                                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                        <Clock className="size-3" />
+                                        {format(
+                                            new Date(post.scheduledFor),
+                                            "PPP 'at' p",
+                                        )}
+                                    </span>
+                                )}
                         </div>
                     </div>
                 </div>
@@ -281,7 +299,9 @@ export function PostEditor({
                         variant="outline"
                         size="sm"
                         onClick={handleRegenerate}
-                        disabled={isRegenerating || post.status === "publishing"}
+                        disabled={
+                            isRegenerating || post.status === "publishing"
+                        }
                     >
                         {isRegenerating ? (
                             <Spinner className="size-4 mr-2" />
@@ -314,14 +334,22 @@ export function PostEditor({
                         <CardHeader className="pb-3">
                             <Tabs
                                 value={activeTab}
-                                onValueChange={(v) => setActiveTab(v as "edit" | "preview")}
+                                onValueChange={(v) =>
+                                    setActiveTab(v as "edit" | "preview")
+                                }
                             >
                                 <TabsList>
-                                    <TabsTrigger value="edit" className="flex items-center gap-2">
+                                    <TabsTrigger
+                                        value="edit"
+                                        className="flex items-center gap-2"
+                                    >
                                         <Code className="size-4" />
                                         Edit
                                     </TabsTrigger>
-                                    <TabsTrigger value="preview" className="flex items-center gap-2">
+                                    <TabsTrigger
+                                        value="preview"
+                                        className="flex items-center gap-2"
+                                    >
                                         <Eye className="size-4" />
                                         Preview
                                     </TabsTrigger>
@@ -336,7 +364,9 @@ export function PostEditor({
                                             <Label>Title</Label>
                                             <Input
                                                 value={title}
-                                                onChange={(e) => setTitle(e.target.value)}
+                                                onChange={(e) =>
+                                                    setTitle(e.target.value)
+                                                }
                                                 placeholder="Post title"
                                             />
                                         </div>
@@ -344,7 +374,9 @@ export function PostEditor({
                                             <Label>Slug</Label>
                                             <Input
                                                 value={slug}
-                                                onChange={(e) => setSlug(e.target.value)}
+                                                onChange={(e) =>
+                                                    setSlug(e.target.value)
+                                                }
                                                 placeholder="post-slug"
                                             />
                                         </div>
@@ -353,7 +385,9 @@ export function PostEditor({
                                         <Label>Excerpt</Label>
                                         <Textarea
                                             value={excerpt}
-                                            onChange={(e) => setExcerpt(e.target.value)}
+                                            onChange={(e) =>
+                                                setExcerpt(e.target.value)
+                                            }
                                             placeholder="Brief description of the post"
                                             rows={2}
                                         />
@@ -362,7 +396,9 @@ export function PostEditor({
                                         <Label>Tags (comma separated)</Label>
                                         <Input
                                             value={tags}
-                                            onChange={(e) => setTags(e.target.value)}
+                                            onChange={(e) =>
+                                                setTags(e.target.value)
+                                            }
                                             placeholder="tag1, tag2, tag3"
                                         />
                                     </div>
@@ -370,7 +406,9 @@ export function PostEditor({
                                         <Label>Content (MDX)</Label>
                                         <Textarea
                                             value={content}
-                                            onChange={(e) => setContent(e.target.value)}
+                                            onChange={(e) =>
+                                                setContent(e.target.value)
+                                            }
                                             placeholder="Write your post content in MDX..."
                                             rows={20}
                                             className="font-mono text-sm"
@@ -390,14 +428,19 @@ export function PostEditor({
                     {needsApproval && (
                         <Card>
                             <CardHeader className="pb-3">
-                                <CardTitle className="text-base">Approval Required</CardTitle>
+                                <CardTitle className="text-base">
+                                    Approval Required
+                                </CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <p className="text-sm text-muted-foreground mb-4">
-                                    This post requires approval before it can be scheduled or
-                                    published.
+                                    This post requires approval before it can be
+                                    scheduled or published.
                                 </p>
-                                <Button onClick={handleApprove} className="w-full">
+                                <Button
+                                    onClick={handleApprove}
+                                    className="w-full"
+                                >
                                     <Check className="size-4 mr-2" />
                                     Approve Post
                                 </Button>
@@ -409,7 +452,9 @@ export function PostEditor({
                     {canSchedule && (
                         <Card>
                             <CardHeader className="pb-3">
-                                <CardTitle className="text-base">Schedule</CardTitle>
+                                <CardTitle className="text-base">
+                                    Schedule
+                                </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 {post.status === "scheduled" ? (
@@ -417,7 +462,12 @@ export function PostEditor({
                                         <p className="text-sm">
                                             Scheduled for{" "}
                                             <strong>
-                                                {format(new Date(post.scheduledFor!), "PPP 'at' p")}
+                                                {format(
+                                                    new Date(
+                                                        post.scheduledFor!,
+                                                    ),
+                                                    "PPP 'at' p",
+                                                )}
                                             </strong>
                                         </p>
                                         <Button
@@ -438,16 +488,24 @@ export function PostEditor({
                                                 >
                                                     <CalendarIcon className="size-4 mr-2" />
                                                     {scheduleDate
-                                                        ? format(scheduleDate, "PPP")
+                                                        ? format(
+                                                              scheduleDate,
+                                                              "PPP",
+                                                          )
                                                         : "Pick a date"}
                                                 </Button>
                                             </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0" align="start">
+                                            <PopoverContent
+                                                className="w-auto p-0"
+                                                align="start"
+                                            >
                                                 <Calendar
                                                     mode="single"
                                                     selected={scheduleDate}
                                                     onSelect={setScheduleDate}
-                                                    disabled={(date) => date < new Date()}
+                                                    disabled={(date) =>
+                                                        date < new Date()
+                                                    }
                                                     initialFocus
                                                 />
                                             </PopoverContent>
@@ -455,7 +513,9 @@ export function PostEditor({
                                         <Button
                                             className="w-full"
                                             onClick={handleSchedule}
-                                            disabled={!scheduleDate || isScheduling}
+                                            disabled={
+                                                !scheduleDate || isScheduling
+                                            }
                                         >
                                             {isScheduling ? (
                                                 <Spinner className="size-4 mr-2" />
@@ -474,7 +534,9 @@ export function PostEditor({
                     {canPublish && post.status !== "scheduled" && (
                         <Card>
                             <CardHeader className="pb-3">
-                                <CardTitle className="text-base">Publish</CardTitle>
+                                <CardTitle className="text-base">
+                                    Publish
+                                </CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <p className="text-sm text-muted-foreground mb-4">
@@ -499,37 +561,56 @@ export function PostEditor({
                     {/* Metadata Card */}
                     <Card>
                         <CardHeader className="pb-3">
-                            <CardTitle className="text-base">Metadata</CardTitle>
+                            <CardTitle className="text-base">
+                                Metadata
+                            </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3 text-sm">
                             {post.metadata.featuredImage && (
                                 <div>
-                                    <Label className="text-muted-foreground">Featured Image</Label>
-                                    <img
-                                        src={post.metadata.featuredImage}
-                                        alt="Featured"
-                                        className="mt-1 rounded-md w-full aspect-video object-cover"
-                                    />
+                                    <Label className="text-muted-foreground">
+                                        Featured Image
+                                    </Label>
+                                    <div className="mt-1 relative w-full aspect-video overflow-hidden rounded-md">
+                                        <Image
+                                            src={post.metadata.featuredImage}
+                                            alt="Featured"
+                                            fill
+                                            unoptimized
+                                            className="object-cover"
+                                        />
+                                    </div>
                                 </div>
                             )}
                             {post.metadata.author && (
                                 <div>
-                                    <Label className="text-muted-foreground">Author</Label>
+                                    <Label className="text-muted-foreground">
+                                        Author
+                                    </Label>
                                     <p>{post.metadata.author}</p>
                                 </div>
                             )}
                             {post.metadata.readingTime && (
                                 <div>
-                                    <Label className="text-muted-foreground">Reading Time</Label>
+                                    <Label className="text-muted-foreground">
+                                        Reading Time
+                                    </Label>
                                     <p>{post.metadata.readingTime} min read</p>
                                 </div>
                             )}
                             {post.generation && (
                                 <div>
-                                    <Label className="text-muted-foreground">Generated</Label>
+                                    <Label className="text-muted-foreground">
+                                        Generated
+                                    </Label>
                                     <p>
                                         {post.generation.model} -{" "}
-                                        {format(new Date(post.generation.generatedAt), "PPP")}
+                                        {format(
+                                            new Date(
+                                                post.generation.generatedAt,
+                                            ),
+                                            "PPP",
+                                        )}
                                     </p>
                                 </div>
                             )}
