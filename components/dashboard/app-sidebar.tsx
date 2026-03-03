@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import {
@@ -46,6 +46,7 @@ import { Input } from "@/components/ui/input";
 import {
     Form,
     FormControl,
+    FormDescription,
     FormField,
     FormItem,
     FormLabel,
@@ -66,6 +67,12 @@ import { getErrorMessage } from "@/lib/errors/convex";
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
     clients: Preloaded<typeof api.clients.list>;
 }
+
+const PORTAL_THEME_PRESETS = [
+    { label: "Ocean", primary: "#0ea5e9", secondary: "#e0f2fe" },
+    { label: "Forest", primary: "#16a34a", secondary: "#dcfce7" },
+    { label: "Slate", primary: "#334155", secondary: "#e2e8f0" },
+] as const;
 
 const createClientFormDefaults: ClientOnboardingFormData = {
     name: "",
@@ -103,6 +110,10 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
         defaultValues: createClientFormDefaults,
         mode: "onBlur",
     });
+    const [selectedPrimaryColor, selectedSecondaryColor] = useWatch({
+        control: form.control,
+        name: ["portalPrimaryColor", "portalSecondaryColor"],
+    });
 
     const filteredClients = useMemo(() => {
         if (!searchQuery.trim()) return clientList;
@@ -137,6 +148,19 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
             toast.error(getErrorMessage(error, "Failed to provision client"));
         }
         setIsPending(false);
+    }
+
+    function applyPortalThemePreset(
+        preset: (typeof PORTAL_THEME_PRESETS)[number],
+    ) {
+        form.setValue("portalPrimaryColor", preset.primary, {
+            shouldDirty: true,
+            shouldValidate: true,
+        });
+        form.setValue("portalSecondaryColor", preset.secondary, {
+            shouldDirty: true,
+            shouldValidate: true,
+        });
     }
 
     return (
@@ -418,6 +442,18 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
                                                                                 {...field}
                                                                             />
                                                                         </FormControl>
+                                                                        <FormDescription>
+                                                                            Used
+                                                                            for
+                                                                            buttons,
+                                                                            active
+                                                                            states,
+                                                                            focus
+                                                                            rings,
+                                                                            and
+                                                                            key
+                                                                            accents.
+                                                                        </FormDescription>
                                                                         <FormMessage />
                                                                     </FormItem>
                                                                 )}
@@ -442,10 +478,86 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
                                                                                 {...field}
                                                                             />
                                                                         </FormControl>
+                                                                        <FormDescription>
+                                                                            Used
+                                                                            for
+                                                                            portal
+                                                                            backgrounds
+                                                                            and
+                                                                            sidebar
+                                                                            surfaces.
+                                                                            Pick
+                                                                            a
+                                                                            darker
+                                                                            shade
+                                                                            here
+                                                                            for
+                                                                            dark-mode-like
+                                                                            styling.
+                                                                        </FormDescription>
                                                                         <FormMessage />
                                                                     </FormItem>
                                                                 )}
                                                             />
+                                                        </div>
+
+                                                        <div className="space-y-2">
+                                                            <p className="text-sm font-medium">
+                                                                Theme Presets
+                                                            </p>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {PORTAL_THEME_PRESETS.map(
+                                                                    (
+                                                                        preset,
+                                                                    ) => {
+                                                                        const isSelected =
+                                                                            selectedPrimaryColor.toLowerCase() ===
+                                                                                preset.primary &&
+                                                                            selectedSecondaryColor.toLowerCase() ===
+                                                                                preset.secondary;
+                                                                        return (
+                                                                            <Button
+                                                                                key={
+                                                                                    preset.label
+                                                                                }
+                                                                                type="button"
+                                                                                variant="outline"
+                                                                                size="sm"
+                                                                                className={
+                                                                                    isSelected
+                                                                                        ? "ring-2 ring-ring"
+                                                                                        : ""
+                                                                                }
+                                                                                onClick={() =>
+                                                                                    applyPortalThemePreset(
+                                                                                        preset,
+                                                                                    )
+                                                                                }
+                                                                            >
+                                                                                <span className="mr-2 inline-flex items-center gap-1">
+                                                                                    <span
+                                                                                        className="h-3 w-3 rounded-full border"
+                                                                                        style={{
+                                                                                            backgroundColor:
+                                                                                                preset.primary,
+                                                                                        }}
+                                                                                    />
+                                                                                    <span
+                                                                                        className="h-3 w-3 rounded-full border"
+                                                                                        style={{
+                                                                                            backgroundColor:
+                                                                                                preset.secondary,
+                                                                                        }}
+                                                                                    />
+                                                                                </span>
+                                                                                {
+                                                                                    preset.label
+                                                                                }
+                                                                            </Button>
+                                                                        );
+                                                                    },
+                                                                )}
+                                                            </div>
                                                         </div>
 
                                                         <FormField

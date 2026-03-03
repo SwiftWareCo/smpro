@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
     Dialog,
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import {
     Form,
     FormControl,
+    FormDescription,
     FormField,
     FormItem,
     FormLabel,
@@ -98,6 +99,12 @@ interface ClientSettingsDialogProps {
     client: Client;
 }
 
+const PORTAL_THEME_PRESETS = [
+    { label: "Ocean", primary: "#0ea5e9", secondary: "#e0f2fe" },
+    { label: "Forest", primary: "#16a34a", secondary: "#dcfce7" },
+    { label: "Slate", primary: "#334155", secondary: "#e2e8f0" },
+] as const;
+
 export function ClientSettingsDialog({
     open,
     onOpenChange,
@@ -130,6 +137,10 @@ export function ClientSettingsDialog({
     const form = useForm<ClientFormValues>({
         resolver: zodResolver(clientFormSchema),
         defaultValues: formDefaults,
+    });
+    const [selectedPrimaryColor, selectedSecondaryColor] = useWatch({
+        control: form.control,
+        name: ["portalPrimaryColor", "portalSecondaryColor"],
     });
 
     const handleOpenChange = (isOpen: boolean) => {
@@ -183,6 +194,19 @@ export function ClientSettingsDialog({
             toast.error("Failed to copy portal URL");
         }
     };
+
+    function applyPortalThemePreset(
+        preset: (typeof PORTAL_THEME_PRESETS)[number],
+    ) {
+        form.setValue("portalPrimaryColor", preset.primary, {
+            shouldDirty: true,
+            shouldValidate: true,
+        });
+        form.setValue("portalSecondaryColor", preset.secondary, {
+            shouldDirty: true,
+            shouldValidate: true,
+        });
+    }
 
     return (
         <>
@@ -285,6 +309,11 @@ export function ClientSettingsDialog({
                                                         {...field}
                                                     />
                                                 </FormControl>
+                                                <FormDescription>
+                                                    Used for buttons, active
+                                                    states, focus rings, and key
+                                                    accents.
+                                                </FormDescription>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
@@ -304,10 +333,67 @@ export function ClientSettingsDialog({
                                                         {...field}
                                                     />
                                                 </FormControl>
+                                                <FormDescription>
+                                                    Used for portal backgrounds
+                                                    and sidebar surfaces. Pick a
+                                                    darker shade here for
+                                                    dark-mode-like styling.
+                                                </FormDescription>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
                                     />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <p className="text-sm font-medium">
+                                        Theme Presets
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {PORTAL_THEME_PRESETS.map((preset) => {
+                                            const isSelected =
+                                                selectedPrimaryColor.toLowerCase() ===
+                                                    preset.primary &&
+                                                selectedSecondaryColor.toLowerCase() ===
+                                                    preset.secondary;
+                                            return (
+                                                <Button
+                                                    key={preset.label}
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className={
+                                                        isSelected
+                                                            ? "ring-2 ring-ring"
+                                                            : ""
+                                                    }
+                                                    onClick={() =>
+                                                        applyPortalThemePreset(
+                                                            preset,
+                                                        )
+                                                    }
+                                                >
+                                                    <span className="mr-2 inline-flex items-center gap-1">
+                                                        <span
+                                                            className="h-3 w-3 rounded-full border"
+                                                            style={{
+                                                                backgroundColor:
+                                                                    preset.primary,
+                                                            }}
+                                                        />
+                                                        <span
+                                                            className="h-3 w-3 rounded-full border"
+                                                            style={{
+                                                                backgroundColor:
+                                                                    preset.secondary,
+                                                            }}
+                                                        />
+                                                    </span>
+                                                    {preset.label}
+                                                </Button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
 
                                 <FormField

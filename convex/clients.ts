@@ -184,6 +184,45 @@ export const getSummary = query({
     },
 });
 
+export const getPortalBySlug = query({
+    args: { slug: v.string() },
+    handler: async (ctx, args) => {
+        await requireUserId(ctx);
+        const client = await ClientsRead.getBySlug(ctx, args.slug);
+        if (!client) return null;
+
+        return {
+            _id: client._id,
+            name: client.name,
+            slug: client.slug,
+            clerkOrganizationId: client.clerkOrganizationId,
+            portalPrimaryColor: client.portalPrimaryColor,
+            portalSecondaryColor: client.portalSecondaryColor,
+        };
+    },
+});
+
+export const getPortalByClerkOrganizationId = query({
+    args: { clerkOrganizationId: v.string() },
+    handler: async (ctx, args) => {
+        await requireUserId(ctx);
+        const client = await ClientsRead.getByClerkOrganizationId(
+            ctx,
+            args.clerkOrganizationId,
+        );
+        if (!client) return null;
+
+        return {
+            _id: client._id,
+            name: client.name,
+            slug: client.slug,
+            clerkOrganizationId: client.clerkOrganizationId,
+            portalPrimaryColor: client.portalPrimaryColor,
+            portalSecondaryColor: client.portalSecondaryColor,
+        };
+    },
+});
+
 export const create = mutation({
     args: { name: v.string(), description: v.optional(v.string()) },
     handler: async (ctx, args) => {

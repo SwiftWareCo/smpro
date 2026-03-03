@@ -27,6 +27,7 @@ Out of scope
 - `TENANT_ROOT_DOMAIN=clients.swiftware.ca`
 - `APP_ROOT_DOMAIN=admin.swiftware.ca`
 - `NEXT_PUBLIC_APP_URL=https://admin.swiftware.ca`
+- `NEXT_PUBLIC_TENANT_ROOT_DOMAIN=clients.swiftware.ca` (for client-side portal URL display/copy UX)
 
 ## Step 1: Extend Client Data Model
 - [x] Add client fields: `slug`, `clerkOrganizationId`, `portalPrimaryColor`, `portalSecondaryColor`.
@@ -39,62 +40,62 @@ Acceptance Criteria
 - [x] Existing add-client flow remains readable/writable after schema update.
 
 ## Step 2: Build Provisioning Orchestrator
-- [ ] Add a server-side endpoint/function for onboarding.
-- [ ] Create Clerk organization with slug.
-- [ ] Create portal admin user with password.
-- [ ] Add admin user to org with admin role.
-- [ ] Persist client row with org/user IDs and theme colors.
-- [ ] Return onboarding payload including portal URL and admin email.
-- [ ] Implement failure compensation (cleanup) for partial provisioning failures.
+- [x] Add a server-side endpoint/function for onboarding.
+- [x] Create Clerk organization with slug.
+- [x] Create portal admin user with password.
+- [x] Add admin user to org with admin role.
+- [x] Persist client row with org/user IDs and theme colors.
+- [x] Return onboarding payload including portal URL and admin email.
+- [x] Implement failure compensation (cleanup) for partial provisioning failures.
 
 Acceptance Criteria
-- [ ] Single request provisions org + admin user + client row.
-- [ ] Duplicate slug/email produces clear validation error.
-- [ ] No orphaned org/user remains after orchestrator failure.
+- [x] Single request provisions org + admin user + client row.
+- [x] Duplicate slug/email produces clear validation error.
+- [x] No orphaned org/user remains after orchestrator failure.
 
 ## Step 3: Update Add Client Flow UI
-- [ ] Update add-client form to include slug, admin email, password, primary color, secondary color.
-- [ ] Validate slug format and reserved words.
-- [ ] Submit to new provisioning endpoint.
-- [ ] Show success confirmation with tenant portal URL.
+- [x] Update add-client form to include slug, admin email, password, primary color, secondary color.
+- [x] Validate slug format and reserved words.
+- [x] Submit to new provisioning endpoint.
+- [x] Show success confirmation with tenant portal URL.
 
 Acceptance Criteria
-- [ ] Invalid slug/email/password is blocked before submit.
-- [ ] Success state includes working tenant URL format: `https://[slug].TENANT_ROOT_DOMAIN`.
-- [ ] New client appears in existing dashboard list.
+- [x] Invalid slug/email/password is blocked before submit.
+- [x] Success state includes working tenant URL format: `https://[slug].TENANT_ROOT_DOMAIN`.
+- [x] New client appears in existing dashboard list.
 
 ## Step 4: Add Host-Based Tenant Routing
-- [ ] Add host parser utility that resolves tenant slug from request host.
-- [ ] Update middleware/proxy to route tenant hosts to portal app surface.
-- [ ] Add unknown-tenant handling (404 or controlled error page).
+- [x] Add host parser utility that resolves tenant slug from request host.
+- [x] Update middleware/proxy to route tenant hosts to portal app surface.
+- [x] Add unknown-tenant handling (404 or controlled error page).
 
 Acceptance Criteria
-- [ ] Root host routes to agency dashboard.
-- [ ] Tenant host routes to tenant portal.
-- [ ] Unknown tenant host cannot access dashboard data.
+- [x] Root host routes to agency dashboard.
+- [x] Tenant host routes to tenant portal.
+- [x] Unknown tenant host cannot access dashboard data.
 
 ## Step 5: Enforce Tenant AuthZ Boundary
-- [ ] Add server checks requiring user membership in the Clerk org mapped to tenant slug.
-- [ ] Block cross-tenant access by host/org mismatch.
-- [ ] Restrict portal admins to tenant portal only.
+- [x] Add server checks requiring user membership in the Clerk org mapped to tenant slug.
+- [x] Block cross-tenant access by host/org mismatch.
+- [x] Restrict portal admins to tenant portal only.
 
 Acceptance Criteria
-- [ ] Portal admin can access only their own `[slug]` host.
-- [ ] Same user is blocked on other tenant hosts.
-- [ ] Unauthorized access returns redirect or 403 consistently.
+- [x] Portal admin can access only their own `[slug]` host.
+- [x] Same user is blocked on other tenant hosts.
+- [x] Unauthorized access returns redirect or 403 consistently.
 
 ## Step 6: Create Base Portal UI
-- [ ] Add tenant portal layout and dashboard page as tenant landing.
-- [ ] Implement light blue + white default theme.
-- [ ] Implement floating sidebar pattern for tenant navigation.
-- [ ] Apply per-client two-color theme tokens from client settings.
-- [ ] Use existing shadcn variables for tenant colors: `--primary`, `--secondary`, `--ring`, `--sidebar-primary`, `--sidebar-accent`.
+- [x] Add tenant portal layout and dashboard page as tenant landing.
+- [x] Implement light blue + white default theme.
+- [x] Implement floating sidebar pattern for tenant navigation.
+- [x] Apply per-client two-color theme tokens from client settings.
+- [x] Use existing shadcn variables for tenant colors: `--primary`, `--secondary`, `--ring`, `--sidebar-primary`, `--sidebar-accent`.
 
 Acceptance Criteria
-- [ ] Tenant dashboard loads on first visit for valid tenant host.
-- [ ] UI uses light-blue/white default theme when custom colors are missing.
-- [ ] Custom colors are reflected per tenant without leaking between tenants.
-- [ ] Layout is usable on desktop and mobile.
+- [x] Tenant dashboard loads on first visit for valid tenant host.
+- [x] UI uses light-blue/white default theme when custom colors are missing.
+- [x] Custom colors are reflected per tenant without leaking between tenants.
+- [x] Layout is usable on desktop and mobile.
 
 ## Step 7: Portal Admin User Management
 - [ ] Add tenant “Users” area or direct Clerk org management integration for adding users.
@@ -107,8 +108,8 @@ Acceptance Criteria
 - [ ] New users can access only that tenant portal.
 
 ## Step 8: Validation and Rollout Checklist
-- [ ] Run `pnpm run lint:types`.
-- [ ] Run `pnpm run lint:eslint`.
+- [x] Run `pnpm run lint:types`.
+- [x] Run `pnpm run lint:eslint`.
 - [ ] Execute manual E2E smoke test: create client.
 - [ ] Execute manual E2E smoke test: confirm org and admin user created.
 - [ ] Execute manual E2E smoke test: sign in as portal admin.
