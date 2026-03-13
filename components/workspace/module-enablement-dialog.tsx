@@ -41,6 +41,12 @@ const availableModules = [
         description: "AI-powered blog automation with MDX publishing",
     },
     {
+        type: "patient_forms" as const,
+        name: "Patient Forms",
+        description:
+            "Digital patient intake forms with PIPA-compliant consent and encrypted storage",
+    },
+    {
         type: "website_gmb" as const,
         name: "Website/GMB",
         description: "Website and Google My Business management",

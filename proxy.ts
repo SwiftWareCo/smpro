@@ -9,13 +9,16 @@ import { resolveTenantSlugFromHost } from "@/lib/tenant-host";
 const isPublicRoute = createRouteMatcher([
     "/sign-in(.*)",
     "/api/oauth/github/callback(.*)",
+    "/form/(.*)",
 ]);
 
 function shouldBypassTenantRewrite(pathname: string) {
     return (
         pathname.startsWith("/api") ||
         pathname.startsWith("/trpc") ||
-        pathname.startsWith("/sign-in")
+        pathname.startsWith("/sign-in") ||
+        pathname === "/form" ||
+        pathname.startsWith("/form/")
     );
 }
 

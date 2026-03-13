@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, LayoutDashboard } from "lucide-react";
+import { Building2, ClipboardList, LayoutDashboard } from "lucide-react";
 import {
     Sidebar,
     SidebarContent,
@@ -45,6 +45,17 @@ export function PortalSidebar({ clientName }: PortalSidebarProps) {
                                     <Link href="/">
                                         <LayoutDashboard className="h-4 w-4" />
                                         Dashboard
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton
+                                    asChild
+                                    isActive={pathname === "/forms" || pathname.startsWith("/forms/")}
+                                >
+                                    <Link href="/forms">
+                                        <ClipboardList className="h-4 w-4" />
+                                        Patient Forms
                                     </Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>

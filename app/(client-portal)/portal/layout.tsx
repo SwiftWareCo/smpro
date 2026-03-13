@@ -4,6 +4,7 @@ import { fetchQuery } from "convex/nextjs";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { PortalSidebar } from "@/components/portal/portal-sidebar";
+import { PortalClientProvider } from "@/components/portal/portal-client-provider";
 import { Separator } from "@/components/ui/separator";
 import {
     SidebarInset,
@@ -11,6 +12,7 @@ import {
     SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { buildTenantThemeStyle } from "@/lib/tenant-theme";
 
 export default async function TenantPortalLayout({
@@ -73,7 +75,12 @@ export default async function TenantPortalLayout({
                         </div>
                     </header>
                     <div className="flex flex-1 flex-col p-4 md:p-6">
-                        {children}
+                        <PortalClientProvider
+                            clientId={tenant._id as Id<"clients">}
+                            clientName={tenant.name}
+                        >
+                            {children}
+                        </PortalClientProvider>
                     </div>
                 </SidebarInset>
             </SidebarProvider>
