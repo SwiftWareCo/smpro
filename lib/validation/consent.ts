@@ -1,21 +1,5 @@
 import { z } from "zod";
 
-export const consentPurposeSchema = z.enum([
-    "dental_treatment",
-    "patient_records",
-    "cross_border_processing",
-    "communication",
-]);
-
-export const consentRecordSchema = z.object({
-    consentVersion: z.string().min(1),
-    consentTextSnapshot: z.string().min(10),
-    purposes: z.array(consentPurposeSchema).min(1),
-});
-
-export type ConsentPurpose = z.infer<typeof consentPurposeSchema>;
-export type ConsentRecord = z.infer<typeof consentRecordSchema>;
-
 export const DEFAULT_PIPA_CONSENT_TEXT = `CONSENT FOR COLLECTION, USE, AND DISCLOSURE OF PERSONAL INFORMATION
 
 By submitting this form, I consent to the collection, use, and disclosure of my personal information, including personal health information, by this dental clinic for the following purposes:

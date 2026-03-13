@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import type { Id, Doc } from "@/convex/_generated/dataModel";
+import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
 import {
     Card,
@@ -25,25 +25,23 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Badge } from "@/components/ui/badge";
 import {
     ArrowLeft,
-    ChevronDown,
-    ChevronRight,
+    FileText,
     Loader2,
     Plus,
+    Rows3,
     Trash2,
-    GripVertical,
-    Shield,
 } from "lucide-react";
-import type { TemplateSection, TemplateField, FieldType } from "@/lib/validation/dental-form";
+import type {
+    FieldType,
+    TemplateField,
+    TemplateSection,
+} from "@/lib/validation/dental-form";
 import {
-    DEFAULT_PIPA_CONSENT_TEXT,
     DEFAULT_CONSENT_VERSION,
+    DEFAULT_PIPA_CONSENT_TEXT,
 } from "@/lib/validation/consent";
 
 interface TemplateEditorProps {
@@ -54,13 +52,13 @@ interface TemplateEditorProps {
 
 const FIELD_TYPES: { value: FieldType; label: string }[] = [
     { value: "text", label: "Text" },
-    { value: "textarea", label: "Text Area" },
+    { value: "textarea", label: "Long Text" },
     { value: "email", label: "Email" },
     { value: "phone", label: "Phone" },
     { value: "date", label: "Date" },
     { value: "number", label: "Number" },
     { value: "select", label: "Dropdown" },
-    { value: "radio", label: "Radio" },
+    { value: "radio", label: "Single Choice" },
     { value: "checkbox", label: "Checkbox" },
     { value: "signature", label: "Signature" },
     { value: "heading", label: "Heading" },
@@ -74,12 +72,42 @@ const DEFAULT_DENTAL_SECTIONS: TemplateSection[] = [
         description: "Basic patient contact information",
         enabled: true,
         fields: [
-            { id: "first-name", type: "text", label: "First Name", required: true, isPhi: true },
-            { id: "last-name", type: "text", label: "Last Name", required: true, isPhi: true },
-            { id: "date-of-birth", type: "date", label: "Date of Birth", required: true, isPhi: true },
-            { id: "email", type: "email", label: "Email Address", required: true, isPhi: true },
-            { id: "phone", type: "phone", label: "Phone Number", required: true, isPhi: true },
-            { id: "address", type: "textarea", label: "Address", required: false, isPhi: true },
+            {
+                id: "first-name",
+                type: "text",
+                label: "First Name",
+                required: true,
+            },
+            {
+                id: "last-name",
+                type: "text",
+                label: "Last Name",
+                required: true,
+            },
+            {
+                id: "date-of-birth",
+                type: "date",
+                label: "Date of Birth",
+                required: true,
+            },
+            {
+                id: "email",
+                type: "email",
+                label: "Email Address",
+                required: true,
+            },
+            {
+                id: "phone",
+                type: "phone",
+                label: "Phone Number",
+                required: true,
+            },
+            {
+                id: "address",
+                type: "textarea",
+                label: "Address",
+                required: false,
+            },
         ],
     },
     {
@@ -87,9 +115,24 @@ const DEFAULT_DENTAL_SECTIONS: TemplateSection[] = [
         title: "Emergency Contact",
         enabled: true,
         fields: [
-            { id: "emergency-name", type: "text", label: "Emergency Contact Name", required: true, isPhi: true },
-            { id: "emergency-phone", type: "phone", label: "Emergency Contact Phone", required: true, isPhi: true },
-            { id: "emergency-relationship", type: "text", label: "Relationship", required: true, isPhi: false },
+            {
+                id: "emergency-name",
+                type: "text",
+                label: "Emergency Contact Name",
+                required: true,
+            },
+            {
+                id: "emergency-phone",
+                type: "phone",
+                label: "Emergency Contact Phone",
+                required: true,
+            },
+            {
+                id: "emergency-relationship",
+                type: "text",
+                label: "Relationship",
+                required: true,
+            },
         ],
     },
     {
@@ -98,12 +141,46 @@ const DEFAULT_DENTAL_SECTIONS: TemplateSection[] = [
         description: "Current health conditions and medications",
         enabled: true,
         fields: [
-            { id: "physician-name", type: "text", label: "Family Physician Name", required: false, isPhi: true },
-            { id: "physician-phone", type: "phone", label: "Physician Phone", required: false, isPhi: true },
-            { id: "current-medications", type: "textarea", label: "Current Medications", placeholder: "List all current medications...", required: false, isPhi: true },
-            { id: "allergies", type: "textarea", label: "Allergies", placeholder: "List any known allergies...", required: false, isPhi: true },
-            { id: "medical-conditions", type: "textarea", label: "Medical Conditions", placeholder: "List any current or past medical conditions...", required: false, isPhi: true },
-            { id: "pregnant", type: "radio", label: "Are you currently pregnant?", required: false, options: ["Yes", "No", "N/A"], isPhi: true },
+            {
+                id: "physician-name",
+                type: "text",
+                label: "Family Physician Name",
+                required: false,
+            },
+            {
+                id: "physician-phone",
+                type: "phone",
+                label: "Physician Phone",
+                required: false,
+            },
+            {
+                id: "current-medications",
+                type: "textarea",
+                label: "Current Medications",
+                placeholder: "List all current medications...",
+                required: false,
+            },
+            {
+                id: "allergies",
+                type: "textarea",
+                label: "Allergies",
+                placeholder: "List any known allergies...",
+                required: false,
+            },
+            {
+                id: "medical-conditions",
+                type: "textarea",
+                label: "Medical Conditions",
+                placeholder: "List any current or past medical conditions...",
+                required: false,
+            },
+            {
+                id: "pregnant",
+                type: "radio",
+                label: "Are you currently pregnant?",
+                required: false,
+                options: ["Yes", "No", "N/A"],
+            },
         ],
     },
     {
@@ -111,12 +188,53 @@ const DEFAULT_DENTAL_SECTIONS: TemplateSection[] = [
         title: "Dental History",
         enabled: true,
         fields: [
-            { id: "last-dental-visit", type: "date", label: "Date of Last Dental Visit", required: false, isPhi: true },
-            { id: "previous-dentist", type: "text", label: "Previous Dentist Name", required: false, isPhi: true },
-            { id: "reason-for-visit", type: "select", label: "Reason for Visit", required: true, options: ["Regular Check-up", "Dental Pain", "Cosmetic Concern", "Emergency", "Second Opinion", "Other"], isPhi: false },
-            { id: "dental-concerns", type: "textarea", label: "Dental Concerns or Symptoms", placeholder: "Describe any current dental concerns...", required: false, isPhi: true },
-            { id: "brushing-frequency", type: "select", label: "How often do you brush?", required: false, options: ["Twice daily", "Once daily", "Less than daily"], isPhi: false },
-            { id: "flossing-frequency", type: "select", label: "How often do you floss?", required: false, options: ["Daily", "A few times a week", "Rarely", "Never"], isPhi: false },
+            {
+                id: "last-dental-visit",
+                type: "date",
+                label: "Date of Last Dental Visit",
+                required: false,
+            },
+            {
+                id: "previous-dentist",
+                type: "text",
+                label: "Previous Dentist Name",
+                required: false,
+            },
+            {
+                id: "reason-for-visit",
+                type: "select",
+                label: "Reason for Visit",
+                required: true,
+                options: [
+                    "Regular Check-up",
+                    "Dental Pain",
+                    "Cosmetic Concern",
+                    "Emergency",
+                    "Second Opinion",
+                    "Other",
+                ],
+            },
+            {
+                id: "dental-concerns",
+                type: "textarea",
+                label: "Dental Concerns or Symptoms",
+                placeholder: "Describe any current dental concerns...",
+                required: false,
+            },
+            {
+                id: "brushing-frequency",
+                type: "select",
+                label: "How often do you brush?",
+                required: false,
+                options: ["Twice daily", "Once daily", "Less than daily"],
+            },
+            {
+                id: "flossing-frequency",
+                type: "select",
+                label: "How often do you floss?",
+                required: false,
+                options: ["Daily", "A few times a week", "Rarely", "Never"],
+            },
         ],
     },
     {
@@ -124,11 +242,37 @@ const DEFAULT_DENTAL_SECTIONS: TemplateSection[] = [
         title: "Insurance Information",
         enabled: true,
         fields: [
-            { id: "has-insurance", type: "radio", label: "Do you have dental insurance?", required: true, options: ["Yes", "No"], isPhi: false },
-            { id: "insurance-provider", type: "text", label: "Insurance Provider", required: false, isPhi: true },
-            { id: "policy-number", type: "text", label: "Policy Number", required: false, isPhi: true },
-            { id: "group-number", type: "text", label: "Group Number", required: false, isPhi: true },
-            { id: "subscriber-name", type: "text", label: "Subscriber Name (if different)", required: false, isPhi: true },
+            {
+                id: "has-insurance",
+                type: "radio",
+                label: "Do you have dental insurance?",
+                required: true,
+                options: ["Yes", "No"],
+            },
+            {
+                id: "insurance-provider",
+                type: "text",
+                label: "Insurance Provider",
+                required: false,
+            },
+            {
+                id: "policy-number",
+                type: "text",
+                label: "Policy Number",
+                required: false,
+            },
+            {
+                id: "group-number",
+                type: "text",
+                label: "Group Number",
+                required: false,
+            },
+            {
+                id: "subscriber-name",
+                type: "text",
+                label: "Subscriber Name (if different)",
+                required: false,
+            },
         ],
     },
     {
@@ -136,8 +280,18 @@ const DEFAULT_DENTAL_SECTIONS: TemplateSection[] = [
         title: "Patient Signature",
         enabled: true,
         fields: [
-            { id: "patient-signature", type: "signature", label: "Patient Signature", required: true, isPhi: true },
-            { id: "signature-date", type: "date", label: "Date", required: true, isPhi: false },
+            {
+                id: "patient-signature",
+                type: "signature",
+                label: "Patient Signature",
+                required: true,
+            },
+            {
+                id: "signature-date",
+                type: "date",
+                label: "Date",
+                required: true,
+            },
         ],
     },
 ];
@@ -146,13 +300,24 @@ function generateId(): string {
     return `f-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function supportsPlaceholder(fieldType: FieldType): boolean {
+    return !["date", "select", "radio", "signature"].includes(fieldType);
+}
+
+function supportsOptions(fieldType: FieldType): boolean {
+    return fieldType === "select" || fieldType === "radio";
+}
+
+function supportsRequired(fieldType: FieldType): boolean {
+    return fieldType !== "heading" && fieldType !== "paragraph";
+}
+
 export function TemplateEditor({
     clientId,
     template,
     onClose,
 }: TemplateEditorProps) {
     const isEditing = !!template;
-
     const [name, setName] = useState(template?.name ?? "New Patient Intake Form");
     const [description, setDescription] = useState(
         template?.description ?? "Standard dental patient intake form",
@@ -167,32 +332,36 @@ export function TemplateEditor({
         template?.consentVersion ?? DEFAULT_CONSENT_VERSION,
     );
     const [saving, setSaving] = useState(false);
-    const [expandedSections, setExpandedSections] = useState<Set<string>>(
-        new Set(),
-    );
 
     const createTemplate = useMutation(api.formTemplates.create);
     const updateTemplate = useMutation(api.formTemplates.update);
 
-    const toggleSection = (sectionId: string) => {
-        setExpandedSections((prev) => {
-            const next = new Set(prev);
-            if (next.has(sectionId)) next.delete(sectionId);
-            else next.add(sectionId);
-            return next;
-        });
-    };
-
-    const updateSectionEnabled = (sectionId: string, enabled: boolean) => {
+    const updateSection = (
+        sectionId: string,
+        updates: Partial<Omit<TemplateSection, "fields">>,
+    ) => {
         setSections((prev) =>
-            prev.map((s) => (s.id === sectionId ? { ...s, enabled } : s)),
+            prev.map((section) =>
+                section.id === sectionId ? { ...section, ...updates } : section,
+            ),
         );
     };
 
-    const updateSectionTitle = (sectionId: string, title: string) => {
-        setSections((prev) =>
-            prev.map((s) => (s.id === sectionId ? { ...s, title } : s)),
-        );
+    const addSection = () => {
+        setSections((prev) => [
+            ...prev,
+            {
+                id: generateId(),
+                title: "New Section",
+                description: "",
+                enabled: true,
+                fields: [],
+            },
+        ]);
+    };
+
+    const removeSection = (sectionId: string) => {
+        setSections((prev) => prev.filter((section) => section.id !== sectionId));
     };
 
     const addField = (sectionId: string) => {
@@ -201,13 +370,14 @@ export function TemplateEditor({
             type: "text",
             label: "New Field",
             required: false,
-            isPhi: false,
+            placeholder: "",
         };
+
         setSections((prev) =>
-            prev.map((s) =>
-                s.id === sectionId
-                    ? { ...s, fields: [...s.fields, newField] }
-                    : s,
+            prev.map((section) =>
+                section.id === sectionId
+                    ? { ...section, fields: [...section.fields, newField] }
+                    : section,
             ),
         );
     };
@@ -218,42 +388,34 @@ export function TemplateEditor({
         updates: Partial<TemplateField>,
     ) => {
         setSections((prev) =>
-            prev.map((s) =>
-                s.id === sectionId
+            prev.map((section) =>
+                section.id === sectionId
                     ? {
-                          ...s,
-                          fields: s.fields.map((f) =>
-                              f.id === fieldId ? { ...f, ...updates } : f,
+                          ...section,
+                          fields: section.fields.map((field) =>
+                              field.id === fieldId
+                                  ? { ...field, ...updates }
+                                  : field,
                           ),
                       }
-                    : s,
+                    : section,
             ),
         );
     };
 
     const removeField = (sectionId: string, fieldId: string) => {
         setSections((prev) =>
-            prev.map((s) =>
-                s.id === sectionId
-                    ? { ...s, fields: s.fields.filter((f) => f.id !== fieldId) }
-                    : s,
+            prev.map((section) =>
+                section.id === sectionId
+                    ? {
+                          ...section,
+                          fields: section.fields.filter(
+                              (field) => field.id !== fieldId,
+                          ),
+                      }
+                    : section,
             ),
         );
-    };
-
-    const addSection = () => {
-        const newSection: TemplateSection = {
-            id: generateId(),
-            title: "New Section",
-            enabled: true,
-            fields: [],
-        };
-        setSections((prev) => [...prev, newSection]);
-        setExpandedSections((prev) => new Set(prev).add(newSection.id));
-    };
-
-    const removeSection = (sectionId: string) => {
-        setSections((prev) => prev.filter((s) => s.id !== sectionId));
     };
 
     const handleSave = async () => {
@@ -261,14 +423,26 @@ export function TemplateEditor({
             toast.error("Template name is required");
             return;
         }
+
         if (!consentText.trim()) {
             toast.error("Consent text is required for PIPA compliance");
             return;
         }
 
-        const enabledSections = sections.filter((s) => s.enabled);
+        const enabledSections = sections.filter((section) => section.enabled);
         if (enabledSections.length === 0) {
             toast.error("At least one section must be enabled");
+            return;
+        }
+
+        if (
+            sections.some(
+                (section) =>
+                    !section.title.trim() ||
+                    section.fields.some((field) => !field.label.trim()),
+            )
+        ) {
+            toast.error("Each section and field needs a label before saving");
             return;
         }
 
@@ -304,395 +478,408 @@ export function TemplateEditor({
         }
     };
 
+    const enabledSectionCount = sections.filter((section) => section.enabled).length;
+    const fieldCount = sections.reduce(
+        (count, section) => count + section.fields.length,
+        0,
+    );
+
     return (
-        <div className="space-y-6">
-            <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={onClose}>
-                    <ArrowLeft className="h-4 w-4" />
-                </Button>
-                <div>
-                    <h3 className="text-lg font-medium">
-                        {isEditing ? "Edit Template" : "Create Template"}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                        {isEditing
-                            ? "Modify the form template"
-                            : "Start with the pre-built dental intake template and customize sections"}
-                    </p>
+        <div className="mx-auto max-w-6xl space-y-6 pb-24">
+            <div className="flex flex-col gap-4 rounded-3xl border border-border/70 bg-gradient-to-br from-background via-background to-muted/50 p-6 shadow-sm">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div className="flex items-start gap-3">
+                        <Button variant="ghost" size="icon" onClick={onClose}>
+                            <ArrowLeft className="h-4 w-4" />
+                        </Button>
+                        <div className="space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Badge variant="secondary" className="rounded-full px-3 py-1">
+                                    {isEditing ? "Editing template" : "New template"}
+                                </Badge>
+                                <Badge variant="outline" className="rounded-full px-3 py-1">
+                                    Patients see sections in this order
+                                </Badge>
+                            </div>
+                            <div>
+                                <h2 className="text-2xl font-semibold tracking-tight">
+                                    {isEditing
+                                        ? "Refine the patient intake flow"
+                                        : "Build a patient intake flow"}
+                                </h2>
+                                <p className="max-w-3xl text-sm text-muted-foreground">
+                                    Keep the form in the same top-to-bottom order patients will complete it. PHI labels are hidden here so you can focus on clarity and flow.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 md:min-w-72">
+                        <div className="rounded-2xl border border-border/60 bg-background/80 p-4">
+                            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                                Sections
+                            </p>
+                            <p className="mt-2 text-2xl font-semibold">{enabledSectionCount}</p>
+                            <p className="text-xs text-muted-foreground">Enabled in patient flow</p>
+                        </div>
+                        <div className="rounded-2xl border border-border/60 bg-background/80 p-4">
+                            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                                Items
+                            </p>
+                            <p className="mt-2 text-2xl font-semibold">{fieldCount}</p>
+                            <p className="text-xs text-muted-foreground">Questions and content blocks</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {/* Template Details */}
-            <Card>
+            <Card className="rounded-3xl border-border/70 shadow-sm">
                 <CardHeader>
-                    <CardTitle className="text-base">Template Details</CardTitle>
+                    <CardTitle>Template Details</CardTitle>
+                    <CardDescription>
+                        Name the form and explain when the clinic should use it.
+                    </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="grid gap-4 md:grid-cols-[1.2fr_1fr]">
                     <div className="space-y-2">
-                        <Label htmlFor="template-name">Name</Label>
+                        <Label htmlFor="template-name">Template name</Label>
                         <Input
                             id="template-name"
                             value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            placeholder="Form template name"
+                            onChange={(event) => setName(event.target.value)}
+                            placeholder="New patient intake form"
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="template-description">
-                            Description
-                        </Label>
+                        <Label htmlFor="template-description">Description</Label>
                         <Textarea
                             id="template-description"
                             value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            placeholder="Brief description of this form"
+                            onChange={(event) => setDescription(event.target.value)}
+                            placeholder="Used before a first appointment or annual update"
                             rows={2}
                         />
                     </div>
                 </CardContent>
             </Card>
 
-            {/* Sections */}
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <CardTitle className="text-base">
-                                Form Sections
-                            </CardTitle>
-                            <CardDescription>
-                                Toggle sections on/off and customize fields
-                            </CardDescription>
-                        </div>
-                        <Button variant="outline" size="sm" onClick={addSection}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add Section
-                        </Button>
+            <Card className="rounded-3xl border-border/70 shadow-sm">
+                <CardHeader className="gap-4 md:flex-row md:items-center md:justify-between">
+                    <div className="space-y-1">
+                        <CardTitle>Form Flow</CardTitle>
+                        <CardDescription>
+                            Review the intake in chronological order and adjust each step inline.
+                        </CardDescription>
                     </div>
+                    <Button variant="outline" onClick={addSection}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Section
+                    </Button>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                    {sections.map((section) => (
-                        <Collapsible
+                <CardContent className="space-y-4">
+                    {sections.map((section, sectionIndex) => (
+                        <div
                             key={section.id}
-                            open={expandedSections.has(section.id)}
-                            onOpenChange={() => toggleSection(section.id)}
+                            className="rounded-3xl border border-border/70 bg-muted/20 p-4 shadow-sm"
                         >
-                            <div className="border rounded-lg">
-                                <div className="flex items-center justify-between p-3">
-                                    <div className="flex items-center gap-3">
-                                        <GripVertical className="h-4 w-4 text-muted-foreground" />
+                            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                                <div className="flex items-start gap-4">
+                                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border/60 bg-background text-sm font-semibold">
+                                        {sectionIndex + 1}
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Badge variant={section.enabled ? "default" : "secondary"} className="rounded-full px-3 py-1">
+                                                {section.enabled ? "Visible to patients" : "Hidden"}
+                                            </Badge>
+                                            <Badge variant="outline" className="rounded-full px-3 py-1">
+                                                {section.fields.length} items
+                                            </Badge>
+                                        </div>
+                                        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                                            <div className="space-y-2">
+                                                <Label htmlFor={`section-title-${section.id}`}>
+                                                    Section title
+                                                </Label>
+                                                <Input
+                                                    id={`section-title-${section.id}`}
+                                                    value={section.title}
+                                                    onChange={(event) =>
+                                                        updateSection(section.id, {
+                                                            title: event.target.value,
+                                                        })
+                                                    }
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor={`section-description-${section.id}`}>
+                                                    Section intro
+                                                </Label>
+                                                <Textarea
+                                                    id={`section-description-${section.id}`}
+                                                    value={section.description ?? ""}
+                                                    onChange={(event) =>
+                                                        updateSection(section.id, {
+                                                            description: event.target.value,
+                                                        })
+                                                    }
+                                                    placeholder="Optional context shown before these questions"
+                                                    rows={2}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-3 md:justify-end">
+                                    <div className="flex items-center gap-2 rounded-full border border-border/60 bg-background px-3 py-2 text-sm">
                                         <Switch
                                             checked={section.enabled}
                                             onCheckedChange={(checked) =>
-                                                updateSectionEnabled(
-                                                    section.id,
-                                                    checked,
-                                                )
+                                                updateSection(section.id, {
+                                                    enabled: checked,
+                                                })
                                             }
                                         />
-                                        <CollapsibleTrigger asChild>
-                                            <button className="flex items-center gap-2 text-sm font-medium hover:underline">
-                                                {expandedSections.has(
-                                                    section.id,
-                                                ) ? (
-                                                    <ChevronDown className="h-4 w-4" />
-                                                ) : (
-                                                    <ChevronRight className="h-4 w-4" />
-                                                )}
-                                                {section.title}
-                                            </button>
-                                        </CollapsibleTrigger>
-                                        <span className="text-xs text-muted-foreground">
-                                            ({section.fields.length} fields)
-                                        </span>
+                                        <span>{section.enabled ? "Enabled" : "Disabled"}</span>
                                     </div>
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                        onClick={() =>
-                                            removeSection(section.id)
-                                        }
+                                        className="text-muted-foreground hover:text-destructive"
+                                        onClick={() => removeSection(section.id)}
                                     >
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </div>
+                            </div>
 
-                                <CollapsibleContent>
-                                    <Separator />
-                                    <div className="p-3 space-y-4">
-                                        <div className="space-y-2">
-                                            <Label>Section Title</Label>
-                                            <Input
-                                                value={section.title}
-                                                onChange={(e) =>
-                                                    updateSectionTitle(
-                                                        section.id,
-                                                        e.target.value,
-                                                    )
-                                                }
-                                            />
-                                        </div>
+                            <Separator className="my-5" />
 
-                                        {/* Fields */}
-                                        <div className="space-y-3">
-                                            {section.fields.map((field) => (
-                                                <div
-                                                    key={field.id}
-                                                    className="border rounded p-3 space-y-3"
-                                                >
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-2">
-                                                            <GripVertical className="h-3 w-3 text-muted-foreground" />
-                                                            {field.isPhi && (
-                                                                <Shield className="h-3 w-3 text-amber-500" />
-                                                            )}
-                                                        </div>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                                                            onClick={() =>
-                                                                removeField(
-                                                                    section.id,
-                                                                    field.id,
+                            <div className="space-y-3">
+                                {section.fields.map((field, fieldIndex) => (
+                                    <div
+                                        key={field.id}
+                                        className="rounded-2xl border border-border/60 bg-background/90 p-4"
+                                    >
+                                        <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
+                                            <div className="flex items-center gap-3 xl:w-14 xl:flex-col xl:items-center xl:justify-center">
+                                                <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 bg-muted/40 text-xs font-semibold">
+                                                    {fieldIndex + 1}
+                                                </div>
+                                                <Rows3 className="hidden h-4 w-4 text-muted-foreground xl:block" />
+                                            </div>
+
+                                            <div className="grid flex-1 gap-4 lg:grid-cols-[minmax(0,1.4fr)_180px_130px_auto]">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor={`field-label-${field.id}`}>
+                                                        Label or content
+                                                    </Label>
+                                                    <Input
+                                                        id={`field-label-${field.id}`}
+                                                        value={field.label}
+                                                        onChange={(event) =>
+                                                            updateField(section.id, field.id, {
+                                                                label: event.target.value,
+                                                            })
+                                                        }
+                                                    />
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <Label>Field type</Label>
+                                                    <Select
+                                                        value={field.type}
+                                                        onValueChange={(value) =>
+                                                            updateField(section.id, field.id, {
+                                                                type: value as FieldType,
+                                                                options: supportsOptions(
+                                                                    value as FieldType,
                                                                 )
+                                                                    ? field.options ?? ["Option 1"]
+                                                                    : undefined,
+                                                                placeholder: supportsPlaceholder(
+                                                                    value as FieldType,
+                                                                )
+                                                                    ? field.placeholder ?? ""
+                                                                    : undefined,
+                                                                required: supportsRequired(
+                                                                    value as FieldType,
+                                                                )
+                                                                    ? field.required
+                                                                    : false,
+                                                            })
+                                                        }
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {FIELD_TYPES.map((fieldType) => (
+                                                                <SelectItem
+                                                                    key={fieldType.value}
+                                                                    value={fieldType.value}
+                                                                >
+                                                                    {fieldType.label}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <Label>Required</Label>
+                                                    <div className="flex h-10 items-center rounded-xl border border-border/60 px-3">
+                                                        <Switch
+                                                            checked={field.required}
+                                                            disabled={!supportsRequired(field.type)}
+                                                            onCheckedChange={(checked) =>
+                                                                updateField(section.id, field.id, {
+                                                                    required: checked,
+                                                                })
                                                             }
-                                                        >
-                                                            <Trash2 className="h-3 w-3" />
-                                                        </Button>
-                                                    </div>
-                                                    <div className="grid grid-cols-2 gap-3">
-                                                        <div className="space-y-1">
-                                                            <Label className="text-xs">
-                                                                Label
-                                                            </Label>
-                                                            <Input
-                                                                className="h-8 text-sm"
-                                                                value={
-                                                                    field.label
-                                                                }
-                                                                onChange={(e) =>
-                                                                    updateField(
-                                                                        section.id,
-                                                                        field.id,
-                                                                        {
-                                                                            label: e
-                                                                                .target
-                                                                                .value,
-                                                                        },
-                                                                    )
-                                                                }
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-1">
-                                                            <Label className="text-xs">
-                                                                Type
-                                                            </Label>
-                                                            <Select
-                                                                value={
-                                                                    field.type
-                                                                }
-                                                                onValueChange={(
-                                                                    v,
-                                                                ) =>
-                                                                    updateField(
-                                                                        section.id,
-                                                                        field.id,
-                                                                        {
-                                                                            type: v as FieldType,
-                                                                        },
-                                                                    )
-                                                                }
-                                                            >
-                                                                <SelectTrigger className="h-8 text-sm">
-                                                                    <SelectValue />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {FIELD_TYPES.map(
-                                                                        (
-                                                                            ft,
-                                                                        ) => (
-                                                                            <SelectItem
-                                                                                key={
-                                                                                    ft.value
-                                                                                }
-                                                                                value={
-                                                                                    ft.value
-                                                                                }
-                                                                            >
-                                                                                {
-                                                                                    ft.label
-                                                                                }
-                                                                            </SelectItem>
-                                                                        ),
-                                                                    )}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </div>
-                                                    </div>
-                                                    {(field.type === "select" ||
-                                                        field.type ===
-                                                            "radio") && (
-                                                        <div className="space-y-1">
-                                                            <Label className="text-xs">
-                                                                Options
-                                                                (comma-separated)
-                                                            </Label>
-                                                            <Input
-                                                                className="h-8 text-sm"
-                                                                value={(
-                                                                    field.options ??
-                                                                    []
-                                                                ).join(", ")}
-                                                                onChange={(e) =>
-                                                                    updateField(
-                                                                        section.id,
-                                                                        field.id,
-                                                                        {
-                                                                            options:
-                                                                                e.target.value
-                                                                                    .split(
-                                                                                        ",",
-                                                                                    )
-                                                                                    .map(
-                                                                                        (
-                                                                                            o,
-                                                                                        ) =>
-                                                                                            o.trim(),
-                                                                                    )
-                                                                                    .filter(
-                                                                                        Boolean,
-                                                                                    ),
-                                                                        },
-                                                                    )
-                                                                }
-                                                                placeholder="Option 1, Option 2, Option 3"
-                                                            />
-                                                        </div>
-                                                    )}
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="flex items-center gap-2">
-                                                            <Switch
-                                                                checked={
-                                                                    field.required
-                                                                }
-                                                                onCheckedChange={(
-                                                                    checked,
-                                                                ) =>
-                                                                    updateField(
-                                                                        section.id,
-                                                                        field.id,
-                                                                        {
-                                                                            required:
-                                                                                checked,
-                                                                        },
-                                                                    )
-                                                                }
-                                                            />
-                                                            <Label className="text-xs">
-                                                                Required
-                                                            </Label>
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <Switch
-                                                                checked={
-                                                                    field.isPhi
-                                                                }
-                                                                onCheckedChange={(
-                                                                    checked,
-                                                                ) =>
-                                                                    updateField(
-                                                                        section.id,
-                                                                        field.id,
-                                                                        {
-                                                                            isPhi: checked,
-                                                                        },
-                                                                    )
-                                                                }
-                                                            />
-                                                            <Label className="text-xs flex items-center gap-1">
-                                                                <Shield className="h-3 w-3 text-amber-500" />
-                                                                PHI
-                                                            </Label>
-                                                        </div>
+                                                        />
+                                                        <span className="ml-3 text-sm text-muted-foreground">
+                                                            {supportsRequired(field.type)
+                                                                ? field.required
+                                                                    ? "Required"
+                                                                    : "Optional"
+                                                                : "Display only"}
+                                                        </span>
                                                     </div>
                                                 </div>
-                                            ))}
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="w-full"
-                                                onClick={() =>
-                                                    addField(section.id)
-                                                }
-                                            >
-                                                <Plus className="mr-2 h-4 w-4" />
-                                                Add Field
-                                            </Button>
+
+                                                <div className="flex items-end justify-end">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="text-muted-foreground hover:text-destructive"
+                                                        onClick={() =>
+                                                            removeField(section.id, field.id)
+                                                        }
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                                            {supportsPlaceholder(field.type) && (
+                                                <div className="space-y-2">
+                                                    <Label htmlFor={`field-placeholder-${field.id}`}>
+                                                        {field.type === "checkbox"
+                                                            ? "Checkbox label"
+                                                            : "Placeholder"}
+                                                    </Label>
+                                                    <Input
+                                                        id={`field-placeholder-${field.id}`}
+                                                        value={field.placeholder ?? ""}
+                                                        onChange={(event) =>
+                                                            updateField(section.id, field.id, {
+                                                                placeholder: event.target.value,
+                                                            })
+                                                        }
+                                                        placeholder={
+                                                            field.type === "checkbox"
+                                                                ? "Yes"
+                                                                : "Optional helper text"
+                                                        }
+                                                    />
+                                                </div>
+                                            )}
+
+                                            {supportsOptions(field.type) && (
+                                                <div className="space-y-2">
+                                                    <Label htmlFor={`field-options-${field.id}`}>
+                                                        Choices
+                                                    </Label>
+                                                    <Input
+                                                        id={`field-options-${field.id}`}
+                                                        value={(field.options ?? []).join(", ")}
+                                                        onChange={(event) =>
+                                                            updateField(section.id, field.id, {
+                                                                options: event.target.value
+                                                                    .split(",")
+                                                                    .map((option) => option.trim())
+                                                                    .filter(Boolean),
+                                                            })
+                                                        }
+                                                        placeholder="Yes, No, Not sure"
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
-                                </CollapsibleContent>
+                                ))}
+
+                                <Button
+                                    variant="outline"
+                                    onClick={() => addField(section.id)}
+                                >
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Add Field
+                                </Button>
                             </div>
-                        </Collapsible>
+                        </div>
                     ))}
                 </CardContent>
             </Card>
 
-            {/* Consent Text */}
-            <Card>
+            <Card className="rounded-3xl border-border/70 shadow-sm">
                 <CardHeader>
-                    <CardTitle className="text-base flex items-center gap-2">
-                        <Shield className="h-4 w-4 text-amber-500" />
-                        PIPA Consent Text
-                    </CardTitle>
+                    <CardTitle>Consent</CardTitle>
                     <CardDescription>
-                        This consent text will be shown to patients before
-                        submission. Required for BC PIPA compliance.
+                        This text appears at the end of the patient flow before submission.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="consent-version">
-                            Consent Version
-                        </Label>
+                        <Label htmlFor="consent-version">Consent version</Label>
                         <Input
                             id="consent-version"
                             value={consentVersion}
-                            onChange={(e) => setConsentVersion(e.target.value)}
-                            placeholder="e.g., 1.0"
+                            onChange={(event) => setConsentVersion(event.target.value)}
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="consent-text">Consent Text</Label>
+                        <Label htmlFor="consent-text">Consent notice</Label>
                         <Textarea
                             id="consent-text"
                             value={consentText}
-                            onChange={(e) => setConsentText(e.target.value)}
-                            rows={12}
-                            className="font-mono text-xs"
+                            onChange={(event) => setConsentText(event.target.value)}
+                            rows={8}
                         />
                     </div>
                 </CardContent>
             </Card>
 
-            {/* Actions */}
-            <div className="flex gap-2 sticky bottom-0 bg-background py-4 border-t">
-                <Button variant="outline" onClick={onClose} disabled={saving}>
-                    Cancel
-                </Button>
-                <Button onClick={handleSave} disabled={saving} className="flex-1">
-                    {saving ? (
-                        <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Saving...
-                        </>
-                    ) : isEditing ? (
-                        "Update Template"
-                    ) : (
-                        "Create Template"
-                    )}
-                </Button>
+            <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border/70 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+                <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
+                    <div className="hidden items-center gap-3 text-sm text-muted-foreground sm:flex">
+                        <FileText className="h-4 w-4" />
+                        <span>
+                            {enabledSectionCount} sections live, {fieldCount} total items
+                        </span>
+                    </div>
+                    <div className="ml-auto flex items-center gap-3">
+                        <Button variant="outline" onClick={onClose}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleSave} disabled={saving}>
+                            {saving ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Saving...
+                                </>
+                            ) : isEditing ? (
+                                "Save Changes"
+                            ) : (
+                                "Create Template"
+                            )}
+                        </Button>
+                    </div>
+                </div>
             </div>
         </div>
     );

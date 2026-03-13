@@ -30,7 +30,6 @@ export const templateFieldSchema = z.object({
     required: z.boolean(),
     options: z.array(z.string()).optional(),
     validation: fieldValidationSchema.optional(),
-    isPhi: z.boolean(),
 });
 
 export const templateSectionSchema = z.object({

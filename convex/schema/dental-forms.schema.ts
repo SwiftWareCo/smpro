@@ -33,7 +33,6 @@ const fieldSchema = v.object({
             message: v.optional(v.string()),
         }),
     ),
-    isPhi: v.boolean(),
 });
 
 const sectionSchema = v.object({
@@ -78,16 +77,11 @@ export const formSubmissions = defineTable({
         v.literal("exported"),
         v.literal("entered_in_pms"),
     ),
-    reviewedBy: v.optional(v.string()),
-    reviewedAt: v.optional(v.number()),
-    notes: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
 })
     .index("by_client_id", ["clientId"])
-    .index("by_client_status", ["clientId", "status"])
-    .index("by_template_id", ["templateId"])
-    .index("by_delivery_id", ["deliveryId"]);
+    .index("by_client_status", ["clientId", "status"]);
 
 export const formDeliveries = defineTable({
     clientId: v.id("clients"),
@@ -110,16 +104,8 @@ export const formDeliveries = defineTable({
         v.literal("expired"),
         v.literal("failed"),
     ),
-    externalMessageId: v.optional(v.string()),
-    sentAt: v.optional(v.number()),
-    deliveredAt: v.optional(v.number()),
-    openedAt: v.optional(v.number()),
     completedAt: v.optional(v.number()),
     createdBy: v.string(),
     createdAt: v.number(),
     updatedAt: v.number(),
-})
-    .index("by_client_id", ["clientId"])
-    .index("by_token", ["token"])
-    .index("by_template_id", ["templateId"])
-    .index("by_client_status", ["clientId", "status"]);
+}).index("by_token", ["token"]);

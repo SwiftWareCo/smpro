@@ -25,16 +25,3 @@ export async function create(
         createdAt: now,
     });
 }
-
-export async function withdraw(
-    ctx: MutationCtx,
-    consentId: Id<"consentRecords">,
-) {
-    const record = await ctx.db.get(consentId);
-    if (!record) return null;
-    await ctx.db.patch(consentId, {
-        withdrawn: true,
-        withdrawnAt: Date.now(),
-    });
-    return record;
-}

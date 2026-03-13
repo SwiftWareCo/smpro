@@ -47,17 +47,11 @@ export default function PortalFormsPage() {
                 </TabsList>
 
                 <TabsContent value="templates" className="mt-4">
-                    <TemplateList
-                        clientId={clientId}
-                        templates={templates}
-                    />
+                    <TemplateList clientId={clientId} templates={templates} />
                 </TabsContent>
 
                 <TabsContent value="submissions" className="mt-4">
-                    <SubmissionsList
-                        clientId={clientId}
-                        submissions={submissions}
-                    />
+                    <SubmissionsList submissions={submissions} />
                 </TabsContent>
             </Tabs>
         </div>

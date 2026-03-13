@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Id, Doc } from "@/convex/_generated/dataModel";
+import type { Doc } from "@/convex/_generated/dataModel";
 import {
     Card,
     CardContent,
@@ -15,7 +15,6 @@ import { FileText, Eye, Inbox } from "lucide-react";
 import { SubmissionDetail } from "./submission-detail";
 
 interface SubmissionsListProps {
-    clientId: Id<"clients">;
     submissions: Doc<"formSubmissions">[];
 }
 
@@ -44,10 +43,7 @@ function getPatientName(submission: Doc<"formSubmissions">): string {
     return name || "Submission";
 }
 
-export function SubmissionsList({
-    clientId,
-    submissions,
-}: SubmissionsListProps) {
+export function SubmissionsList({ submissions }: SubmissionsListProps) {
     const [selectedSubmission, setSelectedSubmission] =
         useState<Doc<"formSubmissions"> | null>(null);
 
@@ -131,14 +127,6 @@ export function SubmissionsList({
                                         submission.submittedAt,
                                     ).toLocaleString()}
                                 </span>
-                                {submission.reviewedAt && (
-                                    <span>
-                                        Reviewed{" "}
-                                        {new Date(
-                                            submission.reviewedAt,
-                                        ).toLocaleString()}
-                                    </span>
-                                )}
                             </div>
                         </CardContent>
                     </Card>

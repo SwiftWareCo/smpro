@@ -2,21 +2,11 @@
 
 import type { Doc } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import {
-    ArrowLeft,
-    Printer,
-    Shield,
-    Copy,
-} from "lucide-react";
+import { ArrowLeft, Printer, Shield, Copy } from "lucide-react";
 
 interface SubmissionDetailProps {
     submission: Doc<"formSubmissions">;
@@ -53,9 +43,7 @@ export function SubmissionDetail({
                     <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div className="flex-1">
-                    <h3 className="text-lg font-medium">
-                        {patientName}
-                    </h3>
+                    <h3 className="text-lg font-medium">{patientName}</h3>
                     <p className="text-sm text-muted-foreground">
                         Submitted{" "}
                         {new Date(submission.submittedAt).toLocaleString()}
@@ -97,52 +85,48 @@ export function SubmissionDetail({
                         <Separator />
 
                         <div className="space-y-3 print:space-y-2">
-                            {Object.entries(formData).map(
-                                ([key, value]) => {
-                                    if (
-                                        value === null ||
-                                        value === undefined ||
-                                        value === ""
-                                    ) {
-                                        return null;
-                                    }
-                                    const displayLabel = key
-                                        .replace(/[-_]/g, " ")
-                                        .replace(/\b\w/g, (l) =>
-                                            l.toUpperCase(),
-                                        );
-                                    const displayValue = String(value);
+                            {Object.entries(formData).map(([key, value]) => {
+                                if (
+                                    value === null ||
+                                    value === undefined ||
+                                    value === ""
+                                ) {
+                                    return null;
+                                }
+                                const displayLabel = key
+                                    .replace(/[-_]/g, " ")
+                                    .replace(/\b\w/g, (l) => l.toUpperCase());
+                                const displayValue = String(value);
 
-                                    return (
-                                        <div
-                                            key={key}
-                                            className="flex items-start justify-between gap-4 py-1"
-                                        >
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-xs text-muted-foreground">
-                                                    {displayLabel}
-                                                </p>
-                                                <p className="text-sm break-words">
-                                                    {displayValue}
-                                                </p>
-                                            </div>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-6 w-6 shrink-0 print:hidden"
-                                                onClick={() =>
-                                                    handleCopyField(
-                                                        displayLabel,
-                                                        displayValue,
-                                                    )
-                                                }
-                                            >
-                                                <Copy className="h-3 w-3" />
-                                            </Button>
+                                return (
+                                    <div
+                                        key={key}
+                                        className="flex items-start justify-between gap-4 py-1"
+                                    >
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs text-muted-foreground">
+                                                {displayLabel}
+                                            </p>
+                                            <p className="text-sm break-words">
+                                                {displayValue}
+                                            </p>
                                         </div>
-                                    );
-                                },
-                            )}
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 shrink-0 print:hidden"
+                                            onClick={() =>
+                                                handleCopyField(
+                                                    displayLabel,
+                                                    displayValue,
+                                                )
+                                            }
+                                        >
+                                            <Copy className="h-3 w-3" />
+                                        </Button>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </CardContent>
@@ -169,24 +153,6 @@ export function SubmissionDetail({
                                 ).toLocaleString()}
                             </p>
                         </div>
-                        {submission.reviewedAt && (
-                            <div>
-                                <p className="text-muted-foreground">
-                                    Reviewed
-                                </p>
-                                <p>
-                                    {new Date(
-                                        submission.reviewedAt,
-                                    ).toLocaleString()}
-                                </p>
-                            </div>
-                        )}
-                        {submission.notes && (
-                            <div className="col-span-2">
-                                <p className="text-muted-foreground">Notes</p>
-                                <p>{submission.notes}</p>
-                            </div>
-                        )}
                     </div>
                 </CardContent>
             </Card>

@@ -44,7 +44,6 @@ export const get = query({
     },
 });
 
-
 export const createSubmissionWithConsent = internalMutation({
     args: {
         clientId: v.id("clients"),
@@ -151,33 +150,5 @@ export const createSubmissionWithConsent = internalMutation({
         });
 
         return { submissionId, consentRecordId };
-    },
-});
-
-export const updateStatus = internalMutation({
-    args: {
-        submissionId: v.id("formSubmissions"),
-        status: v.union(
-            v.literal("submitted"),
-            v.literal("under_review"),
-            v.literal("approved"),
-            v.literal("exported"),
-            v.literal("entered_in_pms"),
-        ),
-        reviewedBy: v.optional(v.string()),
-        notes: v.optional(v.string()),
-    },
-    handler: async (ctx, args) => {
-        const patch: Record<string, unknown> = {
-            status: args.status,
-        };
-        if (args.reviewedBy) {
-            patch.reviewedBy = args.reviewedBy;
-            patch.reviewedAt = Date.now();
-        }
-        if (args.notes !== undefined) patch.notes = args.notes;
-
-        await DentalFormsWrite.patchSubmission(ctx, args.submissionId, patch);
-        return { success: true };
     },
 });

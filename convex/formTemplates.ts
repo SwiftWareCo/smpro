@@ -34,7 +34,6 @@ const fieldValidator = v.object({
             message: v.optional(v.string()),
         }),
     ),
-    isPhi: v.boolean(),
 });
 
 const sectionValidator = v.object({

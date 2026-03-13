@@ -55,7 +55,11 @@ const statusColors: Record<string, string> = {
     archived: "bg-gray-100 text-gray-800",
 };
 
-export function TemplateList({ clientId, templates, readOnly }: TemplateListProps) {
+export function TemplateList({
+    clientId,
+    templates,
+    readOnly,
+}: TemplateListProps) {
     const [showEditor, setShowEditor] = useState(false);
     const [editingTemplate, setEditingTemplate] =
         useState<Doc<"formTemplates"> | null>(null);
@@ -63,6 +67,7 @@ export function TemplateList({ clientId, templates, readOnly }: TemplateListProp
         useState<Doc<"formTemplates"> | null>(null);
     const [deliveryTemplate, setDeliveryTemplate] =
         useState<Doc<"formTemplates"> | null>(null);
+    const [deliveryOpen, setDeliveryOpen] = useState(false);
 
     const updateTemplate = useMutation(api.formTemplates.update);
     const removeTemplate = useMutation(api.formTemplates.remove);
@@ -73,7 +78,9 @@ export function TemplateList({ clientId, templates, readOnly }: TemplateListProp
     ) => {
         try {
             await updateTemplate({ templateId, status });
-            toast.success(`Template ${status === "active" ? "activated" : status}`);
+            toast.success(
+                `Template ${status === "active" ? "activated" : status}`,
+            );
         } catch (error) {
             console.error("Status change error:", error);
             toast.error("Failed to update template status");
@@ -166,14 +173,18 @@ export function TemplateList({ clientId, templates, readOnly }: TemplateListProp
                                             <Badge
                                                 variant="secondary"
                                                 className={
-                                                    statusColors[template.status]
+                                                    statusColors[
+                                                        template.status
+                                                    ]
                                                 }
                                             >
                                                 {template.status}
                                             </Badge>
                                             {!readOnly && (
                                                 <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
+                                                    <DropdownMenuTrigger
+                                                        asChild
+                                                    >
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
@@ -211,14 +222,18 @@ export function TemplateList({ clientId, templates, readOnly }: TemplateListProp
                                                             "active" && (
                                                             <>
                                                                 <DropdownMenuItem
-                                                                    onClick={() =>
+                                                                    onClick={() => {
                                                                         setDeliveryTemplate(
                                                                             template,
-                                                                        )
-                                                                    }
+                                                                        );
+                                                                        setDeliveryOpen(
+                                                                            true,
+                                                                        );
+                                                                    }}
                                                                 >
                                                                     <Send className="mr-2 h-4 w-4" />
-                                                                    Send to Patient
+                                                                    Send to
+                                                                    Patient
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
                                                                     onClick={() =>
@@ -266,13 +281,13 @@ export function TemplateList({ clientId, templates, readOnly }: TemplateListProp
                                 </CardHeader>
                                 <CardContent>
                                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                        <span>Version {template.version}</span>
                                         <span>
-                                            Version {template.version}
-                                        </span>
-                                        <span>
-                                            {template.sections.filter(
-                                                (s) => s.enabled,
-                                            ).length}{" "}
+                                            {
+                                                template.sections.filter(
+                                                    (s) => s.enabled,
+                                                ).length
+                                            }{" "}
                                             sections
                                         </span>
                                         <span>
@@ -324,14 +339,12 @@ export function TemplateList({ clientId, templates, readOnly }: TemplateListProp
                 </AlertDialogContent>
             </AlertDialog>
 
-            {deliveryTemplate && (
-                <DeliveryDialog
-                    open={!!deliveryTemplate}
-                    onOpenChange={(open) => !open && setDeliveryTemplate(null)}
-                    clientId={clientId}
-                    template={deliveryTemplate}
-                />
-            )}
+            <DeliveryDialog
+                open={deliveryOpen}
+                onOpenChange={setDeliveryOpen}
+                clientId={clientId}
+                template={deliveryTemplate}
+            />
         </>
     );
 }

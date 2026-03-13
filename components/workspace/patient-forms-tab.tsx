@@ -48,10 +48,7 @@ export function PatientFormsTab({ clientId }: PatientFormsTabProps) {
                 </TabsContent>
 
                 <TabsContent value="submissions" className="mt-4">
-                    <SubmissionsList
-                        clientId={clientId}
-                        submissions={submissions}
-                    />
+                    <SubmissionsList submissions={submissions} />
                 </TabsContent>
             </Tabs>
         </div>

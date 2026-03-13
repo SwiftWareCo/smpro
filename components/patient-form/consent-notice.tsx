@@ -1,12 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Shield, ChevronDown, ChevronUp } from "lucide-react";
@@ -38,6 +33,7 @@ export function ConsentNotice({
             <CardContent className="space-y-4">
                 <div>
                     <Button
+                        type="button"
                         variant="ghost"
                         size="sm"
                         onClick={() => setExpanded(!expanded)}
@@ -80,8 +76,8 @@ export function ConsentNotice({
                         className="text-sm leading-relaxed cursor-pointer"
                     >
                         I have read and agree to the collection, use, and
-                        disclosure of my personal information as described in the
-                        consent notice above.
+                        disclosure of my personal information as described in
+                        the consent notice above.
                     </Label>
                 </div>
             </CardContent>

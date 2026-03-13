@@ -36,7 +36,6 @@ interface TemplateField {
         pattern?: string;
         message?: string;
     };
-    isPhi: boolean;
 }
 
 export async function createTemplate(
@@ -112,17 +111,6 @@ export async function createSubmission(
         createdAt: now,
         updatedAt: now,
     });
-}
-
-export async function patchSubmission(
-    ctx: MutationCtx,
-    submissionId: Id<"formSubmissions">,
-    patch: Record<string, unknown>,
-) {
-    const submission = await ctx.db.get(submissionId);
-    if (!submission) return null;
-    await ctx.db.patch(submissionId, { ...patch, updatedAt: Date.now() });
-    return submission;
 }
 
 // --- Form Deliveries ---

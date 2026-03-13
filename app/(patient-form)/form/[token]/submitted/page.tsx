@@ -9,7 +9,7 @@ import { CheckCircle } from "lucide-react";
 
 export default function FormSubmittedPage() {
     return (
-        <Card>
+        <Card className="mx-auto max-w-2xl rounded-[32px] border-border/70 shadow-sm">
             <CardHeader className="text-center">
                 <div className="flex justify-center mb-4">
                     <CheckCircle className="h-16 w-16 text-green-500" />

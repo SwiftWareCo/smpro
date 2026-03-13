@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id, Doc } from "@/convex/_generated/dataModel";
@@ -30,7 +30,7 @@ interface DeliveryDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     clientId: Id<"clients">;
-    template: Doc<"formTemplates">;
+    template: Doc<"formTemplates"> | null;
 }
 
 const channelOptions: {
@@ -63,7 +63,23 @@ export function DeliveryDialog({
 
     const createLink = useAction(api.formDeliveriesActions.createLink);
 
+    useEffect(() => {
+        if (!open) {
+            setGeneratedUrl("");
+            setPatientName("");
+            setRecipientEmail("");
+            setRecipientPhone("");
+            setChannel("link");
+            setGenerating(false);
+        }
+    }, [open]);
+
     const handleGenerate = async () => {
+        if (!template) {
+            toast.error("Choose a template before generating a patient link");
+            return;
+        }
+
         setGenerating(true);
         try {
             const result = await createLink({
@@ -104,8 +120,9 @@ export function DeliveryDialog({
                 <DialogHeader>
                     <DialogTitle>Send Form to Patient</DialogTitle>
                     <DialogDescription>
-                        Generate a secure link for &quot;{template.name}&quot;.
-                        Links expire after 72 hours.
+                        {template
+                            ? `Generate a secure link for "${template.name}". Links expire after 72 hours.`
+                            : "Choose a template to generate a secure patient link."}
                     </DialogDescription>
                 </DialogHeader>
 
