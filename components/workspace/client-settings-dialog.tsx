@@ -53,6 +53,7 @@ import {
 } from "@/lib/validation/client-onboarding";
 import { getClientPortalUrl } from "@/lib/tenant-url";
 import { getErrorMessage } from "@/lib/errors/convex";
+import { resolveTenantThemePalette } from "@/lib/tenant-theme";
 
 const clientStatusOptions = [
     "lead",
@@ -100,9 +101,9 @@ interface ClientSettingsDialogProps {
 }
 
 const PORTAL_THEME_PRESETS = [
-    { label: "Ocean", primary: "#0ea5e9", secondary: "#e0f2fe" },
-    { label: "Forest", primary: "#16a34a", secondary: "#dcfce7" },
-    { label: "Slate", primary: "#334155", secondary: "#e2e8f0" },
+    { label: "Ocean", primary: "#0284c7", secondary: "#c9ddf1" },
+    { label: "Forest", primary: "#15803d", secondary: "#d3e6d4" },
+    { label: "Slate", primary: "#334155", secondary: "#d2dae4" },
 ] as const;
 
 export function ClientSettingsDialog({
@@ -334,10 +335,9 @@ export function ClientSettingsDialog({
                                                     />
                                                 </FormControl>
                                                 <FormDescription>
-                                                    Used for portal backgrounds
-                                                    and sidebar surfaces. Pick a
-                                                    darker shade here for
-                                                    dark-mode-like styling.
+                                                    Used for subtle surfaces,
+                                                    the sidebar tint, and soft
+                                                    supporting accents.
                                                 </FormDescription>
                                                 <FormMessage />
                                             </FormItem>
@@ -349,48 +349,113 @@ export function ClientSettingsDialog({
                                     <p className="text-sm font-medium">
                                         Theme Presets
                                     </p>
-                                    <div className="flex flex-wrap gap-2">
+                                    <div className="grid gap-3 sm:grid-cols-3">
                                         {PORTAL_THEME_PRESETS.map((preset) => {
                                             const isSelected =
                                                 selectedPrimaryColor.toLowerCase() ===
                                                     preset.primary &&
                                                 selectedSecondaryColor.toLowerCase() ===
                                                     preset.secondary;
+                                            const palette =
+                                                resolveTenantThemePalette({
+                                                    primaryColor:
+                                                        preset.primary,
+                                                    secondaryColor:
+                                                        preset.secondary,
+                                                });
                                             return (
-                                                <Button
+                                                <button
                                                     key={preset.label}
                                                     type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className={
+                                                    className={`rounded-2xl border p-3 text-left transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:shadow-sm ${
                                                         isSelected
-                                                            ? "ring-2 ring-ring"
-                                                            : ""
-                                                    }
+                                                            ? "border-primary ring-2 ring-ring/30"
+                                                            : "border-border/70"
+                                                    }`}
                                                     onClick={() =>
                                                         applyPortalThemePreset(
                                                             preset,
                                                         )
                                                     }
                                                 >
-                                                    <span className="mr-2 inline-flex items-center gap-1">
-                                                        <span
-                                                            className="h-3 w-3 rounded-full border"
+                                                    <div
+                                                        className="overflow-hidden rounded-xl border"
+                                                        style={{
+                                                            backgroundColor:
+                                                                palette.background,
+                                                            borderColor:
+                                                                palette.border,
+                                                            color: palette.foreground,
+                                                        }}
+                                                    >
+                                                        <div
+                                                            className="flex h-7 items-center px-2 text-[10px] font-semibold uppercase tracking-[0.18em]"
                                                             style={{
                                                                 backgroundColor:
-                                                                    preset.primary,
+                                                                    palette.sidebar,
+                                                                borderBottom: `1px solid ${palette.sidebarBorder}`,
                                                             }}
-                                                        />
-                                                        <span
-                                                            className="h-3 w-3 rounded-full border"
-                                                            style={{
-                                                                backgroundColor:
-                                                                    preset.secondary,
-                                                            }}
-                                                        />
-                                                    </span>
-                                                    {preset.label}
-                                                </Button>
+                                                        >
+                                                            Portal
+                                                        </div>
+                                                        <div className="space-y-2 p-2">
+                                                            <div
+                                                                className="h-2.5 w-2/3 rounded-full"
+                                                                style={{
+                                                                    backgroundColor:
+                                                                        palette.foreground,
+                                                                    opacity: 0.18,
+                                                                }}
+                                                            />
+                                                            <div
+                                                                className="rounded-md border p-2"
+                                                                style={{
+                                                                    backgroundColor:
+                                                                        palette.card,
+                                                                    borderColor:
+                                                                        palette.border,
+                                                                }}
+                                                            >
+                                                                <div
+                                                                    className="h-2 w-1/2 rounded-full"
+                                                                    style={{
+                                                                        backgroundColor:
+                                                                            palette.foreground,
+                                                                        opacity: 0.14,
+                                                                    }}
+                                                                />
+                                                                <div
+                                                                    className="mt-2 h-7 rounded-md"
+                                                                    style={{
+                                                                        backgroundColor:
+                                                                            palette.primary,
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="mt-3 flex items-center justify-between gap-3">
+                                                        <span className="text-sm font-medium">
+                                                            {preset.label}
+                                                        </span>
+                                                        <span className="inline-flex items-center gap-1.5">
+                                                            <span
+                                                                className="h-3 w-3 rounded-full border"
+                                                                style={{
+                                                                    backgroundColor:
+                                                                        preset.primary,
+                                                                }}
+                                                            />
+                                                            <span
+                                                                className="h-3 w-3 rounded-full border"
+                                                                style={{
+                                                                    backgroundColor:
+                                                                        preset.secondary,
+                                                                }}
+                                                            />
+                                                        </span>
+                                                    </div>
+                                                </button>
                                             );
                                         })}
                                     </div>

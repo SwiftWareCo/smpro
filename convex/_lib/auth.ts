@@ -48,41 +48,17 @@ export async function requireClientAccess(
         | string
         | undefined;
 
-    console.log("[requireClientAccess] evaluating access", {
-        requestedClientId: clientId,
-        identitySubject: identity.subject,
-        identityOrgId: orgId ?? null,
-        clientExists: Boolean(client),
-        clientUserId: client?.userId ?? null,
-        clientClerkOrganizationId: client?.clerkOrganizationId ?? null,
-        clientPortalAdminUserId: client?.portalAdminUserId ?? null,
-    });
-
     if (!client) {
-        console.error("[requireClientAccess] denied: client row not found", {
-            requestedClientId: clientId,
-            identitySubject: identity.subject,
-            identityOrgId: orgId ?? null,
-        });
         throw new Error("Client not found");
     }
 
     // Admin owner check
     if (client.userId === identity.subject) {
-        console.log("[requireClientAccess] granted via client owner", {
-            requestedClientId: clientId,
-            identitySubject: identity.subject,
-        });
         return client;
     }
 
     // Portal admin check
     if (client.portalAdminUserId === identity.subject) {
-        console.log("[requireClientAccess] granted via portal admin user", {
-            requestedClientId: clientId,
-            identitySubject: identity.subject,
-            clientPortalAdminUserId: client.portalAdminUserId,
-        });
         return client;
     }
 
@@ -92,26 +68,9 @@ export async function requireClientAccess(
         client.clerkOrganizationId &&
         orgId === client.clerkOrganizationId
     ) {
-        console.log("[requireClientAccess] granted via Clerk organization", {
-            requestedClientId: clientId,
-            identitySubject: identity.subject,
-            identityOrgId: orgId,
-            clientClerkOrganizationId: client.clerkOrganizationId,
-        });
         return client;
     }
 
-    console.error(
-        "[requireClientAccess] denied: ownership and org checks failed",
-        {
-            requestedClientId: clientId,
-            identitySubject: identity.subject,
-            identityOrgId: orgId ?? null,
-            clientUserId: client.userId,
-            clientClerkOrganizationId: client.clerkOrganizationId,
-            clientPortalAdminUserId: client.portalAdminUserId ?? null,
-        },
-    );
     throw new Error("Client not found");
 }
 

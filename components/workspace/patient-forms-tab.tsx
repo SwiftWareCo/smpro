@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -15,11 +15,19 @@ interface PatientFormsTabProps {
 
 export function PatientFormsTab({ clientId }: PatientFormsTabProps) {
     const [subTab, setSubTab] = useState("templates");
+    const { isLoading, isAuthenticated } = useConvexAuth();
 
-    const templates = useQuery(api.formTemplates.list, { clientId });
-    const submissions = useQuery(api.formSubmissions.list, { clientId });
+    const queryArgs =
+        isAuthenticated && clientId ? { clientId } : ("skip" as const);
+    const templates = useQuery(api.formTemplates.list, queryArgs);
+    const submissions = useQuery(api.formSubmissions.list, queryArgs);
 
-    if (templates === undefined || submissions === undefined) {
+    if (
+        isLoading ||
+        !isAuthenticated ||
+        templates === undefined ||
+        submissions === undefined
+    ) {
         return (
             <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -29,8 +37,8 @@ export function PatientFormsTab({ clientId }: PatientFormsTabProps) {
 
     return (
         <div className="space-y-4">
-            <Tabs value={subTab} onValueChange={setSubTab}>
-                <TabsList>
+            <Tabs value={subTab} onValueChange={setSubTab} className="gap-4">
+                <TabsList className="rounded-2xl bg-background/80 backdrop-blur">
                     <TabsTrigger value="templates">
                         Templates ({templates.length})
                     </TabsTrigger>

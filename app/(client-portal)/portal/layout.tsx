@@ -55,7 +55,7 @@ export default async function TenantPortalLayout({
             style={themeStyle}
             className="min-h-svh bg-background text-foreground"
         >
-            <SidebarProvider>
+            <SidebarProvider defaultOpen={false}>
                 <PortalSidebar clientName={tenant.name} />
                 <SidebarInset>
                     <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/75">

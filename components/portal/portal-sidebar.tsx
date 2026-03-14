@@ -23,12 +23,14 @@ export function PortalSidebar({ clientName }: PortalSidebarProps) {
     const pathname = usePathname();
 
     return (
-        <Sidebar variant="floating">
+        <Sidebar variant="floating" collapsible="icon">
             <SidebarHeader>
-                <div className="rounded-lg border border-sidebar-border bg-sidebar px-3 py-3">
-                    <div className="flex items-center gap-2 text-sm font-medium">
+                <div className="rounded-lg border border-sidebar-border bg-sidebar px-3 py-3 group-data-[collapsible=icon]:px-2">
+                    <div className="flex items-center gap-2 text-sm font-medium group-data-[collapsible=icon]:justify-center">
                         <Building2 className="h-4 w-4 text-sidebar-primary" />
-                        <span className="truncate">{clientName}</span>
+                        <span className="truncate group-data-[collapsible=icon]:hidden">
+                            {clientName}
+                        </span>
                     </div>
                 </div>
             </SidebarHeader>
@@ -41,21 +43,28 @@ export function PortalSidebar({ clientName }: PortalSidebarProps) {
                                 <SidebarMenuButton
                                     asChild
                                     isActive={pathname === "/"}
+                                    tooltip="Dashboard"
+                                    className="hover:border-sidebar-primary/20 hover:bg-sidebar-primary/10 data-[active=true]:border-sidebar-primary/30 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
                                 >
                                     <Link href="/">
                                         <LayoutDashboard className="h-4 w-4" />
-                                        Dashboard
+                                        <span>Dashboard</span>
                                     </Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
                             <SidebarMenuItem>
                                 <SidebarMenuButton
                                     asChild
-                                    isActive={pathname === "/forms" || pathname.startsWith("/forms/")}
+                                    isActive={
+                                        pathname === "/forms" ||
+                                        pathname.startsWith("/forms/")
+                                    }
+                                    tooltip="Patient Forms"
+                                    className="hover:border-sidebar-primary/20 hover:bg-sidebar-primary/10 data-[active=true]:border-sidebar-primary/30 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
                                 >
                                     <Link href="/forms">
                                         <ClipboardList className="h-4 w-4" />
-                                        Patient Forms
+                                        <span>Patient Forms</span>
                                     </Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
