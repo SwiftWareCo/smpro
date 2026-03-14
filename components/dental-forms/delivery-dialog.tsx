@@ -36,6 +36,10 @@ import {
     CheckCircle,
 } from "lucide-react";
 import type { DeliveryChannel } from "@/lib/validation/dental-form";
+import {
+    FORM_LANGUAGE_LABELS,
+    type FormLanguage,
+} from "@/lib/patient-form-i18n";
 
 interface DeliveryDialogProps {
     open: boolean;
@@ -77,6 +81,8 @@ export function DeliveryDialog({
     const [patientName, setPatientName] = useState("");
     const [recipientEmail, setRecipientEmail] = useState("");
     const [recipientPhone, setRecipientPhone] = useState("");
+    const [preferredLanguage, setPreferredLanguage] =
+        useState<FormLanguage>("en");
     const [generatedUrl, setGeneratedUrl] = useState("");
     const [generating, setGenerating] = useState(false);
     const [emailSending, setEmailSending] = useState(false);
@@ -101,6 +107,7 @@ export function DeliveryDialog({
             setRecipientEmail("");
             setRecipientPhone("");
             setChannel("link");
+            setPreferredLanguage("en");
             setGenerating(false);
             setEmailSending(false);
             setEmailSent(false);
@@ -126,6 +133,7 @@ export function DeliveryDialog({
                 clientId,
                 templateId: template._id,
                 channel,
+                preferredLanguage,
             });
 
             setGeneratedUrl(result.formUrl);
@@ -215,6 +223,7 @@ h2{margin-bottom:16px;color:#333;}p{color:#666;font-size:14px;margin-top:12px;}<
         setPatientName("");
         setRecipientEmail("");
         setRecipientPhone("");
+        setPreferredLanguage("en");
         setEmailSending(false);
         setEmailSent(false);
         setEmailError(false);
@@ -272,6 +281,34 @@ h2{margin-bottom:16px;color:#333;}p{color:#666;font-size:14px;margin-top:12px;}<
                                 onChange={(e) => setPatientName(e.target.value)}
                                 placeholder="John Smith"
                             />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="preferred-language">
+                                Preferred Form Language
+                            </Label>
+                            <Select
+                                value={preferredLanguage}
+                                onValueChange={(value) =>
+                                    setPreferredLanguage(value as FormLanguage)
+                                }
+                            >
+                                <SelectTrigger id="preferred-language">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {Object.entries(FORM_LANGUAGE_LABELS).map(
+                                        ([value, label]) => (
+                                            <SelectItem
+                                                key={value}
+                                                value={value}
+                                            >
+                                                {label}
+                                            </SelectItem>
+                                        ),
+                                    )}
+                                </SelectContent>
+                            </Select>
                         </div>
 
                         {channel === "email" && (
@@ -369,8 +406,7 @@ h2{margin-bottom:16px;color:#333;}p{color:#666;font-size:14px;margin-top:12px;}<
                                     <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3">
                                         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                                         <p className="text-sm text-muted-foreground">
-                                            Sending email to{" "}
-                                            {recipientEmail}...
+                                            Sending email to {recipientEmail}...
                                         </p>
                                     </div>
                                 )}

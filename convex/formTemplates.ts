@@ -19,8 +19,6 @@ const fieldValidator = v.object({
         v.literal("checkbox"),
         v.literal("number"),
         v.literal("signature"),
-        v.literal("heading"),
-        v.literal("paragraph"),
     ),
     label: v.string(),
     placeholder: v.optional(v.string()),
@@ -89,13 +87,26 @@ export const getByToken = query({
         if (!template || template.status !== "active") return null;
 
         const client = await ClientsRead.getById(ctx, template.clientId);
+        const localizedTemplate = delivery.localizedTemplate;
+        const resolvedTemplate = localizedTemplate
+            ? {
+                  ...template,
+                  name: localizedTemplate.name,
+                  description: localizedTemplate.description,
+                  sections: localizedTemplate.sections,
+                  consentText: localizedTemplate.consentText,
+                  consentVersion: localizedTemplate.consentVersion,
+              }
+            : template;
 
         return {
-            template,
+            template: resolvedTemplate,
             delivery: {
                 _id: delivery._id,
                 channel: delivery.channel,
+                preferredLanguage: delivery.preferredLanguage,
             },
+            preferredLanguage: delivery.preferredLanguage,
             clientName: client?.name ?? "Clinic",
         };
     },

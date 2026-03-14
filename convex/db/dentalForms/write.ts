@@ -23,9 +23,7 @@ interface TemplateField {
         | "radio"
         | "checkbox"
         | "number"
-        | "signature"
-        | "heading"
-        | "paragraph";
+        | "signature";
     label: string;
     placeholder?: string;
     required: boolean;
@@ -36,6 +34,15 @@ interface TemplateField {
         pattern?: string;
         message?: string;
     };
+}
+
+interface LocalizedTemplateSnapshot {
+    language: "en" | "es" | "ar" | "zh-Hans" | "zh-Hant";
+    name: string;
+    description?: string;
+    sections: TemplateSection[];
+    consentText: string;
+    consentVersion: string;
 }
 
 export async function createTemplate(
@@ -123,6 +130,8 @@ export async function createDelivery(
         channel: "email" | "sms" | "qr" | "link" | "tablet";
         token: string;
         tokenExpiresAt: number;
+        preferredLanguage: "en" | "es" | "ar" | "zh-Hans" | "zh-Hant";
+        localizedTemplate?: LocalizedTemplateSnapshot;
         createdBy: string;
     },
 ) {
@@ -133,6 +142,8 @@ export async function createDelivery(
         channel: data.channel,
         token: data.token,
         tokenExpiresAt: data.tokenExpiresAt,
+        preferredLanguage: data.preferredLanguage,
+        localizedTemplate: data.localizedTemplate,
         status: "pending",
         createdBy: data.createdBy,
         createdAt: now,

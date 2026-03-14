@@ -18,8 +18,6 @@ const fieldSchema = v.object({
         v.literal("checkbox"),
         v.literal("number"),
         v.literal("signature"),
-        v.literal("heading"),
-        v.literal("paragraph"),
     ),
     label: v.string(),
     placeholder: v.optional(v.string()),
@@ -41,6 +39,21 @@ const sectionSchema = v.object({
     description: v.optional(v.string()),
     enabled: v.boolean(),
     fields: v.array(fieldSchema),
+});
+
+const localizedTemplateSchema = v.object({
+    language: v.union(
+        v.literal("en"),
+        v.literal("es"),
+        v.literal("ar"),
+        v.literal("zh-Hans"),
+        v.literal("zh-Hant"),
+    ),
+    name: v.string(),
+    description: v.optional(v.string()),
+    sections: v.array(sectionSchema),
+    consentText: v.string(),
+    consentVersion: v.string(),
 });
 
 export const formTemplates = defineTable({
@@ -95,6 +108,14 @@ export const formDeliveries = defineTable({
     ),
     token: v.string(),
     tokenExpiresAt: v.number(),
+    preferredLanguage: v.union(
+        v.literal("en"),
+        v.literal("es"),
+        v.literal("ar"),
+        v.literal("zh-Hans"),
+        v.literal("zh-Hant"),
+    ),
+    localizedTemplate: v.optional(localizedTemplateSchema),
     status: v.union(
         v.literal("pending"),
         v.literal("sent"),

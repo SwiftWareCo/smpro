@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
@@ -45,7 +45,7 @@ interface TemplateEditorProps {
 
 const FIELD_TYPES: { value: FieldType; label: string }[] = [
     { value: "text", label: "Text" },
-    { value: "textarea", label: "Long Text" },
+    { value: "textarea", label: "Textbox" },
     { value: "email", label: "Email" },
     { value: "phone", label: "Phone" },
     { value: "date", label: "Date" },
@@ -54,243 +54,62 @@ const FIELD_TYPES: { value: FieldType; label: string }[] = [
     { value: "radio", label: "Single Choice" },
     { value: "checkbox", label: "Checkbox" },
     { value: "signature", label: "Signature" },
-    { value: "heading", label: "Heading" },
-    { value: "paragraph", label: "Paragraph" },
 ];
 
-const DEFAULT_DENTAL_SECTIONS: TemplateSection[] = [
-    {
-        id: "personal-info",
-        title: "Personal Information",
-        description: "Basic patient contact information",
-        enabled: true,
-        fields: [
-            {
-                id: "first-name",
-                type: "text",
-                label: "First Name",
-                required: true,
-            },
-            {
-                id: "last-name",
-                type: "text",
-                label: "Last Name",
-                required: true,
-            },
-            {
-                id: "date-of-birth",
-                type: "date",
-                label: "Date of Birth",
-                required: true,
-            },
-            {
-                id: "email",
-                type: "email",
-                label: "Email Address",
-                required: true,
-            },
-            {
-                id: "phone",
-                type: "phone",
-                label: "Phone Number",
-                required: true,
-            },
-            {
-                id: "address",
-                type: "textarea",
-                label: "Address",
-                required: false,
-            },
-        ],
+const FIELD_TYPE_LABELS: Record<FieldType, string> = FIELD_TYPES.reduce(
+    (labels, fieldType) => {
+        labels[fieldType.value] = fieldType.label;
+        return labels;
     },
-    {
-        id: "emergency-contact",
-        title: "Emergency Contact",
-        enabled: true,
-        fields: [
-            {
-                id: "emergency-name",
-                type: "text",
-                label: "Emergency Contact Name",
-                required: true,
-            },
-            {
-                id: "emergency-phone",
-                type: "phone",
-                label: "Emergency Contact Phone",
-                required: true,
-            },
-            {
-                id: "emergency-relationship",
-                type: "text",
-                label: "Relationship",
-                required: true,
-            },
-        ],
-    },
-    {
-        id: "medical-history",
-        title: "Medical History",
-        description: "Current health conditions and medications",
-        enabled: true,
-        fields: [
-            {
-                id: "physician-name",
-                type: "text",
-                label: "Family Physician Name",
-                required: false,
-            },
-            {
-                id: "physician-phone",
-                type: "phone",
-                label: "Physician Phone",
-                required: false,
-            },
-            {
-                id: "current-medications",
-                type: "textarea",
-                label: "Current Medications",
-                placeholder: "List all current medications...",
-                required: false,
-            },
-            {
-                id: "allergies",
-                type: "textarea",
-                label: "Allergies",
-                placeholder: "List any known allergies...",
-                required: false,
-            },
-            {
-                id: "medical-conditions",
-                type: "textarea",
-                label: "Medical Conditions",
-                placeholder: "List any current or past medical conditions...",
-                required: false,
-            },
-            {
-                id: "pregnant",
-                type: "radio",
-                label: "Are you currently pregnant?",
-                required: false,
-                options: ["Yes", "No", "N/A"],
-            },
-        ],
-    },
-    {
-        id: "dental-history",
-        title: "Dental History",
-        enabled: true,
-        fields: [
-            {
-                id: "last-dental-visit",
-                type: "date",
-                label: "Date of Last Dental Visit",
-                required: false,
-            },
-            {
-                id: "previous-dentist",
-                type: "text",
-                label: "Previous Dentist Name",
-                required: false,
-            },
-            {
-                id: "reason-for-visit",
-                type: "select",
-                label: "Reason for Visit",
-                required: true,
-                options: [
-                    "Regular Check-up",
-                    "Dental Pain",
-                    "Cosmetic Concern",
-                    "Emergency",
-                    "Second Opinion",
-                    "Other",
-                ],
-            },
-            {
-                id: "dental-concerns",
-                type: "textarea",
-                label: "Dental Concerns or Symptoms",
-                placeholder: "Describe any current dental concerns...",
-                required: false,
-            },
-            {
-                id: "brushing-frequency",
-                type: "select",
-                label: "How often do you brush?",
-                required: false,
-                options: ["Twice daily", "Once daily", "Less than daily"],
-            },
-            {
-                id: "flossing-frequency",
-                type: "select",
-                label: "How often do you floss?",
-                required: false,
-                options: ["Daily", "A few times a week", "Rarely", "Never"],
-            },
-        ],
-    },
-    {
-        id: "insurance",
-        title: "Insurance Information",
-        enabled: true,
-        fields: [
-            {
-                id: "has-insurance",
-                type: "radio",
-                label: "Do you have dental insurance?",
-                required: true,
-                options: ["Yes", "No"],
-            },
-            {
-                id: "insurance-provider",
-                type: "text",
-                label: "Insurance Provider",
-                required: false,
-            },
-            {
-                id: "policy-number",
-                type: "text",
-                label: "Policy Number",
-                required: false,
-            },
-            {
-                id: "group-number",
-                type: "text",
-                label: "Group Number",
-                required: false,
-            },
-            {
-                id: "subscriber-name",
-                type: "text",
-                label: "Subscriber Name (if different)",
-                required: false,
-            },
-        ],
-    },
-    {
-        id: "signature",
-        title: "Patient Signature",
-        enabled: true,
-        fields: [
-            {
-                id: "patient-signature",
-                type: "signature",
-                label: "Patient Signature",
-                required: true,
-            },
-            {
-                id: "signature-date",
-                type: "date",
-                label: "Date",
-                required: true,
-            },
-        ],
-    },
-];
+    {} as Record<FieldType, string>,
+);
+
+const NEW_TEMPLATE_NAME = "";
+const NEW_TEMPLATE_DESCRIPTION = "";
+
+const OPTION_PRESETS = [
+    { label: "Yes / No", options: ["Yes", "No"] },
+    { label: "Male / Female", options: ["Male", "Female"] },
+    { label: "Daily / Weekly / Never", options: ["Daily", "Weekly", "Never"] },
+] as const;
 
 function generateId(): string {
     return `f-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function getDefaultOptions(fieldType: FieldType): string[] | undefined {
+    if (fieldType === "radio") {
+        return ["Option 1", "Option 2"];
+    }
+
+    if (fieldType === "select") {
+        return ["Choice 1", "Choice 2"];
+    }
+
+    return undefined;
+}
+
+function getDefaultFieldLabel(fieldType: FieldType): string {
+    if (fieldType === "radio") {
+        return "New radio group";
+    }
+
+    if (fieldType === "select") {
+        return "New dropdown";
+    }
+
+    return "New field";
+}
+
+function createField(fieldType: FieldType = "text"): TemplateField {
+    return {
+        id: generateId(),
+        type: fieldType,
+        label: getDefaultFieldLabel(fieldType),
+        required: false,
+        placeholder: supportsPlaceholder(fieldType) ? "" : undefined,
+        options: getDefaultOptions(fieldType),
+    };
 }
 
 function supportsPlaceholder(fieldType: FieldType): boolean {
@@ -302,8 +121,515 @@ function supportsOptions(fieldType: FieldType): boolean {
 }
 
 function supportsRequired(fieldType: FieldType): boolean {
-    return fieldType !== "heading" && fieldType !== "paragraph";
+    return true;
 }
+
+interface TemplateFieldCardProps {
+    sectionId: string;
+    field: TemplateField;
+    fieldIndex: number;
+    onRemoveField: (sectionId: string, fieldId: string) => void;
+    onSetFieldType: (
+        sectionId: string,
+        fieldId: string,
+        nextType: FieldType,
+    ) => void;
+    onUpdateField: (
+        sectionId: string,
+        fieldId: string,
+        updates: Partial<TemplateField>,
+    ) => void;
+    onUpdateFieldOption: (
+        sectionId: string,
+        fieldId: string,
+        optionIndex: number,
+        value: string,
+    ) => void;
+    onRemoveFieldOption: (
+        sectionId: string,
+        fieldId: string,
+        optionIndex: number,
+    ) => void;
+    onAddFieldOption: (sectionId: string, fieldId: string) => void;
+    onApplyOptionPreset: (
+        sectionId: string,
+        fieldId: string,
+        options: readonly string[],
+    ) => void;
+}
+
+const TemplateFieldCard = memo(function TemplateFieldCard({
+    sectionId,
+    field,
+    fieldIndex,
+    onRemoveField,
+    onSetFieldType,
+    onUpdateField,
+    onUpdateFieldOption,
+    onRemoveFieldOption,
+    onAddFieldOption,
+    onApplyOptionPreset,
+}: TemplateFieldCardProps) {
+    const [showPlaceholder, setShowPlaceholder] = useState(
+        () => !!field.placeholder,
+    );
+
+    return (
+        <div className="rounded-2xl border border-border/70 bg-muted/10 p-4">
+            <div className="mb-4 flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-background text-xs font-semibold">
+                        {fieldIndex + 1}
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                            {supportsRequired(field.type)
+                                ? "Question"
+                                : "Content block"}
+                        </p>
+                        <Badge
+                            variant="outline"
+                            className="rounded-full px-2.5 py-0.5"
+                        >
+                            {FIELD_TYPE_LABELS[field.type]}
+                        </Badge>
+                    </div>
+                </div>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-destructive"
+                    onClick={() => onRemoveField(sectionId, field.id)}
+                >
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </div>
+
+            <div className="grid gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor={`field-label-${field.id}`}>
+                        Label or content
+                    </Label>
+                    <Input
+                        id={`field-label-${field.id}`}
+                        value={field.label}
+                        onChange={(event) =>
+                            onUpdateField(sectionId, field.id, {
+                                label: event.target.value,
+                            })
+                        }
+                    />
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_160px]">
+                    <div className="space-y-2">
+                        <Label>Field type</Label>
+                        <Select
+                            value={field.type}
+                            onValueChange={(value) =>
+                                onSetFieldType(
+                                    sectionId,
+                                    field.id,
+                                    value as FieldType,
+                                )
+                            }
+                        >
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {FIELD_TYPES.map((fieldType) => (
+                                    <SelectItem
+                                        key={fieldType.value}
+                                        value={fieldType.value}
+                                    >
+                                        {fieldType.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Required</Label>
+                        <div className="flex h-10 items-center rounded-xl border border-border/70 bg-background px-3">
+                            <Switch
+                                checked={field.required}
+                                disabled={!supportsRequired(field.type)}
+                                onCheckedChange={(checked) =>
+                                    onUpdateField(sectionId, field.id, {
+                                        required: checked,
+                                    })
+                                }
+                            />
+                            <span className="ml-3 text-sm text-muted-foreground">
+                                {supportsRequired(field.type)
+                                    ? field.required
+                                        ? "Required"
+                                        : "Optional"
+                                    : "Display only"}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                    {supportsPlaceholder(field.type) &&
+                        (field.type === "checkbox" ? (
+                            <div className="space-y-2">
+                                <Label
+                                    htmlFor={`field-placeholder-${field.id}`}
+                                >
+                                    Checkbox label
+                                </Label>
+                                <Input
+                                    id={`field-placeholder-${field.id}`}
+                                    value={field.placeholder ?? ""}
+                                    onChange={(event) =>
+                                        onUpdateField(sectionId, field.id, {
+                                            placeholder: event.target.value,
+                                        })
+                                    }
+                                    placeholder="Yes"
+                                />
+                            </div>
+                        ) : showPlaceholder ? (
+                            <div className="space-y-2">
+                                <Label
+                                    htmlFor={`field-placeholder-${field.id}`}
+                                >
+                                    Placeholder
+                                </Label>
+                                <Input
+                                    id={`field-placeholder-${field.id}`}
+                                    value={field.placeholder ?? ""}
+                                    onChange={(event) =>
+                                        onUpdateField(sectionId, field.id, {
+                                            placeholder: event.target.value,
+                                        })
+                                    }
+                                    placeholder="Optional helper text"
+                                />
+                            </div>
+                        ) : (
+                            <button
+                                type="button"
+                                className="self-end text-xs text-muted-foreground hover:text-foreground transition-colors py-2"
+                                onClick={() => setShowPlaceholder(true)}
+                            >
+                                + Add placeholder
+                            </button>
+                        ))}
+
+                    {supportsOptions(field.type) && (
+                        <div className="space-y-3 lg:col-span-2">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <Label>Choices</Label>
+                                <div className="flex flex-wrap gap-2">
+                                    {OPTION_PRESETS.map((preset) => (
+                                        <Button
+                                            key={preset.label}
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-8 rounded-full px-3 text-xs"
+                                            onClick={() =>
+                                                onApplyOptionPreset(
+                                                    sectionId,
+                                                    field.id,
+                                                    preset.options,
+                                                )
+                                            }
+                                        >
+                                            {preset.label}
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                {(field.options ?? []).map(
+                                    (option, optionIndex) => (
+                                        <div
+                                            key={`${field.id}-option-${optionIndex}`}
+                                            className="flex items-center gap-2"
+                                        >
+                                            <Input
+                                                value={option}
+                                                onChange={(event) =>
+                                                    onUpdateFieldOption(
+                                                        sectionId,
+                                                        field.id,
+                                                        optionIndex,
+                                                        event.target.value,
+                                                    )
+                                                }
+                                                placeholder={`Option ${optionIndex + 1}`}
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                className="shrink-0 text-muted-foreground hover:text-destructive"
+                                                onClick={() =>
+                                                    onRemoveFieldOption(
+                                                        sectionId,
+                                                        field.id,
+                                                        optionIndex,
+                                                    )
+                                                }
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    ),
+                                )}
+                            </div>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                    onAddFieldOption(sectionId, field.id)
+                                }
+                            >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Add option
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+});
+
+interface TemplateSectionCardProps {
+    section: TemplateSection;
+    sectionIndex: number;
+    active: boolean;
+    setSectionRef: (sectionId: string, node: HTMLDivElement | null) => void;
+    onSetActiveSection: (sectionId: string) => void;
+    onUpdateSection: (
+        sectionId: string,
+        updates: Partial<Omit<TemplateSection, "fields">>,
+    ) => void;
+    onRemoveSection: (sectionId: string) => void;
+    onRemoveField: (sectionId: string, fieldId: string) => void;
+    onSetFieldType: (
+        sectionId: string,
+        fieldId: string,
+        nextType: FieldType,
+    ) => void;
+    onUpdateField: (
+        sectionId: string,
+        fieldId: string,
+        updates: Partial<TemplateField>,
+    ) => void;
+    onUpdateFieldOption: (
+        sectionId: string,
+        fieldId: string,
+        optionIndex: number,
+        value: string,
+    ) => void;
+    onRemoveFieldOption: (
+        sectionId: string,
+        fieldId: string,
+        optionIndex: number,
+    ) => void;
+    onAddFieldOption: (sectionId: string, fieldId: string) => void;
+    onApplyOptionPreset: (
+        sectionId: string,
+        fieldId: string,
+        options: readonly string[],
+    ) => void;
+    onAddField: (sectionId: string, fieldType?: FieldType) => void;
+}
+
+const TemplateSectionCard = memo(function TemplateSectionCard({
+    section,
+    sectionIndex,
+    active,
+    setSectionRef,
+    onSetActiveSection,
+    onUpdateSection,
+    onRemoveSection,
+    onRemoveField,
+    onSetFieldType,
+    onUpdateField,
+    onUpdateFieldOption,
+    onRemoveFieldOption,
+    onAddFieldOption,
+    onApplyOptionPreset,
+    onAddField,
+}: TemplateSectionCardProps) {
+    return (
+        <div
+            ref={(node) => {
+                setSectionRef(section.id, node);
+            }}
+            onFocusCapture={() => onSetActiveSection(section.id)}
+            className={`scroll-mt-24 rounded-[28px] border bg-background p-5 shadow-sm transition-colors ${
+                active
+                    ? "border-primary/30 ring-1 ring-primary/15"
+                    : "border-border/70"
+            }`}
+        >
+            <div className="grid gap-5 2xl:grid-cols-[120px_minmax(0,1fr)_auto] 2xl:items-start">
+                <div className="rounded-3xl border border-primary/20 bg-primary/5 p-4">
+                    <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
+                        Step
+                    </p>
+                    <p className="mt-3 text-3xl font-semibold">
+                        {sectionIndex + 1}
+                    </p>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                        {section.fields.length} items in this section
+                    </p>
+                </div>
+
+                <div className="space-y-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                            variant={section.enabled ? "default" : "secondary"}
+                            className="rounded-full px-3 py-1"
+                        >
+                            {section.enabled ? "Visible to patients" : "Hidden"}
+                        </Badge>
+                        <Badge
+                            variant="outline"
+                            className="rounded-full px-3 py-1"
+                        >
+                            {section.fields.length} items
+                        </Badge>
+                    </div>
+                    <div className="grid gap-4 lg:grid-cols-2">
+                        <div className="space-y-2">
+                            <Label htmlFor={`section-title-${section.id}`}>
+                                Section title
+                            </Label>
+                            <Input
+                                id={`section-title-${section.id}`}
+                                value={section.title}
+                                onChange={(event) =>
+                                    onUpdateSection(section.id, {
+                                        title: event.target.value,
+                                    })
+                                }
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label
+                                htmlFor={`section-description-${section.id}`}
+                            >
+                                Section intro
+                            </Label>
+                            <Textarea
+                                id={`section-description-${section.id}`}
+                                value={section.description ?? ""}
+                                onChange={(event) =>
+                                    onUpdateSection(section.id, {
+                                        description: event.target.value,
+                                    })
+                                }
+                                placeholder="Optional context shown before these questions"
+                                rows={2}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 xl:justify-end">
+                    <div className="flex items-center gap-2 rounded-full border border-border/70 bg-muted/15 px-3 py-2 text-sm">
+                        <Switch
+                            checked={section.enabled}
+                            onCheckedChange={(checked) =>
+                                onUpdateSection(section.id, {
+                                    enabled: checked,
+                                })
+                            }
+                        />
+                        <span>{section.enabled ? "Enabled" : "Disabled"}</span>
+                    </div>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-destructive"
+                        onClick={() => onRemoveSection(section.id)}
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                </div>
+            </div>
+
+            <Separator className="my-5" />
+
+            <div className="space-y-4">
+                {section.fields.length > 0 ? (
+                    <div className="grid gap-3 xl:grid-cols-2 2xl:grid-cols-3">
+                        {section.fields.map((field, fieldIndex) => (
+                            <TemplateFieldCard
+                                key={field.id}
+                                sectionId={section.id}
+                                field={field}
+                                fieldIndex={fieldIndex}
+                                onRemoveField={onRemoveField}
+                                onSetFieldType={onSetFieldType}
+                                onUpdateField={onUpdateField}
+                                onUpdateFieldOption={onUpdateFieldOption}
+                                onRemoveFieldOption={onRemoveFieldOption}
+                                onAddFieldOption={onAddFieldOption}
+                                onApplyOptionPreset={onApplyOptionPreset}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 px-4 py-6 text-sm text-muted-foreground">
+                        This section is empty. Add the first item to define what
+                        patients should complete here.
+                    </div>
+                )}
+
+                <div className="flex flex-wrap gap-2">
+                    <Button
+                        variant="outline"
+                        onClick={() => onAddField(section.id, "text")}
+                    >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Text Field
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={() => onAddField(section.id, "textarea")}
+                    >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Textbox
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={() => onAddField(section.id, "select")}
+                    >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Dropdown
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={() => onAddField(section.id, "radio")}
+                    >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Radio Group
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={() => onAddField(section.id, "signature")}
+                    >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Signature
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+});
 
 export function TemplateEditor({
     clientId,
@@ -311,14 +637,12 @@ export function TemplateEditor({
     onClose,
 }: TemplateEditorProps) {
     const isEditing = !!template;
-    const [name, setName] = useState(
-        template?.name ?? "New Patient Intake Form",
-    );
+    const [name, setName] = useState(template?.name ?? NEW_TEMPLATE_NAME);
     const [description, setDescription] = useState(
-        template?.description ?? "Standard dental patient intake form",
+        template?.description ?? NEW_TEMPLATE_DESCRIPTION,
     );
     const [sections, setSections] = useState<TemplateSection[]>(
-        template?.sections ?? DEFAULT_DENTAL_SECTIONS,
+        template?.sections ?? [],
     );
     const [consentText, setConsentText] = useState(
         template?.consentText ?? DEFAULT_PIPA_CONSENT_TEXT,
@@ -328,83 +652,135 @@ export function TemplateEditor({
     );
     const [saving, setSaving] = useState(false);
     const [activeSectionId, setActiveSectionId] = useState(
-        template?.sections?.[0]?.id ?? DEFAULT_DENTAL_SECTIONS[0]?.id ?? "",
+        template?.sections?.[0]?.id ?? "",
     );
     const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
     const createTemplate = useMutation(api.formTemplates.create);
     const updateTemplate = useMutation(api.formTemplates.update);
 
-    const updateSection = (
-        sectionId: string,
-        updates: Partial<Omit<TemplateSection, "fields">>,
-    ) => {
-        setSections((prev) =>
-            prev.map((section) =>
-                section.id === sectionId ? { ...section, ...updates } : section,
-            ),
-        );
-    };
+    const updateSection = useCallback(
+        (
+            sectionId: string,
+            updates: Partial<Omit<TemplateSection, "fields">>,
+        ) => {
+            setSections((prev) =>
+                prev.map((section) =>
+                    section.id === sectionId
+                        ? { ...section, ...updates }
+                        : section,
+                ),
+            );
+        },
+        [],
+    );
 
-    const addSection = () => {
-        setSections((prev) => [
-            ...prev,
-            {
-                id: generateId(),
-                title: "New Section",
-                description: "",
-                enabled: true,
-                fields: [],
-            },
-        ]);
-    };
-
-    const removeSection = (sectionId: string) => {
-        setSections((prev) =>
-            prev.filter((section) => section.id !== sectionId),
-        );
-    };
-
-    const addField = (sectionId: string) => {
-        const newField: TemplateField = {
+    const addSection = useCallback(() => {
+        const newSection: TemplateSection = {
             id: generateId(),
-            type: "text",
-            label: "New Field",
-            required: false,
-            placeholder: "",
+            title: "New Section",
+            description: "",
+            enabled: true,
+            fields: [],
         };
+        setSections((prev) => [...prev, newSection]);
+        setActiveSectionId(newSection.id);
+    }, []);
 
-        setSections((prev) =>
-            prev.map((section) =>
-                section.id === sectionId
-                    ? { ...section, fields: [...section.fields, newField] }
-                    : section,
-            ),
-        );
-    };
+    const removeSection = useCallback((sectionId: string) => {
+        setSections((prev) => {
+            const nextSections = prev.filter(
+                (section) => section.id !== sectionId,
+            );
+            setActiveSectionId((current) =>
+                current === sectionId ? (nextSections[0]?.id ?? "") : current,
+            );
+            return nextSections;
+        });
+    }, []);
 
-    const updateField = (
-        sectionId: string,
-        fieldId: string,
-        updates: Partial<TemplateField>,
-    ) => {
-        setSections((prev) =>
-            prev.map((section) =>
-                section.id === sectionId
-                    ? {
-                          ...section,
-                          fields: section.fields.map((field) =>
-                              field.id === fieldId
-                                  ? { ...field, ...updates }
-                                  : field,
-                          ),
-                      }
-                    : section,
-            ),
-        );
-    };
+    const addField = useCallback(
+        (sectionId: string, fieldType: FieldType = "text") => {
+            const newField = createField(fieldType);
+            setSections((prev) =>
+                prev.map((section) =>
+                    section.id === sectionId
+                        ? { ...section, fields: [...section.fields, newField] }
+                        : section,
+                ),
+            );
+        },
+        [],
+    );
 
-    const removeField = (sectionId: string, fieldId: string) => {
+    const setFieldType = useCallback(
+        (sectionId: string, fieldId: string, nextType: FieldType) => {
+            setSections((prev) =>
+                prev.map((section) =>
+                    section.id === sectionId
+                        ? {
+                              ...section,
+                              fields: section.fields.map((field) =>
+                                  field.id === fieldId
+                                      ? {
+                                            ...field,
+                                            type: nextType,
+                                            options:
+                                                getDefaultOptions(nextType),
+                                            placeholder: supportsPlaceholder(
+                                                nextType,
+                                            )
+                                                ? (field.placeholder ?? "")
+                                                : undefined,
+                                            required: supportsRequired(nextType)
+                                                ? field.required
+                                                : false,
+                                            label:
+                                                field.label === "New field" ||
+                                                field.label ===
+                                                    "New dropdown" ||
+                                                field.label ===
+                                                    "New radio group"
+                                                    ? getDefaultFieldLabel(
+                                                          nextType,
+                                                      )
+                                                    : field.label,
+                                        }
+                                      : field,
+                              ),
+                          }
+                        : section,
+                ),
+            );
+        },
+        [],
+    );
+
+    const updateField = useCallback(
+        (
+            sectionId: string,
+            fieldId: string,
+            updates: Partial<TemplateField>,
+        ) => {
+            setSections((prev) =>
+                prev.map((section) =>
+                    section.id === sectionId
+                        ? {
+                              ...section,
+                              fields: section.fields.map((field) =>
+                                  field.id === fieldId
+                                      ? { ...field, ...updates }
+                                      : field,
+                              ),
+                          }
+                        : section,
+                ),
+            );
+        },
+        [],
+    );
+
+    const removeField = useCallback((sectionId: string, fieldId: string) => {
         setSections((prev) =>
             prev.map((section) =>
                 section.id === sectionId
@@ -417,7 +793,100 @@ export function TemplateEditor({
                     : section,
             ),
         );
-    };
+    }, []);
+
+    const updateFieldOption = useCallback(
+        (
+            sectionId: string,
+            fieldId: string,
+            optionIndex: number,
+            value: string,
+        ) => {
+            setSections((prev) =>
+                prev.map((section) =>
+                    section.id === sectionId
+                        ? {
+                              ...section,
+                              fields: section.fields.map((field) =>
+                                  field.id === fieldId
+                                      ? {
+                                            ...field,
+                                            options: (field.options ?? []).map(
+                                                (option, index) =>
+                                                    index === optionIndex
+                                                        ? value
+                                                        : option,
+                                            ),
+                                        }
+                                      : field,
+                              ),
+                          }
+                        : section,
+                ),
+            );
+        },
+        [],
+    );
+
+    const addFieldOption = useCallback((sectionId: string, fieldId: string) => {
+        setSections((prev) =>
+            prev.map((section) =>
+                section.id === sectionId
+                    ? {
+                          ...section,
+                          fields: section.fields.map((field) =>
+                              field.id === fieldId
+                                  ? {
+                                        ...field,
+                                        options: [
+                                            ...(field.options ?? []),
+                                            `Option ${(field.options ?? []).length + 1}`,
+                                        ],
+                                    }
+                                  : field,
+                          ),
+                      }
+                    : section,
+            ),
+        );
+    }, []);
+
+    const removeFieldOption = useCallback(
+        (sectionId: string, fieldId: string, optionIndex: number) => {
+            setSections((prev) =>
+                prev.map((section) =>
+                    section.id === sectionId
+                        ? {
+                              ...section,
+                              fields: section.fields.map((field) =>
+                                  field.id === fieldId
+                                      ? {
+                                            ...field,
+                                            options: (
+                                                field.options ?? []
+                                            ).filter(
+                                                (_, index) =>
+                                                    index !== optionIndex,
+                                            ),
+                                        }
+                                      : field,
+                              ),
+                          }
+                        : section,
+                ),
+            );
+        },
+        [],
+    );
+
+    const applyOptionPreset = useCallback(
+        (sectionId: string, fieldId: string, options: readonly string[]) => {
+            updateField(sectionId, fieldId, {
+                options: [...options],
+            });
+        },
+        [updateField],
+    );
 
     const handleSave = async () => {
         if (!name.trim()) {
@@ -479,15 +948,31 @@ export function TemplateEditor({
         }
     };
 
-    const enabledSectionCount = sections.filter(
-        (section) => section.enabled,
-    ).length;
-    const fieldCount = sections.reduce(
-        (count, section) => count + section.fields.length,
-        0,
+    const enabledSectionCount = useMemo(
+        () => sections.filter((section) => section.enabled).length,
+        [sections],
     );
-    const visibleSections = sections.filter((section) => section.enabled);
-    const focusSection = (sectionId: string) => {
+    const fieldCount = useMemo(
+        () =>
+            sections.reduce(
+                (count, section) => count + section.fields.length,
+                0,
+            ),
+        [sections],
+    );
+    const visibleSections = useMemo(
+        () => sections.filter((section) => section.enabled),
+        [sections],
+    );
+
+    const setSectionRef = useCallback(
+        (sectionId: string, node: HTMLDivElement | null) => {
+            sectionRefs.current[sectionId] = node;
+        },
+        [],
+    );
+
+    const focusSection = useCallback((sectionId: string) => {
         setActiveSectionId(sectionId);
         sectionRefs.current[sectionId]?.scrollIntoView({
             behavior: "smooth",
@@ -502,7 +987,11 @@ export function TemplateEditor({
                 sectionTitleInput.focus({ preventScroll: true });
             }
         }, 180);
-    };
+    }, []);
+
+    const setActiveSection = useCallback((sectionId: string) => {
+        setActiveSectionId(sectionId);
+    }, []);
 
     return (
         <div className="w-full animate-in fade-in-0 slide-in-from-bottom-2 duration-200 space-y-6 pb-24">
@@ -561,7 +1050,8 @@ export function TemplateEditor({
                 <CardHeader>
                     <CardTitle>Template Details</CardTitle>
                     <CardDescription>
-                        Name the form and explain when the clinic should use it.
+                        New templates now start blank. Name the form, then add
+                        only the sections and questions you need.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-4 md:grid-cols-[1.2fr_1fr]">
@@ -688,441 +1178,32 @@ export function TemplateEditor({
                     </div>
 
                     <div className="space-y-5">
-                        {sections.map((section, sectionIndex) => (
-                            <div
-                                key={section.id}
-                                ref={(node) => {
-                                    sectionRefs.current[section.id] = node;
-                                }}
-                                onFocusCapture={() =>
-                                    setActiveSectionId(section.id)
-                                }
-                                className={`scroll-mt-24 rounded-[28px] border bg-background p-5 shadow-sm transition-colors ${
-                                    activeSectionId === section.id
-                                        ? "border-primary/30 ring-1 ring-primary/15"
-                                        : "border-border/70"
-                                }`}
-                            >
-                                <div className="grid gap-5 2xl:grid-cols-[120px_minmax(0,1fr)_auto] 2xl:items-start">
-                                    <div className="rounded-3xl border border-primary/20 bg-primary/5 p-4">
-                                        <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
-                                            Step
-                                        </p>
-                                        <p className="mt-3 text-3xl font-semibold">
-                                            {sectionIndex + 1}
-                                        </p>
-                                        <p className="mt-2 text-xs text-muted-foreground">
-                                            {section.fields.length} items in
-                                            this section
-                                        </p>
-                                    </div>
-
-                                    <div className="space-y-4">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <Badge
-                                                variant={
-                                                    section.enabled
-                                                        ? "default"
-                                                        : "secondary"
-                                                }
-                                                className="rounded-full px-3 py-1"
-                                            >
-                                                {section.enabled
-                                                    ? "Visible to patients"
-                                                    : "Hidden"}
-                                            </Badge>
-                                            <Badge
-                                                variant="outline"
-                                                className="rounded-full px-3 py-1"
-                                            >
-                                                {section.fields.length} items
-                                            </Badge>
-                                        </div>
-                                        <div className="grid gap-4 lg:grid-cols-2">
-                                            <div className="space-y-2">
-                                                <Label
-                                                    htmlFor={`section-title-${section.id}`}
-                                                >
-                                                    Section title
-                                                </Label>
-                                                <Input
-                                                    id={`section-title-${section.id}`}
-                                                    value={section.title}
-                                                    onChange={(event) =>
-                                                        updateSection(
-                                                            section.id,
-                                                            {
-                                                                title: event
-                                                                    .target
-                                                                    .value,
-                                                            },
-                                                        )
-                                                    }
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label
-                                                    htmlFor={`section-description-${section.id}`}
-                                                >
-                                                    Section intro
-                                                </Label>
-                                                <Textarea
-                                                    id={`section-description-${section.id}`}
-                                                    value={
-                                                        section.description ??
-                                                        ""
-                                                    }
-                                                    onChange={(event) =>
-                                                        updateSection(
-                                                            section.id,
-                                                            {
-                                                                description:
-                                                                    event.target
-                                                                        .value,
-                                                            },
-                                                        )
-                                                    }
-                                                    placeholder="Optional context shown before these questions"
-                                                    rows={2}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex flex-wrap items-center gap-3 xl:justify-end">
-                                        <div className="flex items-center gap-2 rounded-full border border-border/70 bg-muted/15 px-3 py-2 text-sm">
-                                            <Switch
-                                                checked={section.enabled}
-                                                onCheckedChange={(checked) =>
-                                                    updateSection(section.id, {
-                                                        enabled: checked,
-                                                    })
-                                                }
-                                            />
-                                            <span>
-                                                {section.enabled
-                                                    ? "Enabled"
-                                                    : "Disabled"}
-                                            </span>
-                                        </div>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="text-muted-foreground hover:text-destructive"
-                                            onClick={() =>
-                                                removeSection(section.id)
-                                            }
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-
-                                <Separator className="my-5" />
-
-                                <div className="space-y-4">
-                                    {section.fields.length > 0 ? (
-                                        <div className="grid gap-3 xl:grid-cols-2 2xl:grid-cols-3">
-                                            {section.fields.map(
-                                                (field, fieldIndex) => (
-                                                    <div
-                                                        key={field.id}
-                                                        className="rounded-2xl border border-border/70 bg-muted/10 p-4"
-                                                    >
-                                                        <div className="mb-4 flex items-start justify-between gap-3">
-                                                            <div className="flex items-start gap-3">
-                                                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-background text-xs font-semibold">
-                                                                    {fieldIndex +
-                                                                        1}
-                                                                </div>
-                                                                <div className="space-y-1">
-                                                                    <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                                                                        {supportsRequired(
-                                                                            field.type,
-                                                                        )
-                                                                            ? "Question"
-                                                                            : "Content block"}
-                                                                    </p>
-                                                                    <Badge
-                                                                        variant="outline"
-                                                                        className="rounded-full px-2.5 py-0.5"
-                                                                    >
-                                                                        {FIELD_TYPES.find(
-                                                                            (
-                                                                                fieldType,
-                                                                            ) =>
-                                                                                fieldType.value ===
-                                                                                field.type,
-                                                                        )
-                                                                            ?.label ??
-                                                                            field.type}
-                                                                    </Badge>
-                                                                </div>
-                                                            </div>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="text-muted-foreground hover:text-destructive"
-                                                                onClick={() =>
-                                                                    removeField(
-                                                                        section.id,
-                                                                        field.id,
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
-                                                        </div>
-
-                                                        <div className="grid gap-4">
-                                                            <div className="space-y-2">
-                                                                <Label
-                                                                    htmlFor={`field-label-${field.id}`}
-                                                                >
-                                                                    Label or
-                                                                    content
-                                                                </Label>
-                                                                <Input
-                                                                    id={`field-label-${field.id}`}
-                                                                    value={
-                                                                        field.label
-                                                                    }
-                                                                    onChange={(
-                                                                        event,
-                                                                    ) =>
-                                                                        updateField(
-                                                                            section.id,
-                                                                            field.id,
-                                                                            {
-                                                                                label: event
-                                                                                    .target
-                                                                                    .value,
-                                                                            },
-                                                                        )
-                                                                    }
-                                                                />
-                                                            </div>
-
-                                                            <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_160px]">
-                                                                <div className="space-y-2">
-                                                                    <Label>
-                                                                        Field
-                                                                        type
-                                                                    </Label>
-                                                                    <Select
-                                                                        value={
-                                                                            field.type
-                                                                        }
-                                                                        onValueChange={(
-                                                                            value,
-                                                                        ) =>
-                                                                            updateField(
-                                                                                section.id,
-                                                                                field.id,
-                                                                                {
-                                                                                    type: value as FieldType,
-                                                                                    options:
-                                                                                        supportsOptions(
-                                                                                            value as FieldType,
-                                                                                        )
-                                                                                            ? (field.options ?? [
-                                                                                                  "Option 1",
-                                                                                              ])
-                                                                                            : undefined,
-                                                                                    placeholder:
-                                                                                        supportsPlaceholder(
-                                                                                            value as FieldType,
-                                                                                        )
-                                                                                            ? (field.placeholder ??
-                                                                                              "")
-                                                                                            : undefined,
-                                                                                    required:
-                                                                                        supportsRequired(
-                                                                                            value as FieldType,
-                                                                                        )
-                                                                                            ? field.required
-                                                                                            : false,
-                                                                                },
-                                                                            )
-                                                                        }
-                                                                    >
-                                                                        <SelectTrigger>
-                                                                            <SelectValue />
-                                                                        </SelectTrigger>
-                                                                        <SelectContent>
-                                                                            {FIELD_TYPES.map(
-                                                                                (
-                                                                                    fieldType,
-                                                                                ) => (
-                                                                                    <SelectItem
-                                                                                        key={
-                                                                                            fieldType.value
-                                                                                        }
-                                                                                        value={
-                                                                                            fieldType.value
-                                                                                        }
-                                                                                    >
-                                                                                        {
-                                                                                            fieldType.label
-                                                                                        }
-                                                                                    </SelectItem>
-                                                                                ),
-                                                                            )}
-                                                                        </SelectContent>
-                                                                    </Select>
-                                                                </div>
-
-                                                                <div className="space-y-2">
-                                                                    <Label>
-                                                                        Required
-                                                                    </Label>
-                                                                    <div className="flex h-10 items-center rounded-xl border border-border/70 bg-background px-3">
-                                                                        <Switch
-                                                                            checked={
-                                                                                field.required
-                                                                            }
-                                                                            disabled={
-                                                                                !supportsRequired(
-                                                                                    field.type,
-                                                                                )
-                                                                            }
-                                                                            onCheckedChange={(
-                                                                                checked,
-                                                                            ) =>
-                                                                                updateField(
-                                                                                    section.id,
-                                                                                    field.id,
-                                                                                    {
-                                                                                        required:
-                                                                                            checked,
-                                                                                    },
-                                                                                )
-                                                                            }
-                                                                        />
-                                                                        <span className="ml-3 text-sm text-muted-foreground">
-                                                                            {supportsRequired(
-                                                                                field.type,
-                                                                            )
-                                                                                ? field.required
-                                                                                    ? "Required"
-                                                                                    : "Optional"
-                                                                                : "Display only"}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="grid gap-4 lg:grid-cols-2">
-                                                                {supportsPlaceholder(
-                                                                    field.type,
-                                                                ) && (
-                                                                    <div className="space-y-2">
-                                                                        <Label
-                                                                            htmlFor={`field-placeholder-${field.id}`}
-                                                                        >
-                                                                            {field.type ===
-                                                                            "checkbox"
-                                                                                ? "Checkbox label"
-                                                                                : "Placeholder"}
-                                                                        </Label>
-                                                                        <Input
-                                                                            id={`field-placeholder-${field.id}`}
-                                                                            value={
-                                                                                field.placeholder ??
-                                                                                ""
-                                                                            }
-                                                                            onChange={(
-                                                                                event,
-                                                                            ) =>
-                                                                                updateField(
-                                                                                    section.id,
-                                                                                    field.id,
-                                                                                    {
-                                                                                        placeholder:
-                                                                                            event
-                                                                                                .target
-                                                                                                .value,
-                                                                                    },
-                                                                                )
-                                                                            }
-                                                                            placeholder={
-                                                                                field.type ===
-                                                                                "checkbox"
-                                                                                    ? "Yes"
-                                                                                    : "Optional helper text"
-                                                                            }
-                                                                        />
-                                                                    </div>
-                                                                )}
-
-                                                                {supportsOptions(
-                                                                    field.type,
-                                                                ) && (
-                                                                    <div className="space-y-2">
-                                                                        <Label
-                                                                            htmlFor={`field-options-${field.id}`}
-                                                                        >
-                                                                            Choices
-                                                                        </Label>
-                                                                        <Input
-                                                                            id={`field-options-${field.id}`}
-                                                                            value={(
-                                                                                field.options ??
-                                                                                []
-                                                                            ).join(
-                                                                                ", ",
-                                                                            )}
-                                                                            onChange={(
-                                                                                event,
-                                                                            ) =>
-                                                                                updateField(
-                                                                                    section.id,
-                                                                                    field.id,
-                                                                                    {
-                                                                                        options:
-                                                                                            event.target.value
-                                                                                                .split(
-                                                                                                    ",",
-                                                                                                )
-                                                                                                .map(
-                                                                                                    (
-                                                                                                        option,
-                                                                                                    ) =>
-                                                                                                        option.trim(),
-                                                                                                )
-                                                                                                .filter(
-                                                                                                    Boolean,
-                                                                                                ),
-                                                                                    },
-                                                                                )
-                                                                            }
-                                                                            placeholder="Yes, No, Not sure"
-                                                                        />
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ),
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 px-4 py-6 text-sm text-muted-foreground">
-                                            This section is empty. Add the first
-                                            item to define what patients should
-                                            complete here.
-                                        </div>
-                                    )}
-
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => addField(section.id)}
-                                    >
-                                        <Plus className="mr-2 h-4 w-4" />
-                                        Add Field
-                                    </Button>
-                                </div>
+                        {sections.length === 0 && (
+                            <div className="rounded-[28px] border border-dashed border-border/70 bg-muted/10 p-6 text-sm text-muted-foreground">
+                                This template starts empty. Add a section to
+                                begin building the form instead of loading the
+                                old default intake packet.
                             </div>
+                        )}
+                        {sections.map((section, sectionIndex) => (
+                            <TemplateSectionCard
+                                key={section.id}
+                                section={section}
+                                sectionIndex={sectionIndex}
+                                active={activeSectionId === section.id}
+                                setSectionRef={setSectionRef}
+                                onSetActiveSection={setActiveSection}
+                                onUpdateSection={updateSection}
+                                onRemoveSection={removeSection}
+                                onRemoveField={removeField}
+                                onSetFieldType={setFieldType}
+                                onUpdateField={updateField}
+                                onUpdateFieldOption={updateFieldOption}
+                                onRemoveFieldOption={removeFieldOption}
+                                onAddFieldOption={addFieldOption}
+                                onApplyOptionPreset={applyOptionPreset}
+                                onAddField={addField}
+                            />
                         ))}
                     </div>
                 </CardContent>

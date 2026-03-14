@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FileText, Eye, Inbox } from "lucide-react";
 import { SubmissionDetail } from "./submission-detail";
+import { formatProjectDate } from "@/lib/date-utils";
 
 interface SubmissionsListProps {
     submissions: Doc<"formSubmissions">[];
@@ -123,9 +124,7 @@ export function SubmissionsList({ submissions }: SubmissionsListProps) {
                             <div className="flex items-center gap-4 text-sm text-muted-foreground">
                                 <span>
                                     Submitted{" "}
-                                    {new Date(
-                                        submission.submittedAt,
-                                    ).toLocaleString()}
+                                    {formatProjectDate(submission.submittedAt)}
                                 </span>
                             </div>
                         </CardContent>

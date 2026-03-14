@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { FORM_LANGUAGES } from "@/lib/patient-form-i18n";
 
 export const fieldTypeSchema = z.enum([
     "text",
@@ -11,8 +12,6 @@ export const fieldTypeSchema = z.enum([
     "checkbox",
     "number",
     "signature",
-    "heading",
-    "paragraph",
 ]);
 
 export const fieldValidationSchema = z.object({
@@ -70,6 +69,8 @@ export const deliveryChannelSchema = z.enum([
     "tablet",
 ]);
 
+export const formLanguageSchema = z.enum(FORM_LANGUAGES);
+
 export const MAX_SUBMISSION_SIZE_BYTES = 256 * 1024;
 
 export type SubmissionFieldMap = Record<string, string>;
@@ -95,9 +96,6 @@ export function validateSubmissionData(
     for (const section of sections) {
         if (!section.enabled) continue;
         for (const field of section.fields) {
-            if (field.type === "heading" || field.type === "paragraph") {
-                continue;
-            }
             allowedFields.set(field.id, field);
         }
     }
@@ -160,3 +158,4 @@ export type CreateTemplateInput = z.infer<typeof createTemplateSchema>;
 export type FieldType = z.infer<typeof fieldTypeSchema>;
 export type SubmissionStatus = z.infer<typeof submissionStatusSchema>;
 export type DeliveryChannel = z.infer<typeof deliveryChannelSchema>;
+export type FormLanguage = z.infer<typeof formLanguageSchema>;

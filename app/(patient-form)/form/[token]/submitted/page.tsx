@@ -6,30 +6,44 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { CheckCircle } from "lucide-react";
+import {
+    normalizeFormLanguage,
+    PATIENT_FORM_COPY,
+    isRtlLanguage,
+} from "@/lib/patient-form-i18n";
 
-export default function FormSubmittedPage() {
+export default async function FormSubmittedPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ lang?: string }>;
+}) {
+    const { lang } = await searchParams;
+    const language = normalizeFormLanguage(lang);
+    const copy = PATIENT_FORM_COPY[language];
+
     return (
-        <Card className="mx-auto max-w-2xl rounded-[32px] border-border/70 shadow-sm">
+        <Card
+            className="mx-auto max-w-2xl rounded-2xl sm:rounded-[32px] border-border/70 shadow-sm"
+            dir={isRtlLanguage(language) ? "rtl" : "ltr"}
+            lang={language}
+        >
             <CardHeader className="text-center">
                 <div className="flex justify-center mb-4">
-                    <CheckCircle className="h-16 w-16 text-green-500" />
+                    <CheckCircle className="h-16 w-16 text-primary" />
                 </div>
                 <CardTitle className="text-2xl">
-                    Form Submitted Successfully
+                    {copy.submittedTitle}
                 </CardTitle>
                 <CardDescription className="text-base">
-                    Thank you for completing your patient intake form.
+                    {copy.submittedDescription}
                 </CardDescription>
             </CardHeader>
             <CardContent className="text-center space-y-4">
                 <p className="text-sm text-muted-foreground">
-                    Your information has been securely encrypted and sent to the
-                    clinic. The clinic staff will review your submission before
-                    your appointment.
+                    {copy.submittedBody}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                    You may close this page. If you have questions, please
-                    contact the clinic directly.
+                    {copy.submittedCloseHint}
                 </p>
             </CardContent>
         </Card>

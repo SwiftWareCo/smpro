@@ -6,10 +6,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Shield, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PATIENT_FORM_COPY, type FormLanguage } from "@/lib/patient-form-i18n";
 
 interface ConsentNoticeProps {
     consentText: string;
     consentVersion: string;
+    language: FormLanguage;
     agreed: boolean;
     onAgreeChange: (agreed: boolean) => void;
 }
@@ -17,17 +19,19 @@ interface ConsentNoticeProps {
 export function ConsentNotice({
     consentText,
     consentVersion,
+    language,
     agreed,
     onAgreeChange,
 }: ConsentNoticeProps) {
     const [expanded, setExpanded] = useState(false);
+    const copy = PATIENT_FORM_COPY[language];
 
     return (
-        <Card className="border-amber-200 bg-amber-50/50">
+        <Card className="border-primary/20 bg-primary/5">
             <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-amber-600" />
-                    Consent for Collection of Personal Information
+                    <Shield className="h-4 w-4 text-primary" />
+                    {copy.consentTitle}
                 </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -37,29 +41,29 @@ export function ConsentNotice({
                         variant="ghost"
                         size="sm"
                         onClick={() => setExpanded(!expanded)}
-                        className="text-sm text-amber-700 hover:text-amber-800 p-0 h-auto"
+                        className="text-sm text-primary hover:text-primary/80 p-0 h-auto"
                     >
                         {expanded ? (
                             <>
                                 <ChevronUp className="mr-1 h-4 w-4" />
-                                Hide full consent text
+                                {copy.consentToggleClose}
                             </>
                         ) : (
                             <>
                                 <ChevronDown className="mr-1 h-4 w-4" />
-                                Read full consent text
+                                {copy.consentToggleOpen}
                             </>
                         )}
                     </Button>
 
                     {expanded && (
-                        <div className="mt-3 p-4 bg-white rounded-md border text-sm whitespace-pre-wrap max-h-96 overflow-y-auto">
+                        <div className="mt-3 p-4 bg-background rounded-md border text-sm whitespace-pre-wrap max-h-96 overflow-y-auto">
                             {consentText}
                         </div>
                     )}
 
                     <p className="text-xs text-muted-foreground mt-2">
-                        Consent version: {consentVersion}
+                        {copy.consentVersionLabel}: {consentVersion}
                     </p>
                 </div>
 
@@ -75,9 +79,7 @@ export function ConsentNotice({
                         htmlFor="consent"
                         className="text-sm leading-relaxed cursor-pointer"
                     >
-                        I have read and agree to the collection, use, and
-                        disclosure of my personal information as described in
-                        the consent notice above.
+                        {copy.consentAgreement}
                     </Label>
                 </div>
             </CardContent>

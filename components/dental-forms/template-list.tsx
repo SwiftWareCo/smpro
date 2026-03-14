@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import { TemplateEditor } from "./template-editor";
 import { DeliveryDialog } from "./delivery-dialog";
+import { formatProjectDate } from "@/lib/date-utils";
 
 interface TemplateListProps {
     clientId: Id<"clients">;
@@ -302,9 +303,9 @@ export function TemplateList({
                                         </span>
                                         <span>
                                             Updated{" "}
-                                            {new Date(
+                                            {formatProjectDate(
                                                 template.updatedAt,
-                                            ).toLocaleDateString()}
+                                            )}
                                         </span>
                                     </div>
                                 </CardContent>

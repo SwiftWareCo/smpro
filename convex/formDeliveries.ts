@@ -36,6 +36,65 @@ export const insertDelivery = internalMutation({
         ),
         token: v.string(),
         tokenExpiresAt: v.number(),
+        preferredLanguage: v.union(
+            v.literal("en"),
+            v.literal("es"),
+            v.literal("ar"),
+            v.literal("zh-Hans"),
+            v.literal("zh-Hant"),
+        ),
+        localizedTemplate: v.optional(
+            v.object({
+                language: v.union(
+                    v.literal("en"),
+                    v.literal("es"),
+                    v.literal("ar"),
+                    v.literal("zh-Hans"),
+                    v.literal("zh-Hant"),
+                ),
+                name: v.string(),
+                description: v.optional(v.string()),
+                sections: v.array(
+                    v.object({
+                        id: v.string(),
+                        title: v.string(),
+                        description: v.optional(v.string()),
+                        enabled: v.boolean(),
+                        fields: v.array(
+                            v.object({
+                                id: v.string(),
+                                type: v.union(
+                                    v.literal("text"),
+                                    v.literal("textarea"),
+                                    v.literal("email"),
+                                    v.literal("phone"),
+                                    v.literal("date"),
+                                    v.literal("select"),
+                                    v.literal("radio"),
+                                    v.literal("checkbox"),
+                                    v.literal("number"),
+                                    v.literal("signature"),
+                                ),
+                                label: v.string(),
+                                placeholder: v.optional(v.string()),
+                                required: v.boolean(),
+                                options: v.optional(v.array(v.string())),
+                                validation: v.optional(
+                                    v.object({
+                                        min: v.optional(v.number()),
+                                        max: v.optional(v.number()),
+                                        pattern: v.optional(v.string()),
+                                        message: v.optional(v.string()),
+                                    }),
+                                ),
+                            }),
+                        ),
+                    }),
+                ),
+                consentText: v.string(),
+                consentVersion: v.string(),
+            }),
+        ),
         createdBy: v.string(),
     },
     handler: async (ctx, args) => {
@@ -45,6 +104,8 @@ export const insertDelivery = internalMutation({
             channel: args.channel,
             token: args.token,
             tokenExpiresAt: args.tokenExpiresAt,
+            preferredLanguage: args.preferredLanguage,
+            localizedTemplate: args.localizedTemplate,
             createdBy: args.createdBy,
         });
 
@@ -55,7 +116,10 @@ export const insertDelivery = internalMutation({
             resource: "formDeliveries",
             resourceId: deliveryId,
             clientId: args.clientId,
-            metadata: { channel: args.channel },
+            metadata: {
+                channel: args.channel,
+                preferredLanguage: args.preferredLanguage,
+            },
         });
 
         return deliveryId;

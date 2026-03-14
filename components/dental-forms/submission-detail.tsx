@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Printer, Shield, Copy } from "lucide-react";
+import { formatProjectDate } from "@/lib/date-utils";
 
 interface SubmissionDetailProps {
     submission: Doc<"formSubmissions">;
@@ -45,8 +46,7 @@ export function SubmissionDetail({
                 <div className="flex-1">
                     <h3 className="text-lg font-medium">{patientName}</h3>
                     <p className="text-sm text-muted-foreground">
-                        Submitted{" "}
-                        {new Date(submission.submittedAt).toLocaleString()}
+                        Submitted {formatProjectDate(submission.submittedAt)}
                     </p>
                 </div>
                 <Badge
@@ -147,11 +147,7 @@ export function SubmissionDetail({
                         </div>
                         <div>
                             <p className="text-muted-foreground">Submitted</p>
-                            <p>
-                                {new Date(
-                                    submission.submittedAt,
-                                ).toLocaleString()}
-                            </p>
+                            <p>{formatProjectDate(submission.submittedAt)}</p>
                         </div>
                     </div>
                 </CardContent>

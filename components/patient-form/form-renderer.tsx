@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAction } from "convex/react";
 import { Controller, useForm } from "react-hook-form";
-import type { RegisterOptions } from "react-hook-form";
+import type { FieldErrors, RegisterOptions } from "react-hook-form";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
@@ -30,8 +30,14 @@ import {
 } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, LockKeyhole, ChevronRight } from "lucide-react";
+import { ClientFormDatePicker } from "./client-form-date-picker";
 import { ConsentNotice } from "./consent-notice";
 import { SignaturePad } from "./signature-pad";
+import {
+    PATIENT_FORM_COPY,
+    isRtlLanguage,
+    type FormLanguage,
+} from "@/lib/patient-form-i18n";
 
 type TemplateSectionDoc = Doc<"formTemplates">["sections"][number];
 type TemplateFieldDoc = TemplateSectionDoc["fields"][number];
@@ -40,6 +46,8 @@ type FormValues = Record<string, string>;
 interface FormRendererProps {
     template: Doc<"formTemplates">;
     token: string;
+    language: FormLanguage;
+    clientName: string;
 }
 
 interface FormStep {
@@ -55,42 +63,50 @@ const LONG_FORM_FIELD_THRESHOLD = 10;
 const CONSENT_FIELD_ID = "__consent";
 
 function isInteractiveField(field: TemplateFieldDoc): boolean {
-    return field.type !== "heading" && field.type !== "paragraph";
+    return true;
+}
+
+/** Fields that need full width in the 2-col grid */
+function isWideField(field: TemplateFieldDoc): boolean {
+    if (field.type === "radio") {
+        const options = field.options ?? [];
+        return options.length > 4 || options.some((o) => o.length > 20);
+    }
+    return field.type === "textarea" || field.type === "signature";
 }
 
 function getFieldRules(
     field: TemplateFieldDoc,
+    language: FormLanguage,
 ): RegisterOptions<FormValues, string> {
+    const copy = PATIENT_FORM_COPY[language];
     const rules: RegisterOptions<FormValues, string> = {};
 
     if (field.required) {
-        rules.required = `${field.label} is required`;
+        rules.required = copy.requiredField(field.label);
     }
 
     if (field.type === "email") {
         rules.pattern = {
             value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-            message: "Please enter a valid email",
+            message: copy.invalidEmail,
         };
     }
 
     if (field.type === "number") {
         rules.validate = (value) => {
             if (!value) return true;
-            return (
-                !Number.isNaN(Number(value)) || "Please enter a valid number"
-            );
+            return !Number.isNaN(Number(value)) || copy.invalidNumber;
         };
     }
 
     if (field.type === "select" || field.type === "radio") {
         rules.validate = (value) => {
             if (!value) {
-                return field.required ? `${field.label} is required` : true;
+                return field.required ? copy.requiredField(field.label) : true;
             }
             return (
-                (field.options ?? []).includes(value) ||
-                "Please choose one of the available options"
+                (field.options ?? []).includes(value) || copy.invalidSelection
             );
         };
     }
@@ -105,10 +121,17 @@ function getErrorMessage(error: unknown): string | undefined {
     return typeof error.message === "string" ? error.message : undefined;
 }
 
-export function FormRenderer({ template, token }: FormRendererProps) {
+export function FormRenderer({
+    template,
+    token,
+    language,
+    clientName,
+}: FormRendererProps) {
     const router = useRouter();
     const [submitting, setSubmitting] = useState(false);
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
+    const copy = PATIENT_FORM_COPY[language];
+    const isRtl = isRtlLanguage(language);
 
     const submitForm = useAction(api.formSubmissionsActions.submit);
 
@@ -145,6 +168,7 @@ export function FormRenderer({ template, token }: FormRendererProps) {
     const {
         control,
         formState: { errors },
+        getValues,
         handleSubmit,
         register,
         setError,
@@ -190,14 +214,21 @@ export function FormRenderer({ template, token }: FormRendererProps) {
             ...sectionSteps,
             {
                 id: "consent-step",
-                title: "Review and submit",
-                description: "Confirm consent and send the completed form.",
+                title: copy.reviewTitle,
+                description: copy.reviewDescription,
                 sections: [],
                 fieldIds: [],
                 kind: "consent",
             },
         ];
-    }, [enabledSections, template.description, template.name, wizardMode]);
+    }, [
+        copy.reviewDescription,
+        copy.reviewTitle,
+        enabledSections,
+        template.description,
+        template.name,
+        wizardMode,
+    ]);
 
     const currentStep = wizardMode ? steps[currentStepIndex] : null;
     const isFinalWizardStep =
@@ -223,7 +254,7 @@ export function FormRenderer({ template, token }: FormRendererProps) {
 
         const isValid = await trigger(currentStep.fieldIds);
         if (!isValid) {
-            toast.error("Please complete this step before continuing");
+            toast.error(copy.stepIncomplete);
             return;
         }
 
@@ -234,10 +265,9 @@ export function FormRenderer({ template, token }: FormRendererProps) {
         if (values[CONSENT_FIELD_ID] !== "true") {
             setError(CONSENT_FIELD_ID, {
                 type: "manual",
-                message:
-                    "Please review and accept the consent notice before submitting.",
+                message: copy.consentRequired,
             });
-            toast.error("Consent is required before submitting");
+            toast.error(copy.consentRequired);
             return;
         }
 
@@ -250,7 +280,9 @@ export function FormRenderer({ template, token }: FormRendererProps) {
                 formData,
                 consentGiven: true,
             });
-            router.push(`/form/${token}/submitted`);
+            router.push(
+                `/form/${token}/submitted${language === "en" ? "" : `?lang=${language}`}`,
+            );
         } catch (error) {
             console.error("Submit error:", error);
             toast.error(
@@ -263,6 +295,25 @@ export function FormRenderer({ template, token }: FormRendererProps) {
         }
     };
 
+    const handleInvalidSubmit = (formErrors: FieldErrors<FormValues>) => {
+        const firstErrorFieldId = Object.keys(formErrors)[0];
+        const targetFieldId =
+            firstErrorFieldId === CONSENT_FIELD_ID
+                ? `field-${CONSENT_FIELD_ID}`
+                : firstErrorFieldId
+                  ? `field-${firstErrorFieldId}`
+                  : null;
+
+        if (targetFieldId) {
+            document.getElementById(targetFieldId)?.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+            });
+        }
+
+        toast.error(copy.fixErrors);
+    };
+
     const handleFormSubmit = async (
         event: React.FormEvent<HTMLFormElement>,
     ) => {
@@ -273,37 +324,34 @@ export function FormRenderer({ template, token }: FormRendererProps) {
             return;
         }
 
-        await handleSubmit(onSubmit)(event);
+        if (wizardMode) {
+            // Bypass handleSubmit — validate via trigger() which works
+            // reliably on unmounted Controller fields
+            const allFieldIds = steps.flatMap((s) => s.fieldIds);
+            const isValid = await trigger(allFieldIds);
+            if (isValid) {
+                await onSubmit(getValues());
+            } else {
+                const errorStepIndex = steps.findIndex((step) =>
+                    step.fieldIds.some((id) => errors[id]),
+                );
+                if (errorStepIndex !== -1) setCurrentStepIndex(errorStepIndex);
+                toast.error(copy.fixErrors);
+            }
+            return;
+        }
+
+        await handleSubmit(onSubmit, handleInvalidSubmit)(event);
     };
 
     const renderField = (field: TemplateFieldDoc) => {
         const errorMessage = getErrorMessage(errors[field.id]);
-
-        if (field.type === "heading") {
-            return (
-                <div key={field.id} className="space-y-2 pt-2">
-                    <h3 className="text-lg font-semibold tracking-tight">
-                        {field.label}
-                    </h3>
-                    <div className="h-px w-full bg-border" />
-                </div>
-            );
-        }
-
-        if (field.type === "paragraph") {
-            return (
-                <p
-                    key={field.id}
-                    className="text-sm leading-6 text-muted-foreground"
-                >
-                    {field.label}
-                </p>
-            );
-        }
+        const wide = isWideField(field);
+        const spanClass = wide ? "sm:col-span-2" : "";
 
         if (field.type === "signature") {
             return (
-                <div key={field.id} className="space-y-2">
+                <div key={field.id} className="space-y-1.5 sm:col-span-2">
                     <Controller
                         name={field.id}
                         control={control}
@@ -311,7 +359,7 @@ export function FormRenderer({ template, token }: FormRendererProps) {
                             validate: (value) =>
                                 !field.required || value
                                     ? true
-                                    : `${field.label} is required`,
+                                    : copy.requiredField(field.label),
                         }}
                         render={({ field: controllerField }) => (
                             <SignaturePad
@@ -332,8 +380,8 @@ export function FormRenderer({ template, token }: FormRendererProps) {
         }
 
         return (
-            <div key={field.id} className="space-y-2">
-                <Label htmlFor={field.id}>
+            <div key={field.id} className={`space-y-1.5 ${spanClass}`}>
+                <Label htmlFor={field.id} className="text-sm">
                     {field.label}
                     {field.required && (
                         <span className="ml-1 text-destructive">*</span>
@@ -344,7 +392,7 @@ export function FormRenderer({ template, token }: FormRendererProps) {
                     <Input
                         id={field.id}
                         placeholder={field.placeholder}
-                        {...register(field.id, getFieldRules(field))}
+                        {...register(field.id, getFieldRules(field, language))}
                     />
                 )}
 
@@ -353,7 +401,7 @@ export function FormRenderer({ template, token }: FormRendererProps) {
                         id={field.id}
                         type="email"
                         placeholder={field.placeholder ?? "email@example.com"}
-                        {...register(field.id, getFieldRules(field))}
+                        {...register(field.id, getFieldRules(field, language))}
                     />
                 )}
 
@@ -362,15 +410,22 @@ export function FormRenderer({ template, token }: FormRendererProps) {
                         id={field.id}
                         type="tel"
                         placeholder={field.placeholder ?? "(555) 123-4567"}
-                        {...register(field.id, getFieldRules(field))}
+                        {...register(field.id, getFieldRules(field, language))}
                     />
                 )}
 
                 {field.type === "date" && (
-                    <Input
-                        id={field.id}
-                        type="date"
-                        {...register(field.id, getFieldRules(field))}
+                    <Controller
+                        name={field.id}
+                        control={control}
+                        rules={getFieldRules(field, language)}
+                        render={({ field: controllerField }) => (
+                            <ClientFormDatePicker
+                                value={controllerField.value ?? ""}
+                                onChange={controllerField.onChange}
+                                language={language}
+                            />
+                        )}
                     />
                 )}
 
@@ -379,16 +434,16 @@ export function FormRenderer({ template, token }: FormRendererProps) {
                         id={field.id}
                         type="number"
                         placeholder={field.placeholder}
-                        {...register(field.id, getFieldRules(field))}
+                        {...register(field.id, getFieldRules(field, language))}
                     />
                 )}
 
                 {field.type === "textarea" && (
                     <Textarea
                         id={field.id}
-                        rows={4}
+                        rows={3}
                         placeholder={field.placeholder}
-                        {...register(field.id, getFieldRules(field))}
+                        {...register(field.id, getFieldRules(field, language))}
                     />
                 )}
 
@@ -396,14 +451,16 @@ export function FormRenderer({ template, token }: FormRendererProps) {
                     <Controller
                         name={field.id}
                         control={control}
-                        rules={getFieldRules(field)}
+                        rules={getFieldRules(field, language)}
                         render={({ field: controllerField }) => (
                             <Select
                                 value={controllerField.value ?? ""}
                                 onValueChange={controllerField.onChange}
                             >
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Select an option" />
+                                    <SelectValue
+                                        placeholder={copy.selectOption}
+                                    />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {(field.options ?? []).map((option) => (
@@ -421,31 +478,42 @@ export function FormRenderer({ template, token }: FormRendererProps) {
                     <Controller
                         name={field.id}
                         control={control}
-                        rules={getFieldRules(field)}
-                        render={({ field: controllerField }) => (
-                            <RadioGroup
-                                value={controllerField.value ?? ""}
-                                onValueChange={controllerField.onChange}
-                                className="gap-3"
-                            >
-                                {(field.options ?? []).map((option) => (
-                                    <div
-                                        key={option}
-                                        className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/20 px-4 py-3"
-                                    >
-                                        <RadioGroupItem
-                                            value={option}
-                                            id={`${field.id}-${option}`}
-                                        />
-                                        <Label
-                                            htmlFor={`${field.id}-${option}`}
+                        rules={getFieldRules(field, language)}
+                        render={({ field: controllerField }) => {
+                            const options = field.options ?? [];
+                            const useInline =
+                                options.length <= 4 &&
+                                options.every((o) => o.length <= 20);
+                            return (
+                                <RadioGroup
+                                    value={controllerField.value ?? ""}
+                                    onValueChange={controllerField.onChange}
+                                    className={
+                                        useInline
+                                            ? "flex flex-wrap gap-2"
+                                            : "gap-2"
+                                    }
+                                >
+                                    {options.map((option) => (
+                                        <div
+                                            key={option}
+                                            className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2"
                                         >
-                                            {option}
-                                        </Label>
-                                    </div>
-                                ))}
-                            </RadioGroup>
-                        )}
+                                            <RadioGroupItem
+                                                value={option}
+                                                id={`${field.id}-${option}`}
+                                            />
+                                            <Label
+                                                htmlFor={`${field.id}-${option}`}
+                                                className="text-sm font-normal"
+                                            >
+                                                {option}
+                                            </Label>
+                                        </div>
+                                    ))}
+                                </RadioGroup>
+                            );
+                        }}
                     />
                 )}
 
@@ -453,9 +521,9 @@ export function FormRenderer({ template, token }: FormRendererProps) {
                     <Controller
                         name={field.id}
                         control={control}
-                        rules={getFieldRules(field)}
+                        rules={getFieldRules(field, language)}
                         render={({ field: controllerField }) => (
-                            <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
+                            <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
                                 <Checkbox
                                     id={field.id}
                                     checked={controllerField.value === "true"}
@@ -467,7 +535,7 @@ export function FormRenderer({ template, token }: FormRendererProps) {
                                 />
                                 <Label
                                     htmlFor={field.id}
-                                    className="font-normal"
+                                    className="text-sm font-normal"
                                 >
                                     {field.placeholder ?? "Yes"}
                                 </Label>
@@ -486,28 +554,28 @@ export function FormRenderer({ template, token }: FormRendererProps) {
     const renderSectionCard = (section: TemplateSectionDoc) => (
         <Card
             key={section.id}
-            className="rounded-3xl border-border/70 shadow-sm"
+            className="rounded-2xl sm:rounded-3xl border-border/70 shadow-sm"
         >
-            <CardHeader className="space-y-3">
+            <CardHeader className="pb-3">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-border/60 bg-muted/30 text-sm font-semibold">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-muted/30 text-xs font-semibold">
                         {enabledSections.findIndex(
                             (item) => item.id === section.id,
                         ) + 1}
                     </div>
                     <div>
-                        <CardTitle className="text-xl tracking-tight">
+                        <CardTitle className="text-base tracking-tight">
                             {section.title}
                         </CardTitle>
                         {section.description && (
-                            <CardDescription className="mt-1 text-sm leading-6">
+                            <CardDescription className="mt-0.5 text-sm">
                                 {section.description}
                             </CardDescription>
                         )}
                     </div>
                 </div>
             </CardHeader>
-            <CardContent className="space-y-5">
+            <CardContent className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
                 {section.fields.map(renderField)}
             </CardContent>
         </Card>
@@ -515,60 +583,94 @@ export function FormRenderer({ template, token }: FormRendererProps) {
 
     return (
         <form onSubmit={handleFormSubmit} className="space-y-6">
-            <Card className="overflow-hidden rounded-[28px] border-border/70 bg-gradient-to-br from-background via-background to-muted/40 shadow-sm">
-                <CardContent className="flex flex-col gap-5 p-6">
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <div>
-                            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
-                                Secure patient form
-                            </p>
-                            <h2 className="mt-2 text-2xl font-semibold tracking-tight">
-                                {template.name}
-                            </h2>
-                            {template.description && (
-                                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                                    {template.description}
-                                </p>
-                            )}
-                        </div>
-                        <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/80 px-4 py-2 text-sm text-muted-foreground">
-                            <LockKeyhole className="h-4 w-4" />
-                            Encrypted submission
-                        </div>
+            <div className="space-y-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                        <h1 className="truncate text-lg font-semibold tracking-tight sm:text-xl">
+                            {clientName}
+                        </h1>
+                        <p className="text-sm text-muted-foreground">
+                            {template.name}
+                        </p>
                     </div>
+                    <div className="inline-flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+                        <LockKeyhole className="h-3.5 w-3.5" />
+                        {copy.encryptedSubmission}
+                    </div>
+                </div>
 
-                    {wizardMode ? (
-                        <div className="space-y-3 rounded-2xl border border-border/60 bg-background/80 p-4">
-                            <div className="flex items-center justify-between gap-3 text-sm">
-                                <span className="font-medium">
-                                    Step {currentStepIndex + 1} of{" "}
-                                    {steps.length}
-                                </span>
-                                <span className="text-muted-foreground">
-                                    {Math.round(progressValue)}% complete
-                                </span>
-                            </div>
-                            <Progress value={progressValue} className="h-2.5" />
+                {wizardMode && (
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>
+                                {copy.stepOf(
+                                    currentStepIndex + 1,
+                                    steps.length,
+                                )}
+                            </span>
+                            <span>
+                                {copy.percentComplete(
+                                    Math.round(progressValue),
+                                )}
+                            </span>
                         </div>
-                    ) : (
-                        <div className="text-sm text-muted-foreground">
-                            Complete the form below, then review the consent
-                            notice before submitting.
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                        <Progress value={progressValue} className="h-2" />
+                    </div>
+                )}
+            </div>
 
             {wizardMode && currentStep ? (
                 <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
-                    <Card className="rounded-3xl border-border/70 shadow-sm lg:sticky lg:top-6">
+                    {/* Mobile step indicator */}
+                    <div className="flex gap-2 overflow-x-auto pb-2 lg:hidden">
+                        {steps.map((step, index) => {
+                            const isComplete = index < currentStepIndex;
+                            const isCurrent = index === currentStepIndex;
+
+                            return (
+                                <button
+                                    key={step.id}
+                                    type="button"
+                                    disabled={index > currentStepIndex}
+                                    onClick={() => {
+                                        if (index < currentStepIndex)
+                                            setCurrentStepIndex(index);
+                                    }}
+                                    className={`flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-medium transition-colors ${
+                                        isCurrent
+                                            ? "border-primary/40 bg-primary/10 text-primary"
+                                            : isComplete
+                                              ? "border-border/60 bg-muted/30 text-foreground"
+                                              : "border-border/60 bg-background text-muted-foreground"
+                                    }`}
+                                >
+                                    <span
+                                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${
+                                            isCurrent
+                                                ? "bg-primary text-primary-foreground"
+                                                : isComplete
+                                                  ? "bg-foreground text-background"
+                                                  : "bg-muted text-muted-foreground"
+                                        }`}
+                                    >
+                                        {index + 1}
+                                    </span>
+                                    <span className="truncate max-w-[100px]">
+                                        {step.title}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Desktop sidebar */}
+                    <Card className="hidden lg:block rounded-2xl sm:rounded-3xl border-border/70 shadow-sm lg:sticky lg:top-6">
                         <CardHeader>
                             <CardTitle className="text-base">
-                                Form progress
+                                {copy.wizardTitle}
                             </CardTitle>
                             <CardDescription>
-                                Longer forms are split into smaller steps so
-                                patients can move through them more clearly.
+                                {copy.wizardDescription}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-3">
@@ -620,18 +722,18 @@ export function FormRenderer({ template, token }: FormRendererProps) {
                         {currentStep.kind === "section" ? (
                             currentStep.sections.map(renderSectionCard)
                         ) : (
-                            <Card className="rounded-3xl border-border/70 shadow-sm">
+                            <Card className="rounded-2xl sm:rounded-3xl border-border/70 shadow-sm">
                                 <CardHeader>
-                                    <CardTitle>Review and submit</CardTitle>
+                                    <CardTitle>{copy.reviewTitle}</CardTitle>
                                     <CardDescription>
-                                        Confirm consent, then send the completed
-                                        intake form to the clinic.
+                                        {copy.reviewDescription}
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-5">
                                     <ConsentNotice
                                         consentText={template.consentText}
                                         consentVersion={template.consentVersion}
+                                        language={language}
                                         agreed={consentAgreed}
                                         onAgreeChange={(agreed) =>
                                             setValue(
@@ -665,7 +767,7 @@ export function FormRenderer({ template, token }: FormRendererProps) {
                                     )
                                 }
                             >
-                                Back
+                                {copy.back}
                             </Button>
 
                             {isFinalWizardStep ? (
@@ -677,10 +779,10 @@ export function FormRenderer({ template, token }: FormRendererProps) {
                                     {submitting ? (
                                         <>
                                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Submitting...
+                                            {copy.submitting}
                                         </>
                                     ) : (
-                                        "Submit Form"
+                                        copy.submit
                                     )}
                                 </Button>
                             ) : (
@@ -689,8 +791,10 @@ export function FormRenderer({ template, token }: FormRendererProps) {
                                     onClick={goToNextStep}
                                     className="sm:min-w-44"
                                 >
-                                    Next Step
-                                    <ChevronRight className="h-4 w-4" />
+                                    {copy.next}
+                                    <ChevronRight
+                                        className={`h-4 w-4 ${isRtl ? "rotate-180" : ""}`}
+                                    />
                                 </Button>
                             )}
                         </div>
@@ -703,6 +807,7 @@ export function FormRenderer({ template, token }: FormRendererProps) {
                     <ConsentNotice
                         consentText={template.consentText}
                         consentVersion={template.consentVersion}
+                        language={language}
                         agreed={consentAgreed}
                         onAgreeChange={(agreed) =>
                             setValue(CONSENT_FIELD_ID, agreed ? "true" : "", {
@@ -725,18 +830,17 @@ export function FormRenderer({ template, token }: FormRendererProps) {
                         {submitting ? (
                             <>
                                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                Submitting...
+                                {copy.submitting}
                             </>
                         ) : (
-                            "Submit Form"
+                            copy.submit
                         )}
                     </Button>
                 </>
             )}
 
             <p className="text-center text-xs text-muted-foreground">
-                Your information is encrypted in transit and stored securely for
-                the clinic.
+                {copy.encryptedFooter}
             </p>
         </form>
     );
