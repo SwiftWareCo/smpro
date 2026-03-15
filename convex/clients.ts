@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
-import { requireUserId } from "./_lib/auth";
+import { requireAgencyAdminUserId, requireUserId } from "./_lib/auth";
 import * as AccountsRead from "./db/accounts/read";
 import * as AccountsWrite from "./db/accounts/write";
 import * as ClientsRead from "./db/clients/read";
@@ -149,7 +149,7 @@ function buildSetupStatus(items: ChecklistItem[]): SetupStatus {
 export const list = query({
     args: {},
     handler: async (ctx) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         return ClientsRead.listByUser(ctx, userId);
     },
 });
@@ -157,7 +157,7 @@ export const list = query({
 export const get = query({
     args: { clientId: v.id("clients") },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const client = await ClientsRead.getById(ctx, args.clientId);
         if (!client) return null;
         if (client.userId !== userId) {
@@ -170,7 +170,7 @@ export const get = query({
 export const getSummary = query({
     args: { clientId: v.id("clients") },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const client = await ClientsRead.getById(ctx, args.clientId);
         if (!client || client.userId !== userId) {
             return null;
@@ -226,7 +226,7 @@ export const getPortalByClerkOrganizationId = query({
 export const create = mutation({
     args: { name: v.string(), description: v.optional(v.string()) },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         return ClientsWrite.create(ctx, userId, {
             name: args.name,
             description: args.description ?? null,
@@ -237,7 +237,7 @@ export const create = mutation({
 export const isSlugAvailable = query({
     args: { slug: v.string() },
     handler: async (ctx, args) => {
-        await requireUserId(ctx);
+        await requireAgencyAdminUserId(ctx);
         const existingClient = await ClientsRead.getBySlug(ctx, args.slug);
         return !existingClient;
     },
@@ -255,7 +255,7 @@ export const createProvisioned = internalMutation({
     },
     returns: v.id("clients"),
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
 
         const existingSlug = await ClientsRead.getBySlug(ctx, args.slug);
         if (existingSlug) {
@@ -310,7 +310,7 @@ export const update = mutation({
         portalSecondaryColor: v.optional(v.union(v.string(), v.null())),
     },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const client = await ClientsRead.getById(ctx, args.clientId);
         if (!client || client.userId !== userId) {
             throw new Error("Client not found");
@@ -337,7 +337,7 @@ export const update = mutation({
 export const updateModules = mutation({
     args: { clientId: v.id("clients"), modules: v.array(v.string()) },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const client = await ClientsRead.getById(ctx, args.clientId);
         if (!client || client.userId !== userId) {
             throw new Error("Client not found");
@@ -356,7 +356,7 @@ export const updateStatus = mutation({
         status: v.string(),
     },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const client = await ClientsRead.getById(ctx, args.clientId);
         if (!client || client.userId !== userId) {
             throw new Error("Client not found");
@@ -372,7 +372,7 @@ export const updateStatus = mutation({
 export const remove = mutation({
     args: { clientId: v.id("clients") },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const client = await ClientsRead.getById(ctx, args.clientId);
         if (!client || client.userId !== userId) {
             throw new Error("Client not found");
@@ -396,7 +396,7 @@ export const remove = mutation({
 export const getSetupStatus = query({
     args: { clientId: v.id("clients") },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const client = await ClientsRead.getById(ctx, args.clientId);
         if (!client || client.userId !== userId) {
             return buildSetupStatus([]);
@@ -426,7 +426,7 @@ export const getSetupStatus = query({
 export const getSetupStatuses = query({
     args: { clientIds: v.array(v.id("clients")) },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const results: Array<{ clientId: string; status: SetupStatus }> = [];
 
         for (const clientId of args.clientIds) {

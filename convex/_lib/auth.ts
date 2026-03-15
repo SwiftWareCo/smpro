@@ -20,6 +20,28 @@ export async function requireUserId(ctx: {
     return identity.subject;
 }
 
+function hasAgencyAdminClaim(identity: UserIdentity) {
+    const agencyAdmin = (identity as Record<string, unknown>).agency_admin;
+    return agencyAdmin === true || agencyAdmin === "true";
+}
+
+export async function requireAgencyAdmin(ctx: {
+    auth: { getUserIdentity: () => Promise<UserIdentity | null> };
+}) {
+    const identity = await requireUserIdentity(ctx);
+    if (!hasAgencyAdminClaim(identity)) {
+        throw new Error("Forbidden");
+    }
+    return identity;
+}
+
+export async function requireAgencyAdminUserId(ctx: {
+    auth: { getUserIdentity: () => Promise<UserIdentity | null> };
+}) {
+    const identity = await requireAgencyAdmin(ctx);
+    return identity.subject;
+}
+
 export async function requireOwnedClient(
     ctx: QueryCtx | MutationCtx,
     clientId: Id<"clients">,

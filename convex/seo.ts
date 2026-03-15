@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireUserId } from "./_lib/auth";
+import { requireAgencyAdminUserId } from "./_lib/auth";
 import * as ClientsRead from "./db/clients/read";
 import * as SeoRead from "./db/seo/read";
 import * as SeoWrite from "./db/seo/write";
@@ -8,7 +8,7 @@ import * as SeoWrite from "./db/seo/write";
 export const getByClient = query({
     args: { clientId: v.id("clients") },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const client = await ClientsRead.getById(ctx, args.clientId);
         if (!client || client.userId !== userId) {
             return null;
@@ -30,7 +30,7 @@ export const upsert = mutation({
         analysisProvider: v.optional(v.union(v.string(), v.null())),
     },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const client = await ClientsRead.getById(ctx, args.clientId);
         if (!client || client.userId !== userId) {
             throw new Error("Client not found");

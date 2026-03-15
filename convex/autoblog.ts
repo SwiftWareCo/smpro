@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireUserId } from "./_lib/auth";
+import { requireAgencyAdminUserId } from "./_lib/auth";
 import * as ClientsRead from "./db/clients/read";
 import * as AutoblogRead from "./db/autoblog/read";
 import * as AutoblogWrite from "./db/autoblog/write";
@@ -32,7 +32,7 @@ const approvalStatusValidator = v.union(
 export const getSettings = query({
     args: { clientId: v.id("clients") },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const client = await ClientsRead.getById(ctx, args.clientId);
         if (!client || client.userId !== userId) {
             return null;
@@ -44,7 +44,7 @@ export const getSettings = query({
 export const listPosts = query({
     args: { clientId: v.id("clients") },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const client = await ClientsRead.getById(ctx, args.clientId);
         if (!client || client.userId !== userId) {
             return [];
@@ -59,7 +59,7 @@ export const saveGithubInstallation = mutation({
         installationId: v.number(),
     },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const client = await ClientsRead.getById(ctx, args.clientId);
         if (!client || client.userId !== userId) {
             throw new Error("Unauthorized");
@@ -90,7 +90,7 @@ export const upsertSettings = mutation({
         ),
     },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const client = await ClientsRead.getById(ctx, args.clientId);
         if (!client || client.userId !== userId) {
             throw new Error("Client not found");
@@ -116,7 +116,7 @@ export const listIdeas = query({
         status: v.optional(ideaStatusValidator),
     },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const client = await ClientsRead.getById(ctx, args.clientId);
         if (!client || client.userId !== userId) {
             return [];
@@ -128,7 +128,7 @@ export const listIdeas = query({
 export const getIdea = query({
     args: { ideaId: v.id("autoblogIdeas") },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const idea = await AutoblogRead.getIdeaById(ctx, args.ideaId);
         if (!idea) return null;
 
@@ -146,7 +146,7 @@ export const updateIdeaStatus = mutation({
         status: ideaStatusValidator,
     },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const idea = await AutoblogRead.getIdeaById(ctx, args.ideaId);
         if (!idea) throw new Error("Idea not found");
 
@@ -171,7 +171,7 @@ export const createManualIdea = mutation({
         targetWordCount: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const client = await ClientsRead.getById(ctx, args.clientId);
         if (!client || client.userId !== userId) {
             throw new Error("Unauthorized");
@@ -192,7 +192,7 @@ export const createManualIdea = mutation({
 export const getPost = query({
     args: { postId: v.id("autoblogPosts") },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const post = await AutoblogRead.getPostById(ctx, args.postId);
         if (!post) return null;
 
@@ -211,7 +211,7 @@ export const listPostsForCalendar = query({
         endDate: v.number(),
     },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const client = await ClientsRead.getById(ctx, args.clientId);
         if (!client || client.userId !== userId) {
             return [];
@@ -244,7 +244,7 @@ export const updatePost = mutation({
         approvalStatus: v.optional(v.union(approvalStatusValidator, v.null())),
     },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const post = await AutoblogRead.getPostById(ctx, args.postId);
         if (!post) throw new Error("Post not found");
 
@@ -269,7 +269,7 @@ export const updatePost = mutation({
 export const deletePost = mutation({
     args: { postId: v.id("autoblogPosts") },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const post = await AutoblogRead.getPostById(ctx, args.postId);
         if (!post) throw new Error("Post not found");
 
@@ -285,7 +285,7 @@ export const deletePost = mutation({
 export const approvePost = mutation({
     args: { postId: v.id("autoblogPosts") },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const post = await AutoblogRead.getPostById(ctx, args.postId);
         if (!post) throw new Error("Post not found");
 
@@ -304,7 +304,7 @@ export const approvePost = mutation({
 export const listPublishLogs = query({
     args: { postId: v.id("autoblogPosts") },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const post = await AutoblogRead.getPostById(ctx, args.postId);
         if (!post) return [];
 

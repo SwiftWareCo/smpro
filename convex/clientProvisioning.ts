@@ -4,7 +4,7 @@ import { ConvexError, v } from "convex/values";
 import { action } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { requireUserId } from "./_lib/auth";
+import { requireAgencyAdminUserId } from "./_lib/auth";
 import {
     ClerkApiError,
     clerkCreateOrganization,
@@ -101,7 +101,7 @@ export const provisionClient = action({
         clerkOrganizationId: string;
         portalAdminUserId: string;
     }> => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
 
         const parsed = clientOnboardingRequestSchema.safeParse(args);
         if (!parsed.success) {

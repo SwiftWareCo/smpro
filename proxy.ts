@@ -4,7 +4,11 @@ import {
     createRouteMatcher,
 } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { resolveTenantSlugFromHost } from "@/lib/tenant-host";
+import {
+    getAppRootDomain,
+    getRequestHost,
+    resolveTenantSlugFromHost,
+} from "@/lib/tenant-host";
 
 const isPublicRoute = createRouteMatcher([
     "/sign-in(.*)",
@@ -22,21 +26,40 @@ function shouldBypassTenantRewrite(pathname: string) {
     );
 }
 
+function hasAgencyAdminMetadata(
+    publicMetadata: Record<string, unknown> | null | undefined,
+) {
+    const agencyAdmin = publicMetadata?.agency_admin;
+    return agencyAdmin === true || agencyAdmin === "true";
+}
+
 export default clerkMiddleware(async (auth, req) => {
     if (!isPublicRoute(req)) {
         await auth.protect();
     }
 
-    const rawHost =
-        req.headers.get("x-forwarded-host") ??
-        req.headers.get("host") ??
-        req.nextUrl.host;
-    const tenantSlug = resolveTenantSlugFromHost(rawHost);
+    const requestHost = getRequestHost(req.headers) ?? req.nextUrl.host;
+    const appRootDomain = getAppRootDomain();
+    const { userId } = await auth();
+
+    if (appRootDomain && requestHost === appRootDomain && userId) {
+        const clerk = await clerkClient();
+        const user = await clerk.users.getUser(userId);
+
+        if (
+            !hasAgencyAdminMetadata(
+                user.publicMetadata as Record<string, unknown> | undefined,
+            )
+        ) {
+            return new NextResponse("Forbidden", { status: 403 });
+        }
+    }
+
+    const tenantSlug = resolveTenantSlugFromHost(requestHost);
     if (!tenantSlug) {
         return;
     }
 
-    const { userId } = await auth();
     if (!userId) {
         return;
     }

@@ -167,9 +167,9 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
     return (
         <Sidebar collapsible="icon" {...props}>
             <SidebarHeader>
-                <div className="mx-2 my-2 rounded-xl border border-sidebar-border bg-sidebar-accent/50 px-3 py-3 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2">
-                    <div className="flex items-center justify-center gap-2 group-data-[collapsible=icon]:gap-0">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sidebar-primary text-sm font-semibold text-sidebar-primary-foreground shadow-sm">
+                <div className="mx-2 my-2 rounded-xl border border-sidebar-border bg-sidebar-accent/50 px-3 py-3 group-data-[collapsible=icon]:mx-0 group-data-[collapsible=icon]:my-1 group-data-[collapsible=icon]:rounded-none group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2">
+                    <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary text-sm font-semibold text-sidebar-primary-foreground shadow-sm">
                             S
                         </div>
                         <div className="group-data-[collapsible=icon]:hidden">
@@ -255,12 +255,12 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
                                 <SidebarMenu>
                                     {filteredClients.length === 0 &&
                                     searchQuery ? (
-                                        <div className="px-2 py-3 text-sm text-muted-foreground text-center">
+                                        <div className="px-2 py-3 text-sm text-muted-foreground text-center group-data-[collapsible=icon]:hidden">
                                             No clients match &quot;{searchQuery}
                                             &quot;
                                         </div>
                                     ) : filteredClients.length === 0 ? (
-                                        <div className="px-2 py-3 text-sm text-muted-foreground text-center">
+                                        <div className="px-2 py-3 text-sm text-muted-foreground text-center group-data-[collapsible=icon]:hidden">
                                             No clients yet
                                         </div>
                                     ) : (

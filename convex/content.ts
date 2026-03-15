@@ -3,7 +3,7 @@ import { nanoid } from "nanoid";
 import { v } from "convex/values";
 import { action, mutation, query } from "./_generated/server";
 import { api as generatedApi } from "./_generated/api";
-import { requireUserId } from "./_lib/auth";
+import { requireAgencyAdminUserId } from "./_lib/auth";
 import * as AccountsRead from "./db/accounts/read";
 import * as ContentRead from "./db/content/read";
 import * as ContentWrite from "./db/content/write";
@@ -87,7 +87,7 @@ export const list = query({
         clientId: v.optional(v.id("clients")),
     },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const accountIds = await getAccountIdsForUser(
             ctx,
             userId,
@@ -103,7 +103,7 @@ export const list = query({
 export const stats = query({
     args: {},
     handler: async (ctx) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const accountIds = await getAccountIdsForUser(ctx, userId);
         return ContentRead.stats(ctx, accountIds);
     },
@@ -112,7 +112,7 @@ export const stats = query({
 export const statsByPlatform = query({
     args: {},
     handler: async (ctx) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const accountIds = await getAccountIdsForUser(ctx, userId);
         return ContentRead.statsByPlatform(ctx, accountIds);
     },
@@ -121,7 +121,7 @@ export const statsByPlatform = query({
 export const top = query({
     args: { limit: v.optional(v.number()), platform: v.optional(v.string()) },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const accountIds = await getAccountIdsForUser(ctx, userId);
         return ContentRead.top(ctx, accountIds, {
             limit: args.limit,
@@ -137,7 +137,7 @@ export const topByMetric = query({
         limit: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const accountIds = await getAccountIdsForUser(ctx, userId);
         return ContentRead.topByMetric(ctx, accountIds, {
             metric: args.metric,
@@ -150,7 +150,7 @@ export const topByMetric = query({
 export const recent = query({
     args: { limit: v.optional(v.number()) },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
         const accountIds = await getAccountIdsForUser(ctx, userId);
         return ContentRead.recent(ctx, accountIds, args.limit ?? 10);
     },
@@ -176,6 +176,7 @@ export const upsertFromImport = mutation({
         rawData: v.optional(v.union(v.any(), v.null())),
     },
     handler: async (ctx, args) => {
+        await requireAgencyAdminUserId(ctx);
         return ContentWrite.upsertFromImport(ctx, {
             accountId: args.accountId,
             platform: args.platform,
@@ -200,6 +201,7 @@ export const upsertFromImport = mutation({
 export const deleteByAccount = mutation({
     args: { accountId: v.id("connectedAccounts") },
     handler: async (ctx, args) => {
+        await requireAgencyAdminUserId(ctx);
         return ContentWrite.deleteByAccountId(ctx, args.accountId);
     },
 });
@@ -252,7 +254,7 @@ interface FacebookApiResponse {
 export const syncInstagram = action({
     args: {},
     handler: async (ctx) => {
-        await requireUserId(ctx);
+        await requireAgencyAdminUserId(ctx);
 
         try {
             const accounts = await ctx.runQuery(api.accounts.listByPlatform, {
@@ -348,7 +350,7 @@ export const syncInstagram = action({
 export const syncFacebook = action({
     args: {},
     handler: async (ctx) => {
-        await requireUserId(ctx);
+        await requireAgencyAdminUserId(ctx);
 
         try {
             const accounts = await ctx.runQuery(api.accounts.listByPlatform, {
@@ -435,7 +437,7 @@ export const syncFacebook = action({
 export const importInstagramData = action({
     args: { clientId: v.id("clients"), jsonData: v.string() },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
 
         try {
             let client;
@@ -554,7 +556,7 @@ export const importInstagramData = action({
 export const importFacebookData = action({
     args: { clientId: v.id("clients"), jsonData: v.string() },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
 
         try {
             let client;

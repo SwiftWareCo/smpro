@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { requireUserId } from "./_lib/auth";
+import { requireAgencyAdminUserId } from "./_lib/auth";
 import * as ClientsRead from "./db/clients/read";
 import * as AutoblogRead from "./db/autoblog/read";
 import * as AutoblogWrite from "./db/autoblog/write";
@@ -15,7 +15,7 @@ export const schedulePost = mutation({
         ctx,
         args,
     ): Promise<{ success: boolean; scheduledFunctionId?: string }> => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
 
         // Get the post
         const post = await AutoblogRead.getPostById(ctx, args.postId);
@@ -77,7 +77,7 @@ export const reschedulePost = mutation({
         ctx,
         args,
     ): Promise<{ success: boolean; scheduledFunctionId?: string }> => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
 
         // Get the post
         const post = await AutoblogRead.getPostById(ctx, args.postId);
@@ -135,7 +135,7 @@ export const cancelScheduledPost = mutation({
         postId: v.id("autoblogPosts"),
     },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
 
         // Get the post
         const post = await AutoblogRead.getPostById(ctx, args.postId);
@@ -180,7 +180,7 @@ export const publishNow = mutation({
         postId: v.id("autoblogPosts"),
     },
     handler: async (ctx, args) => {
-        const userId = await requireUserId(ctx);
+        const userId = await requireAgencyAdminUserId(ctx);
 
         // Get the post
         const post = await AutoblogRead.getPostById(ctx, args.postId);

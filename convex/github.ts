@@ -4,6 +4,7 @@ import { createPrivateKey, createSign } from "crypto";
 import { v } from "convex/values";
 import { action } from "./_generated/server";
 import { api } from "./_generated/api";
+import { requireAgencyAdmin } from "./_lib/auth";
 
 type GitHubRepo = {
     id: number;
@@ -113,6 +114,7 @@ export const listInstallationRepos = action({
         installationId: v.number(),
     },
     handler: async (ctx, args) => {
+        await requireAgencyAdmin(ctx);
         // Validate user owns client (throws if unauthorized)
         await ctx.runQuery(api.clients.get, { clientId: args.clientId });
 
@@ -215,6 +217,7 @@ export const commitFile = action({
         commitMessage: v.string(),
     },
     handler: async (ctx, args): Promise<CommitFileResult> => {
+        await requireAgencyAdmin(ctx);
         // Get autoblog settings for installation ID and repo info
         const settings = await ctx.runQuery(api.autoblog.getSettings, {
             clientId: args.clientId,
