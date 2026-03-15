@@ -67,20 +67,23 @@ export function ConsentNotice({
                     </p>
                 </div>
 
-                <div className="flex items-start gap-3">
-                    <Checkbox
-                        id="consent"
-                        checked={agreed}
-                        onCheckedChange={(checked) =>
-                            onAgreeChange(checked === true)
-                        }
-                    />
-                    <Label
-                        htmlFor="consent"
-                        className="text-sm leading-relaxed cursor-pointer"
-                    >
-                        {copy.consentAgreement}
-                    </Label>
+                <div className="rounded-lg border border-primary/25 bg-background/90 p-3 shadow-sm">
+                    <div className="flex items-start gap-3">
+                        <Checkbox
+                            id="consent"
+                            checked={agreed}
+                            className="mt-0.5 size-5 border-primary/60 bg-background shadow-sm data-[state=checked]:border-primary data-[state=checked]:bg-primary focus-visible:ring-primary/30"
+                            onCheckedChange={(checked) =>
+                                onAgreeChange(checked === true)
+                            }
+                        />
+                        <Label
+                            htmlFor="consent"
+                            className="cursor-pointer text-sm leading-relaxed font-medium text-foreground"
+                        >
+                            {copy.consentAgreement}
+                        </Label>
+                    </div>
                 </div>
             </CardContent>
         </Card>

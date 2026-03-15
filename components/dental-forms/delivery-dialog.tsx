@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useAction } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id, Doc } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
@@ -23,7 +23,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import {
     Copy,
     Loader2,
@@ -34,12 +36,12 @@ import {
     Download,
     Printer,
     CheckCircle,
+    Clock,
+    Trash2,
+    User,
 } from "lucide-react";
 import type { DeliveryChannel } from "@/lib/validation/dental-form";
-import {
-    FORM_LANGUAGE_LABELS,
-    type FormLanguage,
-} from "@/lib/patient-form-i18n";
+import { formatProjectDate } from "@/lib/date-utils";
 
 interface DeliveryDialogProps {
     open: boolean;
@@ -63,6 +65,14 @@ const channelOptions: {
     { value: "qr", label: "QR Code", icon: <QrCode className="h-4 w-4" /> },
 ];
 
+const channelIcons: Record<DeliveryChannel, React.ReactNode> = {
+    link: <Link className="h-3.5 w-3.5" />,
+    email: <Mail className="h-3.5 w-3.5" />,
+    sms: <Smartphone className="h-3.5 w-3.5" />,
+    qr: <QrCode className="h-3.5 w-3.5" />,
+    tablet: <QrCode className="h-3.5 w-3.5" />,
+};
+
 const buttonLabels: Record<DeliveryChannel, string> = {
     link: "Generate Form Link",
     email: "Generate & Send Email",
@@ -71,6 +81,44 @@ const buttonLabels: Record<DeliveryChannel, string> = {
     tablet: "Generate Form Link",
 };
 
+const statusColors: Record<string, string> = {
+    pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+    sent: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+    delivered: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+    opened: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300",
+    completed: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+    expired: "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300",
+    failed: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+};
+
+async function copyToClipboard(text: string): Promise<void> {
+    if (navigator.clipboard?.writeText) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return;
+        } catch {
+            // Clipboard API rejected — fall through to execCommand fallback
+        }
+    }
+    // Fallback: insert a temporary input *inside* the dialog so Radix's
+    // focus-trap doesn't steal focus away before execCommand can fire.
+    const container =
+        document.activeElement?.closest<HTMLElement>("[role=dialog]") ??
+        document.body;
+    const el = document.createElement("input");
+    el.value = text;
+    el.style.cssText = "position:absolute;opacity:0;pointer-events:none";
+    container.appendChild(el);
+    el.select();
+    try {
+        if (!document.execCommand("copy")) {
+            throw new Error("Copy failed");
+        }
+    } finally {
+        container.removeChild(el);
+    }
+}
+
 export function DeliveryDialog({
     open,
     onOpenChange,
@@ -78,11 +126,9 @@ export function DeliveryDialog({
     template,
 }: DeliveryDialogProps) {
     const [channel, setChannel] = useState<DeliveryChannel>("link");
-    const [patientName, setPatientName] = useState("");
     const [recipientEmail, setRecipientEmail] = useState("");
     const [recipientPhone, setRecipientPhone] = useState("");
-    const [preferredLanguage, setPreferredLanguage] =
-        useState<FormLanguage>("en");
+    const [patientName, setPatientName] = useState("");
     const [generatedUrl, setGeneratedUrl] = useState("");
     const [generating, setGenerating] = useState(false);
     const [emailSending, setEmailSending] = useState(false);
@@ -99,22 +145,52 @@ export function DeliveryDialog({
 
     const createLink = useAction(api.formDeliveriesActions.createLink);
     const sendEmailAction = useAction(api.formDeliveriesActions.sendEmail);
+    const revokeDelivery = useMutation(api.formDeliveries.revoke);
+
+    // Keep a stable template reference for the query during the close animation.
+    // When `open` flips to false, the query would immediately skip and return
+    // undefined — causing the history list to unmount before the fade-out finishes.
+    const [queryTemplate, setQueryTemplate] = useState<Doc<"formTemplates"> | null>(null);
 
     useEffect(() => {
-        if (!open) {
-            setGeneratedUrl("");
-            setPatientName("");
-            setRecipientEmail("");
-            setRecipientPhone("");
-            setChannel("link");
-            setPreferredLanguage("en");
-            setGenerating(false);
-            setEmailSending(false);
-            setEmailSent(false);
-            setEmailError(false);
-            setDeliveryResult(null);
+        if (open && template) {
+            setQueryTemplate(template);
         }
-    }, [open]);
+        if (!open) {
+            const timer = setTimeout(() => {
+                setQueryTemplate(null);
+                setGeneratedUrl("");
+                setRecipientEmail("");
+                setRecipientPhone("");
+                setPatientName("");
+                setChannel("link");
+                setGenerating(false);
+                setEmailSending(false);
+                setEmailSent(false);
+                setEmailError(false);
+                setDeliveryResult(null);
+            }, 250);
+            return () => clearTimeout(timer);
+        }
+    }, [open, template]);
+
+    const deliveryHistory = useQuery(
+        api.formDeliveries.listForTemplate,
+        queryTemplate ? { clientId, templateId: queryTemplate._id } : "skip",
+    );
+
+    const buildFormUrl = useCallback((token: string) => {
+        return `${window.location.origin}/form/${token}`;
+    }, []);
+
+    const handleCopyUrl = useCallback(async (url: string) => {
+        try {
+            await copyToClipboard(url);
+            toast.success("Link copied to clipboard");
+        } catch {
+            toast.error("Failed to copy link");
+        }
+    }, []);
 
     const handleGenerate = async () => {
         if (!template) {
@@ -133,7 +209,7 @@ export function DeliveryDialog({
                 clientId,
                 templateId: template._id,
                 channel,
-                preferredLanguage,
+                patientName: patientName.trim() || undefined,
             });
 
             setGeneratedUrl(result.formUrl);
@@ -170,15 +246,6 @@ export function DeliveryDialog({
             toast.error("Failed to generate form link");
         } finally {
             setGenerating(false);
-        }
-    };
-
-    const handleCopy = async () => {
-        try {
-            await navigator.clipboard.writeText(generatedUrl);
-            toast.success("Link copied to clipboard");
-        } catch {
-            toast.error("Failed to copy link");
         }
     };
 
@@ -220,10 +287,9 @@ h2{margin-bottom:16px;color:#333;}p{color:#666;font-size:14px;margin-top:12px;}<
 
     const handleReset = () => {
         setGeneratedUrl("");
-        setPatientName("");
         setRecipientEmail("");
         setRecipientPhone("");
-        setPreferredLanguage("en");
+        setPatientName("");
         setEmailSending(false);
         setEmailSent(false);
         setEmailError(false);
@@ -242,127 +308,7 @@ h2{margin-bottom:16px;color:#333;}p{color:#666;font-size:14px;margin-top:12px;}<
                     </DialogDescription>
                 </DialogHeader>
 
-                {!generatedUrl ? (
-                    <div className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="channel">Delivery Method</Label>
-                            <Select
-                                value={channel}
-                                onValueChange={(v) =>
-                                    setChannel(v as DeliveryChannel)
-                                }
-                            >
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {channelOptions.map((opt) => (
-                                        <SelectItem
-                                            key={opt.value}
-                                            value={opt.value}
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                {opt.icon}
-                                                {opt.label}
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="patient-name">
-                                Patient Name (optional, not stored)
-                            </Label>
-                            <Input
-                                id="patient-name"
-                                value={patientName}
-                                onChange={(e) => setPatientName(e.target.value)}
-                                placeholder="John Smith"
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="preferred-language">
-                                Preferred Form Language
-                            </Label>
-                            <Select
-                                value={preferredLanguage}
-                                onValueChange={(value) =>
-                                    setPreferredLanguage(value as FormLanguage)
-                                }
-                            >
-                                <SelectTrigger id="preferred-language">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {Object.entries(FORM_LANGUAGE_LABELS).map(
-                                        ([value, label]) => (
-                                            <SelectItem
-                                                key={value}
-                                                value={value}
-                                            >
-                                                {label}
-                                            </SelectItem>
-                                        ),
-                                    )}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        {channel === "email" && (
-                            <div className="space-y-2">
-                                <Label htmlFor="email">
-                                    Patient Email (not stored)
-                                </Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    value={recipientEmail}
-                                    onChange={(e) =>
-                                        setRecipientEmail(e.target.value)
-                                    }
-                                    placeholder="patient@email.com"
-                                />
-                            </div>
-                        )}
-
-                        {channel === "sms" && (
-                            <div className="space-y-2">
-                                <Label htmlFor="phone">
-                                    Patient Phone (not stored)
-                                </Label>
-                                <Input
-                                    id="phone"
-                                    type="tel"
-                                    value={recipientPhone}
-                                    onChange={(e) =>
-                                        setRecipientPhone(e.target.value)
-                                    }
-                                    placeholder="+1 (604) 555-0123"
-                                />
-                            </div>
-                        )}
-
-                        <Separator />
-
-                        <Button
-                            onClick={handleGenerate}
-                            disabled={generating}
-                            className="w-full"
-                        >
-                            {generating ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Generating...
-                                </>
-                            ) : (
-                                buttonLabels[channel]
-                            )}
-                        </Button>
-                    </div>
-                ) : (
+                {generatedUrl ? (
                     <div className="space-y-4">
                         {channel === "qr" && (
                             <div className="space-y-3">
@@ -447,7 +393,9 @@ h2{margin-bottom:16px;color:#333;}p{color:#666;font-size:14px;margin-top:12px;}<
                                 <Button
                                     variant="outline"
                                     size="icon"
-                                    onClick={handleCopy}
+                                    onClick={() =>
+                                        void handleCopyUrl(generatedUrl)
+                                    }
                                 >
                                     <Copy className="h-4 w-4" />
                                 </Button>
@@ -475,6 +423,193 @@ h2{margin-bottom:16px;color:#333;}p{color:#666;font-size:14px;margin-top:12px;}<
                                 Done
                             </Button>
                         </div>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {/* Generate form */}
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="patient-name">
+                                    Patient Name (optional)
+                                </Label>
+                                <div className="relative">
+                                    <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                    <Input
+                                        id="patient-name"
+                                        value={patientName}
+                                        onChange={(e) =>
+                                            setPatientName(e.target.value)
+                                        }
+                                        placeholder="e.g. Jane Smith"
+                                        className="pl-9"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="channel">Delivery Method</Label>
+                                <Select
+                                    value={channel}
+                                    onValueChange={(v) =>
+                                        setChannel(v as DeliveryChannel)
+                                    }
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {channelOptions.map((opt) => (
+                                            <SelectItem
+                                                key={opt.value}
+                                                value={opt.value}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    {opt.icon}
+                                                    {opt.label}
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {channel === "email" && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="email">
+                                        Patient Email (not stored)
+                                    </Label>
+                                    <Input
+                                        id="email"
+                                        type="email"
+                                        value={recipientEmail}
+                                        onChange={(e) =>
+                                            setRecipientEmail(e.target.value)
+                                        }
+                                        placeholder="patient@email.com"
+                                    />
+                                </div>
+                            )}
+
+                            {channel === "sms" && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="phone">
+                                        Patient Phone (not stored)
+                                    </Label>
+                                    <Input
+                                        id="phone"
+                                        type="tel"
+                                        value={recipientPhone}
+                                        onChange={(e) =>
+                                            setRecipientPhone(e.target.value)
+                                        }
+                                        placeholder="+1 (604) 555-0123"
+                                    />
+                                </div>
+                            )}
+
+                            <Button
+                                onClick={handleGenerate}
+                                disabled={generating}
+                                className="w-full"
+                            >
+                                {generating ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Generating...
+                                    </>
+                                ) : (
+                                    buttonLabels[channel]
+                                )}
+                            </Button>
+                        </div>
+
+                        {/* Delivery history */}
+                        {deliveryHistory && deliveryHistory.length > 0 && (
+                            <>
+                                <Separator />
+                                <div className="space-y-2">
+                                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                                        Delivery History
+                                    </Label>
+                                    <ScrollArea className="max-h-48">
+                                        <div className="space-y-2 pr-3">
+                                        {deliveryHistory.map((d) => {
+                                            const now = Date.now();
+                                            const isExpired =
+                                                d.tokenExpiresAt < now;
+                                            const isTerminal =
+                                                d.status === "completed" ||
+                                                d.status === "expired" ||
+                                                d.status === "failed";
+                                            const url = buildFormUrl(d.token);
+
+                                            return (
+                                                <div
+                                                    key={d.deliveryId}
+                                                    className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-xs"
+                                                >
+                                                    <span className="text-muted-foreground">
+                                                        {channelIcons[d.channel]}
+                                                    </span>
+                                                    <span className="min-w-0 flex-1 truncate">
+                                                        {d.patientName || "—"}
+                                                    </span>
+                                                    <Badge
+                                                        variant="secondary"
+                                                        className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] ${statusColors[d.status] ?? ""}`}
+                                                    >
+                                                        {d.status}
+                                                    </Badge>
+                                                    <span className="shrink-0 text-muted-foreground">
+                                                        {formatProjectDate(
+                                                            d.createdAt,
+                                                        )}
+                                                    </span>
+                                                    {isExpired && !isTerminal && (
+                                                        <span className="shrink-0 text-[10px] text-destructive">
+                                                            Expired
+                                                        </span>
+                                                    )}
+                                                    {!isExpired &&
+                                                        !isTerminal && (
+                                                            <>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-6 w-6 shrink-0"
+                                                                    onClick={() =>
+                                                                        void handleCopyUrl(
+                                                                            url,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <Copy className="h-3 w-3" />
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-6 w-6 shrink-0 text-destructive hover:text-destructive"
+                                                                    onClick={async () => {
+                                                                        try {
+                                                                            await revokeDelivery({ deliveryId: d.deliveryId });
+                                                                            toast.success("Link revoked");
+                                                                        } catch {
+                                                                            toast.error("Failed to revoke link");
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <Trash2 className="h-3 w-3" />
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                </div>
+                                            );
+                                        })}
+                                        </div>
+                                    </ScrollArea>
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
             </DialogContent>

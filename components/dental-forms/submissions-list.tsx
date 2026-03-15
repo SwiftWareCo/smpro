@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FileText, Eye, Inbox } from "lucide-react";
 import { SubmissionDetail } from "./submission-detail";
-import { formatProjectDate } from "@/lib/date-utils";
+import { formatProjectDateTime } from "@/lib/date-utils";
 
 interface SubmissionsListProps {
     submissions: Doc<"formSubmissions">[];
@@ -28,7 +28,7 @@ const statusLabels: Record<string, string> = {
 };
 
 const statusColors: Record<string, string> = {
-    submitted: "bg-blue-100 text-blue-800",
+    submitted: "bg-slate-100 text-slate-700",
     under_review: "bg-yellow-100 text-yellow-800",
     approved: "bg-green-100 text-green-800",
     exported: "bg-purple-100 text-purple-800",
@@ -124,7 +124,9 @@ export function SubmissionsList({ submissions }: SubmissionsListProps) {
                             <div className="flex items-center gap-4 text-sm text-muted-foreground">
                                 <span>
                                     Submitted{" "}
-                                    {formatProjectDate(submission.submittedAt)}
+                                    {formatProjectDateTime(
+                                        submission.submittedAt,
+                                    )}
                                 </span>
                             </div>
                         </CardContent>

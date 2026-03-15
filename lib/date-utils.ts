@@ -30,3 +30,18 @@ export function formatProjectDate(
 
     return format(date, "MMM d, yyyy");
 }
+
+export function formatProjectDateTime(
+    value: Date | number | string | null | undefined,
+): string {
+    if (value == null) {
+        return "";
+    }
+
+    const date = toDate(value);
+    if (!isValid(date)) {
+        return "";
+    }
+
+    return format(date, "MMM d, yyyy 'at' h:mm a");
+}

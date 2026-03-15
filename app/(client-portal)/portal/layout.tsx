@@ -53,7 +53,7 @@ export default async function TenantPortalLayout({
     return (
         <div
             style={themeStyle}
-            className="min-h-svh bg-background text-foreground"
+            className="min-h-svh bg-background text-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
             <SidebarProvider defaultOpen={false}>
                 <PortalSidebar clientName={tenant.name} />

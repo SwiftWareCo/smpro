@@ -45,6 +45,7 @@ import type * as formDeliveries from "../formDeliveries.js";
 import type * as formDeliveriesActions from "../formDeliveriesActions.js";
 import type * as formSubmissions from "../formSubmissions.js";
 import type * as formSubmissionsActions from "../formSubmissionsActions.js";
+import type * as formTemplateActions from "../formTemplateActions.js";
 import type * as formTemplates from "../formTemplates.js";
 import type * as github from "../github.js";
 import type * as ideas from "../ideas.js";
@@ -94,6 +95,7 @@ declare const fullApi: ApiFromModules<{
   formDeliveriesActions: typeof formDeliveriesActions;
   formSubmissions: typeof formSubmissions;
   formSubmissionsActions: typeof formSubmissionsActions;
+  formTemplateActions: typeof formTemplateActions;
   formTemplates: typeof formTemplates;
   github: typeof github;
   ideas: typeof ideas;

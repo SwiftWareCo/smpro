@@ -15,12 +15,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -31,40 +25,56 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
     FileText,
     Plus,
-    MoreVertical,
     Pencil,
     Trash2,
     Send,
     CheckCircle,
-    Archive,
+    Languages,
+    Loader2,
+    CircleAlert,
 } from "lucide-react";
 import { TemplateEditor } from "./template-editor";
 import { DeliveryDialog } from "./delivery-dialog";
-import { formatProjectDate } from "@/lib/date-utils";
+import { formatProjectDate, formatProjectDateTime } from "@/lib/date-utils";
 
 interface TemplateListProps {
     clientId: Id<"clients">;
     templates: Doc<"formTemplates">[];
     readOnly?: boolean;
+    copyVariant?: "template" | "form";
 }
 
 const statusColors: Record<string, string> = {
     draft: "bg-yellow-100 text-yellow-800",
     active: "bg-green-100 text-green-800",
-    archived: "bg-gray-100 text-gray-800",
+};
+
+const LANGUAGE_LABELS: Record<string, string> = {
+    es: "Spanish",
+    ar: "Arabic",
+    "zh-Hans": "Simplified Chinese",
+    "zh-Hant": "Traditional Chinese",
 };
 
 export function TemplateList({
     clientId,
     templates,
     readOnly,
+    copyVariant = "template",
 }: TemplateListProps) {
     const [showEditor, setShowEditor] = useState(false);
     const [editingTemplate, setEditingTemplate] =
         useState<Doc<"formTemplates"> | null>(null);
     const [deleteTarget, setDeleteTarget] =
+        useState<Doc<"formTemplates"> | null>(null);
+    const [translateTarget, setTranslateTarget] =
         useState<Doc<"formTemplates"> | null>(null);
     const [deliveryTemplate, setDeliveryTemplate] =
         useState<Doc<"formTemplates"> | null>(null);
@@ -72,19 +82,35 @@ export function TemplateList({
 
     const updateTemplate = useMutation(api.formTemplates.update);
     const removeTemplate = useMutation(api.formTemplates.remove);
+    const retranslateTemplate = useMutation(api.formTemplates.retranslate);
 
     const handleStatusChange = async (
         templateId: Id<"formTemplates">,
-        status: "draft" | "active" | "archived",
+        status: "draft" | "active",
     ) => {
         try {
             await updateTemplate({ templateId, status });
             toast.success(
-                `Template ${status === "active" ? "activated" : status}`,
+                `${copyVariant === "form" ? "Form" : "Template"} ${
+                    status === "active" ? "activated" : status
+                }`,
             );
         } catch (error) {
             console.error("Status change error:", error);
-            toast.error("Failed to update template status");
+            toast.error(
+                `Failed to update ${copyVariant === "form" ? "form" : "template"} status`,
+            );
+        }
+    };
+
+    const handleRetranslate = async (templateId: Id<"formTemplates">) => {
+        try {
+            await retranslateTemplate({ templateId });
+            toast.success("Translation started — this may take a moment");
+            setTranslateTarget(null);
+        } catch (error) {
+            console.error("Retranslate error:", error);
+            toast.error("Failed to start translation");
         }
     };
 
@@ -92,11 +118,15 @@ export function TemplateList({
         if (!deleteTarget) return;
         try {
             await removeTemplate({ templateId: deleteTarget._id });
-            toast.success("Template deleted");
+            toast.success(
+                `${copyVariant === "form" ? "Form" : "Template"} deleted`,
+            );
             setDeleteTarget(null);
         } catch (error) {
             console.error("Delete error:", error);
-            toast.error("Failed to delete template");
+            toast.error(
+                `Failed to delete ${copyVariant === "form" ? "form" : "template"}`,
+            );
         }
     };
 
@@ -105,6 +135,7 @@ export function TemplateList({
             <TemplateEditor
                 clientId={clientId}
                 template={editingTemplate}
+                copyVariant={copyVariant}
                 onClose={() => {
                     setShowEditor(false);
                     setEditingTemplate(null);
@@ -118,17 +149,27 @@ export function TemplateList({
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h3 className="text-lg font-medium">Form Templates</h3>
+                        <h3 className="text-lg font-medium">
+                            {copyVariant === "form"
+                                ? "Forms"
+                                : "Form Templates"}
+                        </h3>
                         <p className="text-sm text-muted-foreground">
-                            {readOnly
-                                ? "View patient intake form templates"
-                                : "Create and manage patient intake form templates"}
+                            {copyVariant === "form"
+                                ? readOnly
+                                    ? "View patient intake forms"
+                                    : "Create and manage patient intake forms"
+                                : readOnly
+                                  ? "View patient intake form templates"
+                                  : "Create and manage patient intake form templates"}
                         </p>
                     </div>
                     {!readOnly && (
                         <Button onClick={() => setShowEditor(true)}>
                             <Plus className="mr-2 h-4 w-4" />
-                            New Template
+                            {copyVariant === "form"
+                                ? "New Form"
+                                : "New Template"}
                         </Button>
                     )}
                 </div>
@@ -138,17 +179,25 @@ export function TemplateList({
                         <CardContent className="flex flex-col items-center justify-center py-12">
                             <FileText className="h-12 w-12 text-muted-foreground mb-4" />
                             <h3 className="text-lg font-medium mb-2">
-                                No form templates yet
+                                {copyVariant === "form"
+                                    ? "No forms yet"
+                                    : "No form templates yet"}
                             </h3>
                             <p className="text-sm text-muted-foreground text-center mb-4">
-                                {readOnly
-                                    ? "No form templates have been created yet."
-                                    : "Create your first patient intake form template to start collecting patient information digitally."}
+                                {copyVariant === "form"
+                                    ? readOnly
+                                        ? "No forms have been created yet."
+                                        : "Create your first patient intake form to start collecting patient information digitally."
+                                    : readOnly
+                                      ? "No form templates have been created yet."
+                                      : "Create your first patient intake form template to start collecting patient information digitally."}
                             </p>
                             {!readOnly && (
                                 <Button onClick={() => setShowEditor(true)}>
                                     <Plus className="mr-2 h-4 w-4" />
-                                    Create Template
+                                    {copyVariant === "form"
+                                        ? "Create Form"
+                                        : "Create Template"}
                                 </Button>
                             )}
                         </CardContent>
@@ -182,47 +231,61 @@ export function TemplateList({
                                                 {template.status}
                                             </Badge>
                                             {!readOnly && (
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger
-                                                        asChild
-                                                    >
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-8 w-8"
-                                                        >
-                                                            <MoreVertical className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                setEditingTemplate(
-                                                                    template,
-                                                                )
-                                                            }
-                                                        >
-                                                            <Pencil className="mr-2 h-4 w-4" />
-                                                            Edit
-                                                        </DropdownMenuItem>
-                                                        {template.status ===
-                                                            "draft" && (
-                                                            <DropdownMenuItem
+                                                <div className="flex items-center gap-0.5">
+                                                    {template.status ===
+                                                        "draft" && (
+                                                        <Tooltip>
+                                                            <TooltipTrigger
+                                                                asChild
+                                                            >
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8"
+                                                                    onClick={() =>
+                                                                        handleStatusChange(
+                                                                            template._id,
+                                                                            "active",
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <CheckCircle className="h-4 w-4" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                Activate
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    )}
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8"
                                                                 onClick={() =>
-                                                                    handleStatusChange(
-                                                                        template._id,
-                                                                        "active",
+                                                                    setEditingTemplate(
+                                                                        template,
                                                                     )
                                                                 }
                                                             >
-                                                                <CheckCircle className="mr-2 h-4 w-4" />
-                                                                Activate
-                                                            </DropdownMenuItem>
-                                                        )}
-                                                        {template.status ===
-                                                            "active" && (
-                                                            <>
-                                                                <DropdownMenuItem
+                                                                <Pencil className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            Edit
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                    {template.status ===
+                                                        "active" && (
+                                                        <Tooltip>
+                                                            <TooltipTrigger
+                                                                asChild
+                                                            >
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8"
                                                                     onClick={() => {
                                                                         setDeliveryTemplate(
                                                                             template,
@@ -232,56 +295,60 @@ export function TemplateList({
                                                                         );
                                                                     }}
                                                                 >
-                                                                    <Send className="mr-2 h-4 w-4" />
-                                                                    Send to
-                                                                    Patient
-                                                                </DropdownMenuItem>
-                                                                <DropdownMenuItem
-                                                                    onClick={() =>
-                                                                        handleStatusChange(
-                                                                            template._id,
-                                                                            "archived",
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    <Archive className="mr-2 h-4 w-4" />
-                                                                    Archive
-                                                                </DropdownMenuItem>
-                                                            </>
-                                                        )}
-                                                        {template.status ===
-                                                            "archived" && (
-                                                            <DropdownMenuItem
+                                                                    <Send className="h-4 w-4" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                Send to Patient
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    )}
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8"
                                                                 onClick={() =>
-                                                                    handleStatusChange(
-                                                                        template._id,
-                                                                        "draft",
+                                                                    setTranslateTarget(
+                                                                        template,
                                                                     )
                                                                 }
                                                             >
-                                                                <Pencil className="mr-2 h-4 w-4" />
-                                                                Restore to Draft
-                                                            </DropdownMenuItem>
-                                                        )}
-                                                        <DropdownMenuItem
-                                                            className="text-destructive"
-                                                            onClick={() =>
-                                                                setDeleteTarget(
-                                                                    template,
-                                                                )
-                                                            }
-                                                        >
-                                                            <Trash2 className="mr-2 h-4 w-4" />
+                                                                <Languages className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            Translate or
+                                                            retranslate
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                                                onClick={() =>
+                                                                    setDeleteTarget(
+                                                                        template,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
                                                             Delete
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </div>
                                             )}
                                         </div>
                                     </div>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                    <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                                         <span>Version {template.version}</span>
                                         <span>
                                             {
@@ -307,6 +374,131 @@ export function TemplateList({
                                                 template.updatedAt,
                                             )}
                                         </span>
+                                        {(() => {
+                                            const templateMeta =
+                                                template as unknown as {
+                                                    translations?: Array<{
+                                                        language: string;
+                                                    }>;
+                                                    translatedAt?: number;
+                                                    translationStatus?:
+                                                        | "pending"
+                                                        | "completed"
+                                                        | "failed";
+                                                    translationError?:
+                                                        | string
+                                                        | null;
+                                                };
+                                            const translations =
+                                                templateMeta.translations ?? [];
+                                            const translatedAt =
+                                                templateMeta.translatedAt;
+                                            const translationStatus =
+                                                templateMeta.translationStatus;
+                                            const translationError =
+                                                templateMeta.translationError;
+                                            const translatedLanguages =
+                                                translations.length > 0
+                                                    ? translations
+                                                          .map(
+                                                              (translation) =>
+                                                                  LANGUAGE_LABELS[
+                                                                      translation
+                                                                          .language
+                                                                  ] ??
+                                                                  translation.language,
+                                                          )
+                                                          .join(", ")
+                                                    : "None yet";
+
+                                            if (
+                                                translationStatus === "pending"
+                                            ) {
+                                                return (
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <span className="inline-flex items-center gap-1 text-sky-600 dark:text-sky-400">
+                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                                Translating
+                                                            </span>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            In progress on
+                                                            servers
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                );
+                                            }
+
+                                            if (
+                                                translationStatus ===
+                                                    "completed" &&
+                                                translations.length > 0
+                                            ) {
+                                                return (
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                                                                <Languages className="h-3.5 w-3.5" />
+                                                                Translated
+                                                            </span>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <div className="space-y-1">
+                                                                <p>
+                                                                    Languages:{" "}
+                                                                    {
+                                                                        translatedLanguages
+                                                                    }
+                                                                </p>
+                                                                <p>
+                                                                    Last
+                                                                    translated:{" "}
+                                                                    {formatProjectDateTime(
+                                                                        translatedAt,
+                                                                    )}
+                                                                </p>
+                                                            </div>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                );
+                                            }
+
+                                            if (
+                                                translationStatus === "failed"
+                                            ) {
+                                                return (
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <span className="inline-flex items-center gap-1 text-destructive">
+                                                                <CircleAlert className="h-3.5 w-3.5" />
+                                                                Translation
+                                                                failed
+                                                            </span>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            {translationError ||
+                                                                "Translation failed. Try again."}
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                );
+                                            }
+
+                                            return (
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <span className="inline-flex items-center gap-1 text-muted-foreground/60">
+                                                            <Languages className="h-3.5 w-3.5" />
+                                                            Not translated
+                                                        </span>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        No translations
+                                                        generated yet
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            );
+                                        })()}
                                     </div>
                                 </CardContent>
                             </Card>
@@ -321,7 +513,11 @@ export function TemplateList({
             >
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Template</AlertDialogTitle>
+                        <AlertDialogTitle>
+                            {copyVariant === "form"
+                                ? "Delete Form"
+                                : "Delete Template"}
+                        </AlertDialogTitle>
                         <AlertDialogDescription>
                             Are you sure you want to delete &quot;
                             {deleteTarget?.name}&quot;? This action cannot be
@@ -335,6 +531,57 @@ export function TemplateList({
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
                             Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog
+                open={!!translateTarget}
+                onOpenChange={(open) => !open && setTranslateTarget(null)}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            {(() => {
+                                const translations = (
+                                    translateTarget as
+                                        | (Doc<"formTemplates"> & {
+                                              translations?: unknown[];
+                                          })
+                                        | null
+                                )?.translations;
+                                return translations && translations.length > 0
+                                    ? "Retranslate Template"
+                                    : "Translate Template";
+                            })()}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {(() => {
+                                const translations = (
+                                    translateTarget as
+                                        | (Doc<"formTemplates"> & {
+                                              translations?: unknown[];
+                                          })
+                                        | null
+                                )?.translations;
+                                const actionLabel =
+                                    translations && translations.length > 0
+                                        ? "retranslate"
+                                        : "translate";
+                                return `Are you sure you want to ${actionLabel} "${translateTarget?.name}"? This will queue a background translation job on servers.`;
+                            })()}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() =>
+                                translateTarget &&
+                                handleRetranslate(translateTarget._id)
+                            }
+                        >
+                            Confirm
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

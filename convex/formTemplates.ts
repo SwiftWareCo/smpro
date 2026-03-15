@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { requireClientAccess } from "./_lib/auth";
 import { logAuditEvent } from "./_lib/audit";
 import * as DentalFormsRead from "./db/dentalForms/read";
@@ -19,6 +20,7 @@ const fieldValidator = v.object({
         v.literal("checkbox"),
         v.literal("number"),
         v.literal("signature"),
+        v.literal("address"),
     ),
     label: v.string(),
     placeholder: v.optional(v.string()),
@@ -30,6 +32,14 @@ const fieldValidator = v.object({
             max: v.optional(v.number()),
             pattern: v.optional(v.string()),
             message: v.optional(v.string()),
+        }),
+    ),
+    followUp: v.optional(
+        v.object({
+            enabled: v.boolean(),
+            trigger: v.string(),
+            label: v.string(),
+            required: v.boolean(),
         }),
     ),
 });
@@ -63,6 +73,13 @@ export const get = query({
     },
 });
 
+export const getInternal = query({
+    args: { templateId: v.id("formTemplates") },
+    handler: async (ctx, args) => {
+        return DentalFormsRead.getTemplateById(ctx, args.templateId);
+    },
+});
+
 export const getByToken = query({
     args: { token: v.string() },
     handler: async (ctx, args) => {
@@ -87,6 +104,30 @@ export const getByToken = query({
         if (!template || template.status !== "active") return null;
 
         const client = await ClientsRead.getById(ctx, template.clientId);
+
+        // When preferredLanguage is not set, the patient picks their language
+        if (!delivery.preferredLanguage) {
+            const storedTranslations = delivery.localizedTemplates ?? [];
+            const availableLanguages: string[] = [
+                "en",
+                ...storedTranslations.map((t) => t.language),
+            ];
+
+            return {
+                template,
+                delivery: {
+                    _id: delivery._id,
+                    channel: delivery.channel,
+                    preferredLanguage: delivery.preferredLanguage,
+                },
+                preferredLanguage: undefined,
+                availableLanguages,
+                localizedTemplates: storedTranslations,
+                clientName: client?.name ?? "Clinic",
+            };
+        }
+
+        // Single pre-selected language
         const localizedTemplate = delivery.localizedTemplate;
         const resolvedTemplate = localizedTemplate
             ? {
@@ -143,6 +184,13 @@ export const create = mutation({
             clientId: args.clientId,
         });
 
+        // Schedule non-blocking translation
+        await ctx.scheduler.runAfter(
+            0,
+            internal.formTemplateActions.translateTemplate,
+            { templateId },
+        );
+
         return templateId;
     },
 });
@@ -198,6 +246,24 @@ export const update = mutation({
             metadata: { fields: Object.keys(patch) },
         });
 
+        // Re-translate if content changed (not just status)
+        const contentChanged =
+            args.name !== undefined ||
+            args.description !== undefined ||
+            args.sections !== undefined;
+        if (contentChanged) {
+            await DentalFormsWrite.patchTemplate(ctx, args.templateId, {
+                translations: [],
+                translationStatus: "pending",
+                translationError: null,
+            });
+            await ctx.scheduler.runAfter(
+                0,
+                internal.formTemplateActions.translateTemplate,
+                { templateId: args.templateId },
+            );
+        }
+
         return { success: true };
     },
 });
@@ -225,5 +291,56 @@ export const remove = mutation({
         });
 
         return { success: true };
+    },
+});
+
+export const retranslate = mutation({
+    args: { templateId: v.id("formTemplates") },
+    handler: async (ctx, args) => {
+        const template = await DentalFormsRead.getTemplateById(
+            ctx,
+            args.templateId,
+        );
+        if (!template) throw new Error("Template not found");
+        await requireClientAccess(ctx, template.clientId);
+        await DentalFormsWrite.patchTemplate(ctx, args.templateId, {
+            translations: [],
+            translationStatus: "pending",
+            translationError: null,
+        });
+        await ctx.scheduler.runAfter(
+            0,
+            internal.formTemplateActions.translateTemplate,
+            { templateId: args.templateId },
+        );
+    },
+});
+
+export const patchTranslations = internalMutation({
+    args: {
+        templateId: v.id("formTemplates"),
+        translations: v.array(v.any()),
+        translatedAt: v.number(),
+    },
+    handler: async (ctx, args) => {
+        await DentalFormsWrite.patchTemplate(ctx, args.templateId, {
+            translations: args.translations,
+            translatedAt: args.translatedAt,
+            translationStatus: "completed",
+            translationError: null,
+        });
+    },
+});
+
+export const setTranslationFailed = internalMutation({
+    args: {
+        templateId: v.id("formTemplates"),
+        translationError: v.string(),
+    },
+    handler: async (ctx, args) => {
+        await DentalFormsWrite.patchTemplate(ctx, args.templateId, {
+            translationStatus: "failed",
+            translationError: args.translationError,
+        });
     },
 });

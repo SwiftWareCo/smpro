@@ -72,3 +72,43 @@ export async function getDeliveryByToken(ctx: QueryCtx, token: string) {
         .withIndex("by_token", (q) => q.eq("token", token))
         .unique();
 }
+
+export async function listDeliveriesByClientTemplate(
+    ctx: QueryCtx,
+    clientId: Id<"clients">,
+    templateId: Id<"formTemplates">,
+    limit = 20,
+) {
+    return ctx.db
+        .query("formDeliveries")
+        .withIndex("by_client_template", (q) =>
+            q.eq("clientId", clientId).eq("templateId", templateId),
+        )
+        .order("desc")
+        .take(limit);
+}
+
+export async function getLatestActiveDeliveryForTemplate(
+    ctx: QueryCtx,
+    clientId: Id<"clients">,
+    templateId: Id<"formTemplates">,
+) {
+    const candidates = await ctx.db
+        .query("formDeliveries")
+        .withIndex("by_client_template", (q) =>
+            q.eq("clientId", clientId).eq("templateId", templateId),
+        )
+        .order("desc")
+        .take(10);
+
+    const now = Date.now();
+    return (
+        candidates.find(
+            (d) =>
+                d.tokenExpiresAt > now &&
+                d.status !== "completed" &&
+                d.status !== "expired" &&
+                d.status !== "failed",
+        ) ?? null
+    );
+}

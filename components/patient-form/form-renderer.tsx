@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAction } from "convex/react";
 import { Controller, useForm } from "react-hook-form";
@@ -33,6 +33,7 @@ import { Loader2, LockKeyhole, ChevronRight } from "lucide-react";
 import { ClientFormDatePicker } from "./client-form-date-picker";
 import { ConsentNotice } from "./consent-notice";
 import { SignaturePad } from "./signature-pad";
+import { AddressAutocomplete } from "./address-autocomplete";
 import {
     PATIENT_FORM_COPY,
     isRtlLanguage,
@@ -48,6 +49,7 @@ interface FormRendererProps {
     token: string;
     language: FormLanguage;
     clientName: string;
+    onSubmitStart?: () => void;
 }
 
 interface FormStep {
@@ -61,6 +63,7 @@ interface FormStep {
 
 const LONG_FORM_FIELD_THRESHOLD = 10;
 const CONSENT_FIELD_ID = "__consent";
+const FOLLOW_UP_SUFFIX = "__followUp";
 
 function isInteractiveField(field: TemplateFieldDoc): boolean {
     return true;
@@ -72,7 +75,7 @@ function isWideField(field: TemplateFieldDoc): boolean {
         const options = field.options ?? [];
         return options.length > 4 || options.some((o) => o.length > 20);
     }
-    return field.type === "textarea" || field.type === "signature";
+    return field.type === "textarea" || field.type === "signature" || field.type === "address";
 }
 
 function getFieldRules(
@@ -111,6 +114,49 @@ function getFieldRules(
         };
     }
 
+    // Custom validation rules
+    const v = field.validation;
+    if (v) {
+        if (field.type === "number") {
+            const prevValidate =
+                typeof rules.validate === "function"
+                    ? rules.validate
+                    : undefined;
+            rules.validate = (value: string, formValues: FormValues) => {
+                if (prevValidate) {
+                    const prev = prevValidate(value, formValues);
+                    if (prev !== true) return prev;
+                }
+                if (!value) return true;
+                const num = Number(value);
+                if (v.min != null && num < v.min)
+                    return v.message ?? `Must be at least ${v.min}`;
+                if (v.max != null && num > v.max)
+                    return v.message ?? `Must be at most ${v.max}`;
+                return true;
+            };
+        } else {
+            if (v.min != null)
+                rules.minLength = {
+                    value: v.min,
+                    message:
+                        v.message ?? `Must be at least ${v.min} characters`,
+                };
+            if (v.max != null)
+                rules.maxLength = {
+                    value: v.max,
+                    message:
+                        v.message ?? `Must be at most ${v.max} characters`,
+                };
+            if (v.pattern) {
+                rules.pattern = {
+                    value: new RegExp(v.pattern),
+                    message: v.message ?? "Invalid format",
+                };
+            }
+        }
+    }
+
     return rules;
 }
 
@@ -126,6 +172,7 @@ export function FormRenderer({
     token,
     language,
     clientName,
+    onSubmitStart,
 }: FormRendererProps) {
     const router = useRouter();
     const [submitting, setSubmitting] = useState(false);
@@ -159,6 +206,9 @@ export function FormRenderer({
             for (const field of section.fields) {
                 if (!isInteractiveField(field)) continue;
                 values[field.id] = "";
+                if (field.followUp?.enabled) {
+                    values[`${field.id}${FOLLOW_UP_SUFFIX}`] = "";
+                }
             }
         }
 
@@ -182,6 +232,15 @@ export function FormRenderer({
     });
 
     const steps = useMemo<FormStep[]>(() => {
+        const fieldIdsWithFollowUps = (fields: TemplateFieldDoc[]) =>
+            fields.filter(isInteractiveField).flatMap((field) => {
+                const ids = [field.id];
+                if (field.followUp?.enabled) {
+                    ids.push(`${field.id}${FOLLOW_UP_SUFFIX}`);
+                }
+                return ids;
+            });
+
         if (!wizardMode) {
             return [
                 {
@@ -190,9 +249,7 @@ export function FormRenderer({
                     description: template.description,
                     sections: enabledSections,
                     fieldIds: enabledSections.flatMap((section) =>
-                        section.fields
-                            .filter(isInteractiveField)
-                            .map((field) => field.id),
+                        fieldIdsWithFollowUps(section.fields),
                     ),
                     kind: "section",
                 },
@@ -204,9 +261,7 @@ export function FormRenderer({
             title: section.title,
             description: section.description,
             sections: [section],
-            fieldIds: section.fields
-                .filter(isInteractiveField)
-                .map((field) => field.id),
+            fieldIds: fieldIdsWithFollowUps(section.fields),
             kind: "section" as const,
         }));
 
@@ -271,8 +326,27 @@ export function FormRenderer({
             return;
         }
 
-        const { [CONSENT_FIELD_ID]: _consent, ...formData } = values;
+        const { [CONSENT_FIELD_ID]: _consent, ...rawFormData } = values;
 
+        // Strip follow-up values where parent doesn't match the trigger
+        const formData: FormValues = {};
+        const allFields = enabledSections.flatMap((s) => s.fields);
+        for (const [key, value] of Object.entries(rawFormData)) {
+            if (key.endsWith(FOLLOW_UP_SUFFIX)) {
+                const parentId = key.slice(0, -FOLLOW_UP_SUFFIX.length);
+                const parentField = allFields.find((f) => f.id === parentId);
+                if (
+                    parentField?.followUp?.enabled &&
+                    rawFormData[parentId] === parentField.followUp.trigger
+                ) {
+                    formData[key] = value;
+                }
+                continue;
+            }
+            formData[key] = value;
+        }
+
+        onSubmitStart?.();
         setSubmitting(true);
         try {
             await submitForm({
@@ -342,6 +416,42 @@ export function FormRenderer({
         }
 
         await handleSubmit(onSubmit, handleInvalidSubmit)(event);
+    };
+
+    const renderFollowUp = (field: TemplateFieldDoc) => {
+        if (!field.followUp?.enabled) return null;
+
+        const followUpId = `${field.id}${FOLLOW_UP_SUFFIX}`;
+        const parentValue = watch(field.id);
+        const isVisible = parentValue === field.followUp.trigger;
+
+        if (!isVisible) return null;
+
+        const followUpError = getErrorMessage(errors[followUpId]);
+
+        return (
+            <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor={followUpId} className="text-sm">
+                    {field.followUp.label}
+                    {field.followUp.required && (
+                        <span className="ml-1 text-destructive">*</span>
+                    )}
+                </Label>
+                <Textarea
+                    id={followUpId}
+                    rows={2}
+                    placeholder={field.followUp.label}
+                    {...register(followUpId, {
+                        required: field.followUp.required
+                            ? copy.requiredField(field.followUp.label)
+                            : false,
+                    })}
+                />
+                {followUpError && (
+                    <p className="text-sm text-destructive">{followUpError}</p>
+                )}
+            </div>
+        );
     };
 
     const renderField = (field: TemplateFieldDoc) => {
@@ -544,6 +654,22 @@ export function FormRenderer({
                     />
                 )}
 
+                {field.type === "address" && (
+                    <Controller
+                        name={field.id}
+                        control={control}
+                        rules={getFieldRules(field, language)}
+                        render={({ field: controllerField }) => (
+                            <AddressAutocomplete
+                                value={controllerField.value ?? ""}
+                                onChange={controllerField.onChange}
+                                language={language}
+                                placeholder={copy.addressPlaceholder}
+                            />
+                        )}
+                    />
+                )}
+
                 {errorMessage && (
                     <p className="text-sm text-destructive">{errorMessage}</p>
                 )}
@@ -576,7 +702,18 @@ export function FormRenderer({
                 </div>
             </CardHeader>
             <CardContent className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
-                {section.fields.map(renderField)}
+                {section.fields.flatMap((field) => {
+                    const rendered = [renderField(field)];
+                    const followUp = renderFollowUp(field);
+                    if (followUp) {
+                        rendered.push(
+                            <React.Fragment key={`${field.id}-followup`}>
+                                {followUp}
+                            </React.Fragment>,
+                        );
+                    }
+                    return rendered;
+                })}
             </CardContent>
         </Card>
     );
@@ -731,8 +868,8 @@ export function FormRenderer({
                                 </CardHeader>
                                 <CardContent className="space-y-5">
                                     <ConsentNotice
-                                        consentText={template.consentText}
-                                        consentVersion={template.consentVersion}
+                                        consentText={copy.consentNoticeText}
+                                        consentVersion="1.0"
                                         language={language}
                                         agreed={consentAgreed}
                                         onAgreeChange={(agreed) =>
@@ -773,7 +910,7 @@ export function FormRenderer({
                             {isFinalWizardStep ? (
                                 <Button
                                     type="submit"
-                                    disabled={submitting}
+                                    disabled={submitting || !consentAgreed}
                                     className="sm:min-w-44"
                                 >
                                     {submitting ? (
@@ -805,8 +942,8 @@ export function FormRenderer({
                     {enabledSections.map(renderSectionCard)}
 
                     <ConsentNotice
-                        consentText={template.consentText}
-                        consentVersion={template.consentVersion}
+                        consentText={copy.consentNoticeText}
+                        consentVersion="1.0"
                         language={language}
                         agreed={consentAgreed}
                         onAgreeChange={(agreed) =>
@@ -824,7 +961,7 @@ export function FormRenderer({
 
                     <Button
                         type="submit"
-                        disabled={submitting}
+                        disabled={submitting || !consentAgreed}
                         className="h-12 w-full text-base"
                     >
                         {submitting ? (

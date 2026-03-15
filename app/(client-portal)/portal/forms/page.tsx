@@ -39,7 +39,7 @@ export default function PortalFormsPage() {
                     Patient Forms
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                    Create form templates, generate patient links, and review
+                    Create forms, generate patient links, and review
                     submissions.
                 </p>
             </div>
@@ -47,7 +47,7 @@ export default function PortalFormsPage() {
             <Tabs value={subTab} onValueChange={setSubTab} className="gap-4">
                 <TabsList className="rounded-2xl bg-background/80 backdrop-blur">
                     <TabsTrigger value="templates">
-                        Templates ({templates.length})
+                        Forms ({templates.length})
                     </TabsTrigger>
                     <TabsTrigger value="submissions">
                         Submissions ({submissions.length})
@@ -55,7 +55,11 @@ export default function PortalFormsPage() {
                 </TabsList>
 
                 <TabsContent value="templates" className="mt-4">
-                    <TemplateList clientId={clientId} templates={templates} />
+                    <TemplateList
+                        clientId={clientId}
+                        templates={templates}
+                        copyVariant="form"
+                    />
                 </TabsContent>
 
                 <TabsContent value="submissions" className="mt-4">

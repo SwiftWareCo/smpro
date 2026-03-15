@@ -10,6 +10,14 @@ export const FORM_LANGUAGE_LABELS: Record<FormLanguage, string> = {
     "zh-Hant": "Chinese (Traditional)",
 };
 
+export const FORM_LANGUAGE_NATIVE_NAMES: Record<FormLanguage, string> = {
+    en: "English",
+    es: "Español",
+    ar: "العربية",
+    "zh-Hans": "简体中文",
+    "zh-Hant": "繁體中文",
+};
+
 export function normalizeFormLanguage(value?: string | null): FormLanguage {
     return FORM_LANGUAGES.includes(value as FormLanguage)
         ? (value as FormLanguage)
@@ -52,11 +60,14 @@ interface PatientFormCopy {
     invalidSelection: string;
     consentRequired: string;
     stepIncomplete: string;
+    addressPlaceholder: string;
+    unitPlaceholder: string;
     fixErrors: string;
     submittedTitle: string;
     submittedDescription: string;
     submittedBody: string;
     submittedCloseHint: string;
+    consentNoticeText: string;
 }
 
 export const PATIENT_FORM_COPY: Record<FormLanguage, PatientFormCopy> = {
@@ -99,6 +110,8 @@ export const PATIENT_FORM_COPY: Record<FormLanguage, PatientFormCopy> = {
         consentRequired:
             "Please review and accept the consent notice before submitting.",
         stepIncomplete: "Please complete this step before continuing",
+        addressPlaceholder: "Start typing your address...",
+        unitPlaceholder: "Apt / Suite / Unit",
         fixErrors: "Please complete the required fields before submitting.",
         submittedTitle: "Form Submitted Successfully",
         submittedDescription:
@@ -107,6 +120,25 @@ export const PATIENT_FORM_COPY: Record<FormLanguage, PatientFormCopy> = {
             "Your information has been securely encrypted and sent to the clinic. The clinic staff will review your submission before your appointment.",
         submittedCloseHint:
             "You may close this page. If you have questions, please contact the clinic directly.",
+        consentNoticeText: `CONSENT FOR COLLECTION, USE, AND DISCLOSURE OF PERSONAL INFORMATION
+
+By submitting this form, I consent to the collection, use, and disclosure of my personal information, including personal health information, by this dental clinic for the following purposes:
+
+1. Dental Treatment: To provide dental care and treatment, including diagnosis, treatment planning, and follow-up care.
+
+2. Patient Records: To create and maintain patient records as required by the College of Dental Surgeons of British Columbia and applicable regulations.
+
+3. Cross-Border Data Processing: I understand that my information may be processed using servers located outside of Canada (United States). My personal health information is encrypted before being transmitted and stored, meaning the service provider cannot access the content of my information.
+
+Your Rights Under PIPA (Personal Information Protection Act, BC):
+- You have the right to access your personal information held by the clinic.
+- You have the right to request correction of your personal information.
+- You may withdraw your consent at any time by contacting the clinic, subject to legal or contractual restrictions.
+- Withdrawal of consent may affect our ability to provide dental services.
+
+Retention: Your information will be retained in accordance with the clinic's retention policy and applicable regulations.
+
+Contact: For questions about our privacy practices or to exercise your rights, please contact the clinic's Privacy Officer.`,
     },
     es: {
         pageEyebrow: "Registro del paciente",
@@ -148,6 +180,8 @@ export const PATIENT_FORM_COPY: Record<FormLanguage, PatientFormCopy> = {
         consentRequired:
             "Revise y acepte el aviso de consentimiento antes de enviar el formulario.",
         stepIncomplete: "Complete este paso antes de continuar",
+        addressPlaceholder: "Comience a escribir su dirección...",
+        unitPlaceholder: "Depto / Suite / Unidad",
         fixErrors:
             "Complete los campos obligatorios antes de enviar el formulario.",
         submittedTitle: "Formulario enviado correctamente",
@@ -157,6 +191,25 @@ export const PATIENT_FORM_COPY: Record<FormLanguage, PatientFormCopy> = {
             "Su informacion ha sido cifrada de forma segura y enviada a la clinica. El personal revisara su envio antes de su cita.",
         submittedCloseHint:
             "Puede cerrar esta pagina. Si tiene preguntas, comuníquese directamente con la clinica.",
+        consentNoticeText: `CONSENTIMIENTO PARA LA RECOPILACIÓN, USO Y DIVULGACIÓN DE INFORMACIÓN PERSONAL
+
+Al enviar este formulario, consiento la recopilación, el uso y la divulgación de mi información personal, incluida la información de salud personal, por parte de esta clínica dental para los siguientes fines:
+
+1. Tratamiento dental: Para proporcionar atención y tratamiento dental, incluyendo diagnóstico, planificación de tratamiento y atención de seguimiento.
+
+2. Expedientes de pacientes: Para crear y mantener los expedientes de pacientes según lo exigido por el Colegio de Cirujanos Dentales de Columbia Británica y las regulaciones aplicables.
+
+3. Procesamiento transfronterizo de datos: Entiendo que mi información puede ser procesada utilizando servidores ubicados fuera de Canadá (Estados Unidos). Mi información de salud personal se cifra antes de ser transmitida y almacenada, lo que significa que el proveedor de servicios no puede acceder al contenido de mi información.
+
+Sus derechos bajo PIPA (Ley de Protección de Información Personal, Columbia Británica):
+- Tiene derecho a acceder a su información personal en poder de la clínica.
+- Tiene derecho a solicitar la corrección de su información personal.
+- Puede retirar su consentimiento en cualquier momento comunicándose con la clínica, sujeto a restricciones legales o contractuales.
+- El retiro del consentimiento puede afectar nuestra capacidad para proporcionar servicios dentales.
+
+Retención: Su información se conservará de acuerdo con la política de retención de la clínica y las regulaciones aplicables.
+
+Contacto: Para preguntas sobre nuestras prácticas de privacidad o para ejercer sus derechos, comuníquese con el Oficial de Privacidad de la clínica.`,
     },
     ar: {
         pageEyebrow: "تسجيل المريض",
@@ -197,6 +250,8 @@ export const PATIENT_FORM_COPY: Record<FormLanguage, PatientFormCopy> = {
         consentRequired:
             "يرجى مراجعة إشعار الموافقة والموافقة عليه قبل إرسال النموذج.",
         stepIncomplete: "يرجى إكمال هذه الخطوة قبل المتابعة",
+        addressPlaceholder: "ابدأ بكتابة عنوانك...",
+        unitPlaceholder: "شقة / جناح / وحدة",
         fixErrors: "يرجى إكمال الحقول المطلوبة قبل إرسال النموذج.",
         submittedTitle: "تم إرسال النموذج بنجاح",
         submittedDescription: "شكرا لك على إكمال نموذج استقبال المريض.",
@@ -204,6 +259,25 @@ export const PATIENT_FORM_COPY: Record<FormLanguage, PatientFormCopy> = {
             "تم تشفير معلوماتك بشكل آمن وإرسالها إلى العيادة. سيقوم فريق العيادة بمراجعة الإرسال قبل موعدك.",
         submittedCloseHint:
             "يمكنك إغلاق هذه الصفحة. إذا كانت لديك أسئلة، يرجى التواصل مع العيادة مباشرة.",
+        consentNoticeText: `الموافقة على جمع واستخدام والإفصاح عن المعلومات الشخصية
+
+بإرسال هذا النموذج، أوافق على جمع واستخدام والإفصاح عن معلوماتي الشخصية، بما في ذلك المعلومات الصحية الشخصية، من قبل عيادة الأسنان هذه للأغراض التالية:
+
+1. العلاج السني: لتقديم الرعاية والعلاج السني، بما في ذلك التشخيص وتخطيط العلاج والمتابعة.
+
+2. سجلات المرضى: لإنشاء وصيانة سجلات المرضى وفقاً لمتطلبات كلية جراحي الأسنان في كولومبيا البريطانية واللوائح المعمول بها.
+
+3. معالجة البيانات عبر الحدود: أفهم أن معلوماتي قد تتم معالجتها باستخدام خوادم موجودة خارج كندا (الولايات المتحدة). يتم تشفير معلوماتي الصحية الشخصية قبل إرسالها وتخزينها، مما يعني أن مزود الخدمة لا يمكنه الوصول إلى محتوى معلوماتي.
+
+حقوقك بموجب قانون حماية المعلومات الشخصية (PIPA)، كولومبيا البريطانية:
+- لديك الحق في الوصول إلى معلوماتك الشخصية المحفوظة لدى العيادة.
+- لديك الحق في طلب تصحيح معلوماتك الشخصية.
+- يمكنك سحب موافقتك في أي وقت بالتواصل مع العيادة، مع مراعاة القيود القانونية أو التعاقدية.
+- قد يؤثر سحب الموافقة على قدرتنا على تقديم خدمات طب الأسنان.
+
+الاحتفاظ: سيتم الاحتفاظ بمعلوماتك وفقاً لسياسة الاحتفاظ بالعيادة واللوائح المعمول بها.
+
+للتواصل: لأي أسئلة حول ممارسات الخصوصية لدينا أو لممارسة حقوقك، يرجى التواصل مع مسؤول الخصوصية في العيادة.`,
     },
     "zh-Hans": {
         pageEyebrow: "患者登记",
@@ -239,12 +313,33 @@ export const PATIENT_FORM_COPY: Record<FormLanguage, PatientFormCopy> = {
         invalidSelection: "请选择可用选项之一",
         consentRequired: "请先阅读并同意同意说明后再提交。",
         stepIncomplete: "请先完成此步骤再继续",
+        addressPlaceholder: "开始输入您的地址...",
+        unitPlaceholder: "公寓 / 套房 / 单元",
         fixErrors: "请先完成必填字段后再提交。",
         submittedTitle: "表单提交成功",
         submittedDescription: "感谢您完成患者登记表。",
         submittedBody:
             "您的信息已被安全加密并发送至诊所。诊所工作人员会在您的预约前审核您的提交内容。",
         submittedCloseHint: "您现在可以关闭此页面。如有问题，请直接联系诊所。",
+        consentNoticeText: `个人信息收集、使用和披露同意书
+
+提交此表单即表示我同意本牙科诊所出于以下目的收集、使用和披露我的个人信息（包括个人健康信息）：
+
+1. 牙科治疗：提供牙科护理和治疗，包括诊断、治疗计划和后续护理。
+
+2. 患者记录：根据不列颠哥伦比亚省牙科医师学院及相关法规的要求，创建和维护患者记录。
+
+3. 跨境数据处理：我了解我的信息可能使用位于加拿大境外（美国）的服务器进行处理。我的个人健康信息在传输和存储前会被加密，这意味着服务提供商无法访问我的信息内容。
+
+您在《个人信息保护法》(PIPA，不列颠哥伦比亚省)下的权利：
+- 您有权查阅诊所持有的您的个人信息。
+- 您有权要求更正您的个人信息。
+- 您可以随时联系诊所撤回您的同意，但须遵守法律或合同限制。
+- 撤回同意可能影响我们提供牙科服务的能力。
+
+保留：您的信息将根据诊所的保留政策和适用法规予以保留。
+
+联系方式：如对我们的隐私惯例有疑问或需行使您的权利，请联系诊所的隐私官。`,
     },
     "zh-Hant": {
         pageEyebrow: "患者登記",
@@ -280,11 +375,32 @@ export const PATIENT_FORM_COPY: Record<FormLanguage, PatientFormCopy> = {
         invalidSelection: "請選擇其中一個可用選項",
         consentRequired: "請先閱讀並同意同意說明後再提交。",
         stepIncomplete: "請先完成此步驟再繼續",
+        addressPlaceholder: "開始輸入您的地址...",
+        unitPlaceholder: "公寓 / 套房 / 單元",
         fixErrors: "請先完成必填欄位後再提交。",
         submittedTitle: "表單提交成功",
         submittedDescription: "感謝您完成患者登記表。",
         submittedBody:
             "您的資訊已被安全加密並傳送至診所。診所工作人員會在您的預約前審核您的提交內容。",
         submittedCloseHint: "您現在可以關閉此頁面。如有問題，請直接聯絡診所。",
+        consentNoticeText: `個人資訊收集、使用和揭露同意書
+
+提交此表單即表示我同意本牙科診所出於以下目的收集、使用和揭露我的個人資訊（包括個人健康資訊）：
+
+1. 牙科治療：提供牙科護理和治療，包括診斷、治療計畫和後續護理。
+
+2. 患者記錄：根據不列顛哥倫比亞省牙科醫師學院及相關法規的要求，建立和維護患者記錄。
+
+3. 跨境資料處理：我瞭解我的資訊可能使用位於加拿大境外（美國）的伺服器進行處理。我的個人健康資訊在傳輸和儲存前會被加密，這意味著服務提供商無法存取我的資訊內容。
+
+您在《個人資訊保護法》(PIPA，不列顛哥倫比亞省)下的權利：
+- 您有權查閱診所持有的您的個人資訊。
+- 您有權要求更正您的個人資訊。
+- 您可以隨時聯繫診所撤回您的同意，但須遵守法律或合約限制。
+- 撤回同意可能影響我們提供牙科服務的能力。
+
+保留：您的資訊將根據診所的保留政策和適用法規予以保留。
+
+聯繫方式：如對我們的隱私慣例有疑問或需行使您的權利，請聯繫診所的隱私官。`,
     },
 };

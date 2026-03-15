@@ -5,6 +5,10 @@ import { action } from "./_generated/server";
 import { internal, api } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { validateSubmissionData } from "../lib/validation/dental-form";
+import {
+    DEFAULT_PIPA_CONSENT_TEXT,
+    DEFAULT_CONSENT_VERSION,
+} from "../lib/validation/consent";
 
 export const submit = action({
     args: {
@@ -65,8 +69,8 @@ export const submit = action({
                 templateId: template._id,
                 deliveryId: delivery._id,
                 formData: validatedFormData,
-                consentVersion: template.consentVersion,
-                consentTextSnapshot: template.consentText,
+                consentVersion: DEFAULT_CONSENT_VERSION,
+                consentTextSnapshot: DEFAULT_PIPA_CONSENT_TEXT,
                 ip: args.ip,
             },
         );

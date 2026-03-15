@@ -12,6 +12,7 @@ export const fieldTypeSchema = z.enum([
     "checkbox",
     "number",
     "signature",
+    "address",
 ]);
 
 export const fieldValidationSchema = z.object({
@@ -19,6 +20,13 @@ export const fieldValidationSchema = z.object({
     max: z.number().optional(),
     pattern: z.string().optional(),
     message: z.string().optional(),
+});
+
+export const followUpSchema = z.object({
+    enabled: z.boolean(),
+    trigger: z.string(),
+    label: z.string(),
+    required: z.boolean(),
 });
 
 export const templateFieldSchema = z.object({
@@ -29,6 +37,7 @@ export const templateFieldSchema = z.object({
     required: z.boolean(),
     options: z.array(z.string()).optional(),
     validation: fieldValidationSchema.optional(),
+    followUp: followUpSchema.optional(),
 });
 
 export const templateSectionSchema = z.object({
@@ -72,6 +81,7 @@ export const deliveryChannelSchema = z.enum([
 export const formLanguageSchema = z.enum(FORM_LANGUAGES);
 
 export const MAX_SUBMISSION_SIZE_BYTES = 256 * 1024;
+export const FOLLOW_UP_SUFFIX = "__followUp";
 
 export type SubmissionFieldMap = Record<string, string>;
 
@@ -102,14 +112,29 @@ export function validateSubmissionData(
 
     const normalized: SubmissionFieldMap = {};
 
-    for (const [fieldId, value] of Object.entries(rawData)) {
-        if (!allowedFields.has(fieldId)) {
-            throw new Error(`Unexpected field: ${fieldId}`);
-        }
+    for (const [key, value] of Object.entries(rawData)) {
         if (typeof value !== "string") {
-            throw new Error(`Invalid value for field: ${fieldId}`);
+            throw new Error(`Invalid value for field: ${key}`);
         }
-        normalized[fieldId] = value;
+
+        // Handle follow-up keys (e.g. "f-123__followUp")
+        if (key.endsWith(FOLLOW_UP_SUFFIX)) {
+            const parentId = key.slice(0, -FOLLOW_UP_SUFFIX.length);
+            if (!allowedFields.has(parentId)) {
+                throw new Error(`Unexpected field: ${key}`);
+            }
+            const parent = allowedFields.get(parentId)!;
+            if (!parent.followUp?.enabled) {
+                throw new Error(`Unexpected field: ${key}`);
+            }
+            normalized[key] = value;
+            continue;
+        }
+
+        if (!allowedFields.has(key)) {
+            throw new Error(`Unexpected field: ${key}`);
+        }
+        normalized[key] = value;
     }
 
     for (const field of allowedFields.values()) {
@@ -147,11 +172,58 @@ export function validateSubmissionData(
         if (field.type === "number" && value && Number.isNaN(Number(value))) {
             throw new Error(`${field.label} must be a number`);
         }
+
+        // Custom validation rules
+        const fv = field.validation;
+        if (fv && value) {
+            if (field.type === "number") {
+                const num = Number(value);
+                if (fv.min != null && num < fv.min)
+                    throw new Error(
+                        fv.message ??
+                            `${field.label} must be at least ${fv.min}`,
+                    );
+                if (fv.max != null && num > fv.max)
+                    throw new Error(
+                        fv.message ??
+                            `${field.label} must be at most ${fv.max}`,
+                    );
+            } else {
+                if (fv.min != null && value.length < fv.min)
+                    throw new Error(
+                        fv.message ??
+                            `${field.label} must be at least ${fv.min} characters`,
+                    );
+                if (fv.max != null && value.length > fv.max)
+                    throw new Error(
+                        fv.message ??
+                            `${field.label} must be at most ${fv.max} characters`,
+                    );
+            }
+            if (fv.pattern && !new RegExp(fv.pattern).test(value)) {
+                throw new Error(
+                    fv.message ??
+                        `${field.label} has an invalid format`,
+                );
+            }
+        }
+
+        // Validate follow-up required when parent matches trigger
+        if (field.followUp?.enabled && field.followUp.required) {
+            const followUpKey = `${field.id}${FOLLOW_UP_SUFFIX}`;
+            const followUpValue = normalized[followUpKey] ?? "";
+            const parentMatchesTrigger = value === field.followUp.trigger;
+
+            if (parentMatchesTrigger && followUpValue.trim().length === 0) {
+                throw new Error(`${field.followUp.label} is required`);
+            }
+        }
     }
 
     return normalized;
 }
 
+export type FollowUp = z.infer<typeof followUpSchema>;
 export type TemplateField = z.infer<typeof templateFieldSchema>;
 export type TemplateSection = z.infer<typeof templateSectionSchema>;
 export type CreateTemplateInput = z.infer<typeof createTemplateSchema>;

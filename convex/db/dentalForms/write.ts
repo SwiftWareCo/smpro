@@ -23,7 +23,8 @@ interface TemplateField {
         | "radio"
         | "checkbox"
         | "number"
-        | "signature";
+        | "signature"
+        | "address";
     label: string;
     placeholder?: string;
     required: boolean;
@@ -67,6 +68,9 @@ export async function createTemplate(
         sections: data.sections,
         consentText: data.consentText,
         consentVersion: data.consentVersion,
+        translations: [],
+        translationStatus: "pending",
+        translationError: null,
         createdBy: data.createdBy,
         createdAt: now,
         updatedAt: now,
@@ -127,11 +131,13 @@ export async function createDelivery(
     data: {
         clientId: Id<"clients">;
         templateId: Id<"formTemplates">;
+        patientName?: string;
         channel: "email" | "sms" | "qr" | "link" | "tablet";
         token: string;
         tokenExpiresAt: number;
-        preferredLanguage: "en" | "es" | "ar" | "zh-Hans" | "zh-Hant";
+        preferredLanguage?: "en" | "es" | "ar" | "zh-Hans" | "zh-Hant";
         localizedTemplate?: LocalizedTemplateSnapshot;
+        localizedTemplates?: LocalizedTemplateSnapshot[];
         createdBy: string;
     },
 ) {
@@ -139,11 +145,13 @@ export async function createDelivery(
     return ctx.db.insert("formDeliveries", {
         clientId: data.clientId,
         templateId: data.templateId,
+        patientName: data.patientName,
         channel: data.channel,
         token: data.token,
         tokenExpiresAt: data.tokenExpiresAt,
         preferredLanguage: data.preferredLanguage,
         localizedTemplate: data.localizedTemplate,
+        localizedTemplates: data.localizedTemplates,
         status: "pending",
         createdBy: data.createdBy,
         createdAt: now,

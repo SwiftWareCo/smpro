@@ -22,30 +22,32 @@ export default async function FormSubmittedPage({
     const copy = PATIENT_FORM_COPY[language];
 
     return (
-        <Card
-            className="mx-auto max-w-2xl rounded-2xl sm:rounded-[32px] border-border/70 shadow-sm"
-            dir={isRtlLanguage(language) ? "rtl" : "ltr"}
-            lang={language}
-        >
-            <CardHeader className="text-center">
-                <div className="flex justify-center mb-4">
-                    <CheckCircle className="h-16 w-16 text-primary" />
-                </div>
-                <CardTitle className="text-2xl">
-                    {copy.submittedTitle}
-                </CardTitle>
-                <CardDescription className="text-base">
-                    {copy.submittedDescription}
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="text-center space-y-4">
-                <p className="text-sm text-muted-foreground">
-                    {copy.submittedBody}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                    {copy.submittedCloseHint}
-                </p>
-            </CardContent>
-        </Card>
+        <div className="flex min-h-[60vh] items-center justify-center">
+            <Card
+                className="mx-auto w-full max-w-2xl rounded-2xl border-border/70 shadow-sm sm:rounded-[32px]"
+                dir={isRtlLanguage(language) ? "rtl" : "ltr"}
+                lang={language}
+            >
+                <CardHeader className="text-center">
+                    <div className="flex justify-center mb-4">
+                        <CheckCircle className="h-16 w-16 text-primary" />
+                    </div>
+                    <CardTitle className="text-2xl">
+                        {copy.submittedTitle}
+                    </CardTitle>
+                    <CardDescription className="text-base">
+                        {copy.submittedDescription}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="text-center space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                        {copy.submittedBody}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                        {copy.submittedCloseHint}
+                    </p>
+                </CardContent>
+            </Card>
+        </div>
     );
 }
