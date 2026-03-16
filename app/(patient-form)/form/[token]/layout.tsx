@@ -11,7 +11,10 @@ export default function PatientFormLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <div className="min-h-svh bg-gradient-to-b from-muted/50 to-background">
+        <div
+            className="force-light min-h-svh bg-gradient-to-b from-muted/50 to-background"
+            style={{ colorScheme: "light" }}
+        >
             <div className="mx-auto max-w-6xl px-3 py-4 sm:px-6 sm:py-8 lg:px-8">
                 {children}
             </div>

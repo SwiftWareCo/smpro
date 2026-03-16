@@ -40,6 +40,7 @@ const fieldSchema = v.object({
             required: v.boolean(),
         }),
     ),
+    width: v.optional(v.union(v.literal("third"), v.literal("half"), v.literal("full"))),
 });
 
 const sectionSchema = v.object({

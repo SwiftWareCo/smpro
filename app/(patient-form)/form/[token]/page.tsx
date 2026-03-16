@@ -18,6 +18,7 @@ import {
     isRtlLanguage,
     type FormLanguage,
 } from "@/lib/patient-form-i18n";
+import { buildTenantThemeStyle } from "@/lib/tenant-theme";
 
 export default function PatientFormPage({
     params,
@@ -191,6 +192,10 @@ export default function PatientFormPage({
             className="mx-auto max-w-5xl"
             dir={isRtlLanguage(effectiveLanguage) ? "rtl" : "ltr"}
             lang={effectiveLanguage}
+            style={buildTenantThemeStyle({
+                primaryColor: formData.portalPrimaryColor,
+                secondaryColor: formData.portalSecondaryColor,
+            })}
         >
             <FormRenderer
                 template={finalTemplate}

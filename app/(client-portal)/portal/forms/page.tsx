@@ -10,7 +10,7 @@ import { SubmissionsList } from "@/components/dental-forms/submissions-list";
 import { Loader2 } from "lucide-react";
 
 export default function PortalFormsPage() {
-    const { clientId, clientName } = usePortalClient();
+    const { clientId, clientName, portalPrimaryColor, portalSecondaryColor } = usePortalClient();
     const [subTab, setSubTab] = useState("templates");
     const { isLoading, isAuthenticated } = useConvexAuth();
 
@@ -60,6 +60,8 @@ export default function PortalFormsPage() {
                         templates={templates}
                         copyVariant="form"
                         clientName={clientName}
+                        portalPrimaryColor={portalPrimaryColor}
+                        portalSecondaryColor={portalSecondaryColor}
                     />
                 </TabsContent>
 

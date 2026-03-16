@@ -42,6 +42,7 @@ const fieldValidator = v.object({
             required: v.boolean(),
         }),
     ),
+    width: v.optional(v.union(v.literal("third"), v.literal("half"), v.literal("full"))),
 });
 
 const sectionValidator = v.object({
@@ -124,6 +125,8 @@ export const getByToken = query({
                 availableLanguages,
                 localizedTemplates: storedTranslations,
                 clientName: client?.name ?? "Clinic",
+                portalPrimaryColor: client?.portalPrimaryColor ?? null,
+                portalSecondaryColor: client?.portalSecondaryColor ?? null,
             };
         }
 
@@ -149,6 +152,8 @@ export const getByToken = query({
             },
             preferredLanguage: delivery.preferredLanguage,
             clientName: client?.name ?? "Clinic",
+            portalPrimaryColor: client?.portalPrimaryColor ?? null,
+            portalSecondaryColor: client?.portalSecondaryColor ?? null,
         };
     },
 });

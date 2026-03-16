@@ -458,7 +458,7 @@ export function FormRenderer({
         const followUpError = getErrorMessage(errors[followUpId]);
 
         return (
-            <div className="space-y-1.5 sm:col-span-2">
+            <div className="space-y-1.5 sm:col-span-6">
                 <Label htmlFor={followUpId} className="text-sm">
                     {field.followUp.label}
                     {field.followUp.required && (
@@ -482,14 +482,25 @@ export function FormRenderer({
         );
     };
 
+    const getFieldSpanClass = (field: TemplateFieldDoc): string => {
+        // Explicit width takes priority
+        const w = (field as TemplateFieldDoc & { width?: string }).width;
+        if (w === "third") return "sm:col-span-2";
+        if (w === "full") return "sm:col-span-6";
+        if (w === "half") return "sm:col-span-3";
+        // No explicit width: auto-detect wide fields (backward compat)
+        if (isWideField(field)) return "sm:col-span-6";
+        // Default: half (2-per-row, matches old sm:grid-cols-2)
+        return "sm:col-span-3";
+    };
+
     const renderField = (field: TemplateFieldDoc) => {
         const errorMessage = getErrorMessage(errors[field.id]);
-        const wide = isWideField(field);
-        const spanClass = wide ? "sm:col-span-2" : "";
+        const spanClass = getFieldSpanClass(field);
 
         if (field.type === "signature") {
             return (
-                <div key={field.id} className="space-y-1.5 sm:col-span-2">
+                <div key={field.id} className="space-y-1.5 sm:col-span-6">
                     <Controller
                         name={field.id}
                         control={control}
@@ -600,7 +611,7 @@ export function FormRenderer({
                                         placeholder={copy.selectOption}
                                     />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="force-light">
                                     {(field.options ?? []).map((option) => (
                                         <SelectItem key={option} value={option}>
                                             {option}
@@ -635,7 +646,7 @@ export function FormRenderer({
                                     {options.map((option) => (
                                         <div
                                             key={option}
-                                            className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2"
+                                            className="flex items-center gap-2 rounded-lg border border-slate-300 bg-background px-3 py-2"
                                         >
                                             <RadioGroupItem
                                                 value={option}
@@ -682,7 +693,7 @@ export function FormRenderer({
                                         return (
                                             <div
                                                 key={option}
-                                                className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2"
+                                                className="flex items-center gap-2 rounded-lg border border-slate-300 bg-background px-3 py-2"
                                             >
                                                 <Checkbox
                                                     id={`${field.id}-${option}`}
@@ -770,7 +781,7 @@ export function FormRenderer({
                     </div>
                 </div>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
+            <CardContent className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-6">
                 {section.fields.flatMap((field) => {
                     const rendered = [renderField(field)];
                     const followUp = renderFollowUp(field);
@@ -848,9 +859,9 @@ export function FormRenderer({
                                 <button
                                     key={step.id}
                                     type="button"
-                                    disabled={index > currentStepIndex}
+                                    disabled={!preview && index > currentStepIndex}
                                     onClick={() => {
-                                        if (index < currentStepIndex)
+                                        if (preview || index < currentStepIndex)
                                             setCurrentStepIndex(index);
                                     }}
                                     className={`flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-medium transition-colors ${
@@ -898,7 +909,12 @@ export function FormRenderer({
                                 return (
                                     <div
                                         key={step.id}
+                                        role={preview ? "button" : undefined}
+                                        tabIndex={preview ? 0 : undefined}
+                                        onClick={preview ? () => setCurrentStepIndex(index) : undefined}
                                         className={`rounded-2xl border px-4 py-3 text-sm transition-colors ${
+                                            preview ? "cursor-pointer" : ""
+                                        } ${
                                             isCurrent
                                                 ? "border-primary/40 bg-primary/5"
                                                 : isComplete

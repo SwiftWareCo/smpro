@@ -66,12 +66,15 @@ import {
     DEFAULT_CONSENT_VERSION,
     DEFAULT_PIPA_CONSENT_TEXT,
 } from "@/lib/validation/consent";
+import { buildTenantThemeStyle } from "@/lib/tenant-theme";
 
 interface TemplateEditorProps {
     clientId: Id<"clients">;
     template?: Doc<"formTemplates"> | null;
     copyVariant?: "template" | "form";
     onClose: () => void;
+    portalPrimaryColor?: string | null;
+    portalSecondaryColor?: string | null;
 }
 
 const FIELD_TYPES: { value: FieldType; label: string }[] = [
@@ -229,6 +232,8 @@ interface FieldEditorDialogProps {
     field: TemplateField | null;
     open: boolean;
     sectionId: string;
+    dialogClassName?: string;
+    dialogStyle?: React.CSSProperties;
     onClose: () => void;
     onSetFieldType: (
         sectionId: string,
@@ -263,6 +268,8 @@ function FieldEditorDialog({
     field,
     open,
     sectionId,
+    dialogClassName,
+    dialogStyle,
     onClose,
     onSetFieldType,
     onUpdateField,
@@ -277,7 +284,7 @@ function FieldEditorDialog({
 
     return (
         <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className={`sm:max-w-lg${dialogClassName ? ` ${dialogClassName}` : ""}`} style={dialogStyle}>
                 {!field ? null : (
                     <>
                         <DialogHeader>
@@ -330,7 +337,7 @@ function FieldEditorDialog({
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
-                                        <SelectContent>
+                                        <SelectContent className={dialogClassName}>
                                             {FIELD_TYPES.map((fieldType) => (
                                                 <SelectItem
                                                     key={fieldType.value}
@@ -562,7 +569,7 @@ function FieldEditorDialog({
                                                         <SelectTrigger className="h-9">
                                                             <SelectValue placeholder="No format restriction" />
                                                         </SelectTrigger>
-                                                        <SelectContent>
+                                                        <SelectContent className={dialogClassName}>
                                                             <SelectItem value="__none">
                                                                 No format
                                                                 restriction
@@ -759,7 +766,7 @@ function FieldEditorDialog({
                                                     <SelectTrigger className="h-9">
                                                         <SelectValue />
                                                     </SelectTrigger>
-                                                    <SelectContent>
+                                                    <SelectContent className={dialogClassName}>
                                                         {(
                                                             field.options ?? []
                                                         ).map((option) => (
@@ -849,6 +856,17 @@ interface SortableFieldItemProps {
     onEditField: (sectionId: string, fieldId: string) => void;
     onDuplicateField: (sectionId: string, fieldId: string) => void;
     onRemoveField: (sectionId: string, fieldId: string) => void;
+    onUpdateField: (
+        sectionId: string,
+        fieldId: string,
+        updates: Partial<TemplateField>,
+    ) => void;
+}
+
+function getWidthColSpan(width?: string): string {
+    if (width === "third") return "sm:col-span-2";
+    if (width === "full") return "sm:col-span-6";
+    return "sm:col-span-3";
 }
 
 function SortableFieldItem({
@@ -858,6 +876,7 @@ function SortableFieldItem({
     onEditField,
     onDuplicateField,
     onRemoveField,
+    onUpdateField,
 }: SortableFieldItemProps) {
     const {
         attributes,
@@ -928,6 +947,29 @@ function SortableFieldItem({
                     </Badge>
                 )}
             </button>
+            <div className="flex shrink-0 items-center rounded-lg border border-border/60 bg-background">
+                {(["third", "half", "full"] as const).map((w) => {
+                    const active = (field.width ?? "half") === w;
+                    const label = w === "third" ? "1/3" : w === "half" ? "1/2" : "Full";
+                    return (
+                        <button
+                            key={w}
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onUpdateField(sectionId, field.id, { width: w });
+                            }}
+                            className={`px-2 py-1 text-xs font-medium transition-colors first:rounded-l-md last:rounded-r-md ${
+                                active
+                                    ? "bg-primary/15 text-primary"
+                                    : "text-muted-foreground hover:text-foreground"
+                            }`}
+                        >
+                            {label}
+                        </button>
+                    );
+                })}
+            </div>
             <span
                 role="button"
                 tabIndex={-1}
@@ -990,6 +1032,11 @@ interface TemplateSectionCardProps {
         oldIndex: number,
         newIndex: number,
     ) => void;
+    onUpdateField: (
+        sectionId: string,
+        fieldId: string,
+        updates: Partial<TemplateField>,
+    ) => void;
 }
 
 const TemplateSectionCard = memo(function TemplateSectionCard({
@@ -1005,6 +1052,7 @@ const TemplateSectionCard = memo(function TemplateSectionCard({
     onEditField,
     onAddField,
     onReorderFields,
+    onUpdateField,
 }: TemplateSectionCardProps) {
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -1140,17 +1188,19 @@ const TemplateSectionCard = memo(function TemplateSectionCard({
                             items={fieldIds}
                             strategy={rectSortingStrategy}
                         >
-                            <div className="grid grid-cols-1 gap-2 md:[grid-template-columns:repeat(auto-fit,minmax(280px,1fr))] xl:[grid-template-columns:repeat(auto-fit,minmax(320px,1fr))]">
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-6">
                                 {section.fields.map((field, fieldIndex) => (
-                                    <SortableFieldItem
-                                        key={field.id}
-                                        field={field}
-                                        fieldIndex={fieldIndex}
-                                        sectionId={section.id}
-                                        onEditField={onEditField}
-                                        onDuplicateField={onDuplicateField}
-                                        onRemoveField={onRemoveField}
-                                    />
+                                    <div key={field.id} className={`${getWidthColSpan(field.width)} transition-all duration-200`}>
+                                        <SortableFieldItem
+                                            field={field}
+                                            fieldIndex={fieldIndex}
+                                            sectionId={section.id}
+                                            onEditField={onEditField}
+                                            onDuplicateField={onDuplicateField}
+                                            onRemoveField={onRemoveField}
+                                            onUpdateField={onUpdateField}
+                                        />
+                                    </div>
                                 ))}
                             </div>
                         </SortableContext>
@@ -1218,8 +1268,24 @@ export function TemplateEditor({
     template,
     copyVariant = "template",
     onClose,
+    portalPrimaryColor,
+    portalSecondaryColor,
 }: TemplateEditorProps) {
     const isEditing = !!template;
+    const isPortal = !!(portalPrimaryColor || portalSecondaryColor);
+    const portalStyle = useMemo(
+        () =>
+            isPortal
+                ? {
+                      colorScheme: "light" as const,
+                      ...buildTenantThemeStyle({
+                          primaryColor: portalPrimaryColor,
+                          secondaryColor: portalSecondaryColor,
+                      }),
+                  }
+                : undefined,
+        [isPortal, portalPrimaryColor, portalSecondaryColor],
+    );
     const [name, setName] = useState(template?.name ?? NEW_TEMPLATE_NAME);
     const [description, setDescription] = useState(
         template?.description ?? NEW_TEMPLATE_DESCRIPTION,
@@ -1677,7 +1743,7 @@ export function TemplateEditor({
         editingField?.sectionId ?? lastFieldSnapshot.current?.sectionId ?? "";
 
     return (
-        <div className="w-full animate-in fade-in-0 slide-in-from-bottom-2 duration-200 space-y-6 pb-24">
+        <div className={`w-full animate-in fade-in-0 slide-in-from-bottom-2 duration-200 space-y-6 pb-24${isPortal ? " force-light" : ""}`} style={portalStyle}>
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex items-start gap-3">
                     <Button variant="ghost" size="icon" onClick={onClose}>
@@ -1777,7 +1843,7 @@ export function TemplateEditor({
                     </div>
 
                     <div className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[360px_minmax(0,1fr)]">
-                        <div className="lg:sticky lg:top-24 lg:self-start">
+                        <div className="hidden xl:block xl:sticky xl:top-24 xl:self-start xl:max-h-[calc(100svh-8rem)] xl:overflow-y-auto">
                             <div className="rounded-3xl border border-border/70 bg-muted/15 p-4 shadow-sm">
                                 <div className="space-y-1.5">
                                     <p className="text-sm font-semibold">
@@ -1873,6 +1939,7 @@ export function TemplateEditor({
                                     onEditField={openFieldEditor}
                                     onAddField={addField}
                                     onReorderFields={reorderFields}
+                                    onUpdateField={updateField}
                                 />
                             ))}
                         </div>
@@ -1880,38 +1947,28 @@ export function TemplateEditor({
                 </CardContent>
             </Card>
 
-            {/* Bottom bar with section pills + actions */}
+            {/* Bottom bar with actions */}
             <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border/70 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-                <div className="flex w-full items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
-                    <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                        {sections.map((section, sectionIndex) => (
+                <div className="flex w-full items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
+                    <div className="flex flex-1 items-center gap-1.5 overflow-x-auto xl:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        {sections.map((section, idx) => (
                             <button
                                 key={section.id}
                                 type="button"
                                 onClick={() => focusSection(section.id)}
-                                className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors animate-in fade-in-0 zoom-in-95 duration-200 ${
+                                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                                     activeSectionId === section.id
-                                        ? "border-primary/35 bg-primary/10 text-foreground"
-                                        : "border-border/70 bg-muted/15 text-muted-foreground hover:bg-muted/30"
+                                        ? "bg-primary/15 text-primary"
+                                        : section.enabled
+                                          ? "bg-muted text-foreground hover:bg-muted/80"
+                                          : "bg-muted/50 text-muted-foreground"
                                 }`}
                             >
-                                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-background text-[10px] font-semibold shadow-sm">
-                                    {sectionIndex + 1}
-                                </span>
-                                <span className="hidden max-w-[80px] truncate sm:inline">
-                                    {section.title || "Untitled"}
-                                </span>
-                                <span
-                                    className={`inline-flex h-1.5 w-1.5 rounded-full ${
-                                        section.enabled
-                                            ? "bg-emerald-500"
-                                            : "bg-muted-foreground/40"
-                                    }`}
-                                />
+                                {section.title || `Section ${idx + 1}`}
                             </button>
                         ))}
                     </div>
-                    <div className="flex shrink-0 items-center gap-3">
+                    <div className="flex shrink-0 items-center gap-3 ml-auto">
                         <Button
                             variant="outline"
                             size="sm"
@@ -1947,6 +2004,8 @@ export function TemplateEditor({
                 field={displayField}
                 open={dialogOpen}
                 sectionId={displaySectionId}
+                dialogClassName={isPortal ? "force-light" : undefined}
+                dialogStyle={portalStyle}
                 onClose={closeFieldEditor}
                 onSetFieldType={setFieldType}
                 onUpdateField={updateField}

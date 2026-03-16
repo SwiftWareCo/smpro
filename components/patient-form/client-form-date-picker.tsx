@@ -243,7 +243,7 @@ export function ClientFormDatePicker({
                     </span>
                 </button>
             </PopoverTrigger>
-            <PopoverContent className="w-[280px] p-0" align="start">
+            <PopoverContent className="force-light w-[280px] p-0" align="start">
                 {/* Header */}
                 <div className="flex items-center gap-2 border-b px-3 py-2">
                     {step !== "year" && (

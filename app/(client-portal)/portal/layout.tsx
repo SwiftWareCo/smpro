@@ -53,7 +53,7 @@ export default async function TenantPortalLayout({
     return (
         <div
             style={themeStyle}
-            className="min-h-svh bg-background text-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="force-light min-h-svh bg-background text-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
             <SidebarProvider defaultOpen={false}>
                 <PortalSidebar clientName={tenant.name} />
@@ -78,6 +78,8 @@ export default async function TenantPortalLayout({
                         <PortalClientProvider
                             clientId={tenant._id as Id<"clients">}
                             clientName={tenant.name}
+                            portalPrimaryColor={tenant.portalPrimaryColor}
+                            portalSecondaryColor={tenant.portalSecondaryColor}
                         >
                             {children}
                         </PortalClientProvider>

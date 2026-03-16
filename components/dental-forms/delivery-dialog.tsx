@@ -48,6 +48,8 @@ interface DeliveryDialogProps {
     onOpenChange: (open: boolean) => void;
     clientId: Id<"clients">;
     template: Doc<"formTemplates"> | null;
+    dialogClassName?: string;
+    dialogStyle?: React.CSSProperties;
 }
 
 const channelOptions: {
@@ -81,16 +83,13 @@ const buttonLabels: Record<DeliveryChannel, string> = {
 };
 
 const statusColors: Record<string, string> = {
-    pending:
-        "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
-    sent: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-    delivered:
-        "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-    opened: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300",
-    completed:
-        "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-    expired: "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300",
-    failed: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+    pending: "bg-yellow-100 text-yellow-800",
+    sent: "bg-blue-100 text-blue-800",
+    delivered: "bg-blue-100 text-blue-800",
+    opened: "bg-indigo-100 text-indigo-800",
+    completed: "bg-green-100 text-green-800",
+    expired: "bg-gray-100 text-gray-800",
+    failed: "bg-red-100 text-red-800",
 };
 
 async function copyToClipboard(text: string): Promise<void> {
@@ -126,6 +125,8 @@ export function DeliveryDialog({
     onOpenChange,
     clientId,
     template,
+    dialogClassName,
+    dialogStyle,
 }: DeliveryDialogProps) {
     const [channel, setChannel] = useState<DeliveryChannel>("link");
     const [recipientEmail, setRecipientEmail] = useState("");
@@ -294,7 +295,7 @@ h2{margin-bottom:16px;color:#333;}p{color:#666;font-size:14px;margin-top:12px;}<
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className={`sm:max-w-md ${dialogClassName ?? ""}`} style={dialogStyle}>
                 <DialogHeader>
                     <DialogTitle>Send Form to Patient</DialogTitle>
                     <DialogDescription>
@@ -353,9 +354,9 @@ h2{margin-bottom:16px;color:#333;}p{color:#666;font-size:14px;margin-top:12px;}<
                                     </div>
                                 )}
                                 {emailSent && (
-                                    <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-900 dark:bg-green-950">
-                                        <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                        <p className="text-sm text-green-700 dark:text-green-300">
+                                    <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-3">
+                                        <CheckCircle className="h-4 w-4 text-green-600" />
+                                        <p className="text-sm text-green-700">
                                             Email sent to {recipientEmail}
                                         </p>
                                     </div>
@@ -446,7 +447,7 @@ h2{margin-bottom:16px;color:#333;}p{color:#666;font-size:14px;margin-top:12px;}<
                                     <SelectTrigger>
                                         <SelectValue />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent className={dialogClassName}>
                                         {channelOptions.map((opt) => (
                                             <SelectItem
                                                 key={opt.value}

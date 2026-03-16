@@ -145,7 +145,7 @@ export function resolveTenantThemePalette(input: {
     const accent = mixHex(primary, SURFACE_BASE, 0.16);
     const muted = mixHex(secondary, CANVAS_BASE, 0.42);
     const border = mixHex(BORDER_BASE, primary, 0.66);
-    const inputColor = SURFACE_BASE;
+    const inputColor = BORDER_BASE;
     const sidebar = mixHex(primary, CANVAS_BASE, 0.14);
     const sidebarAccent = mixHex(primary, SURFACE_BASE, 0.2);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type KeyboardEvent, type MouseEvent } from "react";
+import { useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id, Doc } from "@/convex/_generated/dataModel";
@@ -33,6 +33,7 @@ import {
     Copy,
     Eye,
     FileText,
+    MoreVertical,
     Plus,
     Pencil,
     Trash2,
@@ -49,11 +50,19 @@ import {
     DialogTitle,
     DialogDescription,
 } from "@/components/ui/dialog";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FormRenderer } from "@/components/patient-form/form-renderer";
 import { TemplateEditor } from "./template-editor";
 import { DeliveryDialog } from "./delivery-dialog";
 import { formatProjectDate, formatProjectDateTime } from "@/lib/date-utils";
+import { buildTenantThemeStyle } from "@/lib/tenant-theme";
 
 interface TemplateListProps {
     clientId: Id<"clients">;
@@ -61,6 +70,8 @@ interface TemplateListProps {
     readOnly?: boolean;
     copyVariant?: "template" | "form";
     clientName?: string;
+    portalPrimaryColor?: string | null;
+    portalSecondaryColor?: string | null;
 }
 
 const statusColors: Record<string, string> = {
@@ -81,6 +92,8 @@ export function TemplateList({
     readOnly,
     copyVariant = "template",
     clientName,
+    portalPrimaryColor,
+    portalSecondaryColor,
 }: TemplateListProps) {
     const [showEditor, setShowEditor] = useState(false);
     const [editingTemplate, setEditingTemplate] =
@@ -94,6 +107,24 @@ export function TemplateList({
     const [deliveryOpen, setDeliveryOpen] = useState(false);
     const [previewTemplate, setPreviewTemplate] =
         useState<Doc<"formTemplates"> | null>(null);
+    const previewSnapshot = useRef<Doc<"formTemplates"> | null>(null);
+    if (previewTemplate) previewSnapshot.current = previewTemplate;
+    const displayPreview = previewTemplate ?? previewSnapshot.current;
+
+    const isPortal = !!(portalPrimaryColor || portalSecondaryColor);
+    const portalDialogStyle = useMemo(
+        () =>
+            isPortal
+                ? {
+                      colorScheme: "light" as const,
+                      ...buildTenantThemeStyle({
+                          primaryColor: portalPrimaryColor,
+                          secondaryColor: portalSecondaryColor,
+                      }),
+                  }
+                : undefined,
+        [isPortal, portalPrimaryColor, portalSecondaryColor],
+    );
 
     const updateTemplate = useMutation(api.formTemplates.update);
     const removeTemplate = useMutation(api.formTemplates.remove);
@@ -198,6 +229,8 @@ export function TemplateList({
                 clientId={clientId}
                 template={editingTemplate}
                 copyVariant={copyVariant}
+                portalPrimaryColor={portalPrimaryColor}
+                portalSecondaryColor={portalSecondaryColor}
                 onClose={() => {
                     setShowEditor(false);
                     setEditingTemplate(null);
@@ -301,7 +334,7 @@ export function TemplateList({
                                                 </CardDescription>
                                             )}
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2" onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()}>
                                             <Badge
                                                 variant="secondary"
                                                 className={
@@ -339,167 +372,43 @@ export function TemplateList({
                                                 </Tooltip>
                                             </div>
                                             {!readOnly && (
-                                                <div className="flex items-center gap-0.5">
-                                                    {template.status ===
-                                                        "draft" && (
-                                                        <Tooltip>
-                                                            <TooltipTrigger
-                                                                asChild
-                                                            >
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="h-8 w-8"
-                                                                    onClick={(
-                                                                        event,
-                                                                    ) => {
-                                                                        stopCardClick(
-                                                                            event,
-                                                                        );
-                                                                        handleStatusChange(
-                                                                            template._id,
-                                                                            "active",
-                                                                        );
-                                                                    }}
-                                                                >
-                                                                    <CheckCircle className="h-4 w-4" />
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                Activate
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    )}
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-8 w-8"
-                                                                onClick={(
-                                                                    event,
-                                                                ) => {
-                                                                    stopCardClick(
-                                                                        event,
-                                                                    );
-                                                                    openTemplateEditor(
-                                                                        template,
-                                                                    );
-                                                                }}
-                                                            >
-                                                                <Pencil className="h-4 w-4" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            Edit
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-8 w-8"
-                                                                onClick={(
-                                                                    event,
-                                                                ) => {
-                                                                    stopCardClick(
-                                                                        event,
-                                                                    );
-                                                                    handleDuplicate(
-                                                                        template,
-                                                                    );
-                                                                }}
-                                                            >
-                                                                <Copy className="h-4 w-4" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            Duplicate
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                    {template.status ===
-                                                        "active" && (
-                                                        <Tooltip>
-                                                            <TooltipTrigger
-                                                                asChild
-                                                            >
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="h-8 w-8"
-                                                                    onClick={(
-                                                                        event,
-                                                                    ) => {
-                                                                        stopCardClick(
-                                                                            event,
-                                                                        );
-                                                                        setDeliveryTemplate(
-                                                                            template,
-                                                                        );
-                                                                        setDeliveryOpen(
-                                                                            true,
-                                                                        );
-                                                                    }}
-                                                                >
-                                                                    <Send className="h-4 w-4" />
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                Send to Patient
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    )}
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-8 w-8"
-                                                                onClick={(
-                                                                    event,
-                                                                ) => {
-                                                                    stopCardClick(
-                                                                        event,
-                                                                    );
-                                                                    setTranslateTarget(
-                                                                        template,
-                                                                    );
-                                                                }}
-                                                            >
-                                                                <Languages className="h-4 w-4" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            Translate or
-                                                            retranslate
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-8 w-8 text-destructive hover:text-destructive"
-                                                                onClick={(
-                                                                    event,
-                                                                ) => {
-                                                                    stopCardClick(
-                                                                        event,
-                                                                    );
-                                                                    setDeleteTarget(
-                                                                        template,
-                                                                    );
-                                                                }}
-                                                            >
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            Delete
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </div>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8"
+                                                            onClick={stopCardClick}
+                                                        >
+                                                            <MoreVertical className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className={isPortal ? "force-light" : undefined} style={portalDialogStyle} onCloseAutoFocus={(e) => e.preventDefault()}>
+                                                        {template.status === "draft" && (
+                                                            <DropdownMenuItem onClick={() => handleStatusChange(template._id, "active")}>
+                                                                <CheckCircle className="mr-2 h-4 w-4" /> Activate
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        <DropdownMenuItem onClick={() => openTemplateEditor(template)}>
+                                                            <Pencil className="mr-2 h-4 w-4" /> Edit
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleDuplicate(template)}>
+                                                            <Copy className="mr-2 h-4 w-4" /> Duplicate
+                                                        </DropdownMenuItem>
+                                                        {template.status === "active" && (
+                                                            <DropdownMenuItem onClick={() => { setDeliveryTemplate(template); setDeliveryOpen(true); }}>
+                                                                <Send className="mr-2 h-4 w-4" /> Send to Patient
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        <DropdownMenuItem onClick={() => setTranslateTarget(template)}>
+                                                            <Languages className="mr-2 h-4 w-4" /> Translate
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(template)}>
+                                                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             )}
                                         </div>
                                     </div>
@@ -668,7 +577,7 @@ export function TemplateList({
                 open={!!deleteTarget}
                 onOpenChange={(open) => !open && setDeleteTarget(null)}
             >
-                <AlertDialogContent>
+                <AlertDialogContent className={isPortal ? "force-light" : undefined} style={portalDialogStyle}>
                     <AlertDialogHeader>
                         <AlertDialogTitle>
                             {copyVariant === "form"
@@ -697,7 +606,7 @@ export function TemplateList({
                 open={!!translateTarget}
                 onOpenChange={(open) => !open && setTranslateTarget(null)}
             >
-                <AlertDialogContent>
+                <AlertDialogContent className={isPortal ? "force-light" : undefined} style={portalDialogStyle}>
                     <AlertDialogHeader>
                         <AlertDialogTitle>
                             {(() => {
@@ -749,24 +658,35 @@ export function TemplateList({
                 onOpenChange={setDeliveryOpen}
                 clientId={clientId}
                 template={deliveryTemplate}
+                dialogClassName={isPortal ? "force-light" : undefined}
+                dialogStyle={portalDialogStyle}
             />
 
             <Dialog
                 open={!!previewTemplate}
                 onOpenChange={(open) => !open && setPreviewTemplate(null)}
             >
-                <DialogContent className="sm:max-w-6xl p-0 gap-0">
+                <DialogContent
+                    className="force-light sm:max-w-6xl p-0 gap-0 duration-300"
+                    style={{
+                        colorScheme: "light",
+                        ...buildTenantThemeStyle({
+                            primaryColor: portalPrimaryColor,
+                            secondaryColor: portalSecondaryColor,
+                        }),
+                    }}
+                >
                     <DialogHeader className="px-6 pt-6 pb-0">
                         <DialogTitle>Form Preview</DialogTitle>
                         <DialogDescription>
-                            Preview of &quot;{previewTemplate?.name}&quot; as
+                            Preview of &quot;{displayPreview?.name}&quot; as
                             patients will see it
                         </DialogDescription>
                     </DialogHeader>
                     <ScrollArea className="max-h-[70vh] px-6 pb-6 pt-4">
-                        {previewTemplate && (
+                        {displayPreview && (
                             <FormRenderer
-                                template={previewTemplate}
+                                template={displayPreview}
                                 language="en"
                                 clientName={clientName ?? "Your Practice"}
                                 preview

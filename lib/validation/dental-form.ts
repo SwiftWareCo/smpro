@@ -39,6 +39,7 @@ export const templateFieldSchema = z.object({
     options: z.array(z.string()).optional(),
     validation: fieldValidationSchema.optional(),
     followUp: followUpSchema.optional(),
+    width: z.enum(["third", "half", "full"]).optional(),
 });
 
 export const templateSectionSchema = z.object({
