@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { FORM_LANGUAGES } from "@/lib/patient-form-i18n";
+import { parseMultipleChoiceValue } from "@/lib/multiple-choice";
 
 export const fieldTypeSchema = z.enum([
     "text",
@@ -10,6 +11,7 @@ export const fieldTypeSchema = z.enum([
     "select",
     "radio",
     "checkbox",
+    "multiSelect",
     "number",
     "signature",
     "address",
@@ -158,6 +160,14 @@ export function validateSubmissionData(
             !(field.options ?? []).includes(value)
         ) {
             throw new Error(`${field.label} has an invalid selection`);
+        }
+
+        if (field.type === "multiSelect" && value) {
+            const selected = parseMultipleChoiceValue(value);
+            const allowed = field.options ?? [];
+            if (!selected.every((v) => allowed.includes(v))) {
+                throw new Error(`${field.label} has an invalid selection`);
+            }
         }
 
         if (

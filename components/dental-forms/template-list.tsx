@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/tooltip";
 import {
     Copy,
+    Eye,
     FileText,
     Plus,
     Pencil,
@@ -41,6 +42,15 @@ import {
     Loader2,
     CircleAlert,
 } from "lucide-react";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { FormRenderer } from "@/components/patient-form/form-renderer";
 import { TemplateEditor } from "./template-editor";
 import { DeliveryDialog } from "./delivery-dialog";
 import { formatProjectDate, formatProjectDateTime } from "@/lib/date-utils";
@@ -50,6 +60,7 @@ interface TemplateListProps {
     templates: Doc<"formTemplates">[];
     readOnly?: boolean;
     copyVariant?: "template" | "form";
+    clientName?: string;
 }
 
 const statusColors: Record<string, string> = {
@@ -69,6 +80,7 @@ export function TemplateList({
     templates,
     readOnly,
     copyVariant = "template",
+    clientName,
 }: TemplateListProps) {
     const [showEditor, setShowEditor] = useState(false);
     const [editingTemplate, setEditingTemplate] =
@@ -80,6 +92,8 @@ export function TemplateList({
     const [deliveryTemplate, setDeliveryTemplate] =
         useState<Doc<"formTemplates"> | null>(null);
     const [deliveryOpen, setDeliveryOpen] = useState(false);
+    const [previewTemplate, setPreviewTemplate] =
+        useState<Doc<"formTemplates"> | null>(null);
 
     const updateTemplate = useMutation(api.formTemplates.update);
     const removeTemplate = useMutation(api.formTemplates.remove);
@@ -298,6 +312,32 @@ export function TemplateList({
                                             >
                                                 {template.status}
                                             </Badge>
+                                            <div className="flex items-center gap-0.5">
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8"
+                                                            onClick={(
+                                                                event,
+                                                            ) => {
+                                                                stopCardClick(
+                                                                    event,
+                                                                );
+                                                                setPreviewTemplate(
+                                                                    template,
+                                                                );
+                                                            }}
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        Preview
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </div>
                                             {!readOnly && (
                                                 <div className="flex items-center gap-0.5">
                                                     {template.status ===
@@ -710,6 +750,30 @@ export function TemplateList({
                 clientId={clientId}
                 template={deliveryTemplate}
             />
+
+            <Dialog
+                open={!!previewTemplate}
+                onOpenChange={(open) => !open && setPreviewTemplate(null)}
+            >
+                <DialogContent className="sm:max-w-3xl p-0 gap-0">
+                    <DialogHeader className="px-6 pt-6 pb-0">
+                        <DialogTitle>Form Preview</DialogTitle>
+                        <DialogDescription>
+                            Preview of &quot;{previewTemplate?.name}&quot; as patients will see it
+                        </DialogDescription>
+                    </DialogHeader>
+                    <ScrollArea className="max-h-[70vh] px-6 pb-6 pt-4">
+                        {previewTemplate && (
+                            <FormRenderer
+                                template={previewTemplate}
+                                language="en"
+                                clientName={clientName ?? "Your Practice"}
+                                preview
+                            />
+                        )}
+                    </ScrollArea>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

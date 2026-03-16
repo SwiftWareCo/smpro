@@ -11,9 +11,10 @@ import { Loader2 } from "lucide-react";
 
 interface PatientFormsTabProps {
     clientId: Id<"clients">;
+    clientName?: string;
 }
 
-export function PatientFormsTab({ clientId }: PatientFormsTabProps) {
+export function PatientFormsTab({ clientId, clientName }: PatientFormsTabProps) {
     const [subTab, setSubTab] = useState("templates");
     const { isLoading, isAuthenticated } = useConvexAuth();
 
@@ -52,6 +53,7 @@ export function PatientFormsTab({ clientId }: PatientFormsTabProps) {
                         clientId={clientId}
                         templates={templates}
                         readOnly
+                        clientName={clientName}
                     />
                 </TabsContent>
 

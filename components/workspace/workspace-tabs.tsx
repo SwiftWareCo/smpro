@@ -135,7 +135,7 @@ export function WorkspaceTabs({
                             value={moduleType}
                             className="mt-4"
                         >
-                            <PatientFormsTab clientId={client._id} />
+                            <PatientFormsTab clientId={client._id} clientName={client.name} />
                         </TabsContent>
                     );
                 }

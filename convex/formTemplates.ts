@@ -18,6 +18,7 @@ const fieldValidator = v.object({
         v.literal("select"),
         v.literal("radio"),
         v.literal("checkbox"),
+        v.literal("multiSelect"),
         v.literal("number"),
         v.literal("signature"),
         v.literal("address"),

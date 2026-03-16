@@ -29,7 +29,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, LockKeyhole, ChevronRight } from "lucide-react";
+import { Loader2, LockKeyhole, ChevronRight, Eye } from "lucide-react";
 import { ClientFormDatePicker } from "./client-form-date-picker";
 import { ConsentNotice } from "./consent-notice";
 import { SignaturePad } from "./signature-pad";
@@ -39,6 +39,10 @@ import {
     isRtlLanguage,
     type FormLanguage,
 } from "@/lib/patient-form-i18n";
+import {
+    parseMultipleChoiceValue,
+    serializeMultipleChoiceValue,
+} from "@/lib/multiple-choice";
 
 type TemplateSectionDoc = Doc<"formTemplates">["sections"][number];
 type TemplateFieldDoc = TemplateSectionDoc["fields"][number];
@@ -46,10 +50,11 @@ type FormValues = Record<string, string>;
 
 interface FormRendererProps {
     template: Doc<"formTemplates">;
-    token: string;
+    token?: string;
     language: FormLanguage;
     clientName: string;
     onSubmitStart?: () => void;
+    preview?: boolean;
 }
 
 interface FormStep {
@@ -71,7 +76,7 @@ function isInteractiveField(field: TemplateFieldDoc): boolean {
 
 /** Fields that need full width in the 2-col grid */
 function isWideField(field: TemplateFieldDoc): boolean {
-    if (field.type === "radio") {
+    if (field.type === "radio" || field.type === "multiSelect") {
         const options = field.options ?? [];
         return options.length > 4 || options.some((o) => o.length > 20);
     }
@@ -111,6 +116,18 @@ function getFieldRules(
             return (
                 (field.options ?? []).includes(value) || copy.invalidSelection
             );
+        };
+    }
+
+    if (field.type === "multiSelect") {
+        rules.validate = (value) => {
+            const selected = parseMultipleChoiceValue(value);
+            if (selected.length === 0) {
+                return field.required ? copy.requiredField(field.label) : true;
+            }
+            const allowed = field.options ?? [];
+            const allValid = selected.every((v) => allowed.includes(v));
+            return allValid || copy.invalidSelection;
         };
     }
 
@@ -173,6 +190,7 @@ export function FormRenderer({
     language,
     clientName,
     onSubmitStart,
+    preview,
 }: FormRendererProps) {
     const router = useRouter();
     const [submitting, setSubmitting] = useState(false);
@@ -346,6 +364,7 @@ export function FormRenderer({
             formData[key] = value;
         }
 
+        if (preview || !token) return;
         onSubmitStart?.();
         setSubmitting(true);
         try {
@@ -654,6 +673,74 @@ export function FormRenderer({
                     />
                 )}
 
+                {field.type === "multiSelect" && (
+                    <Controller
+                        name={field.id}
+                        control={control}
+                        rules={getFieldRules(field, language)}
+                        render={({ field: controllerField }) => {
+                            const options = field.options ?? [];
+                            const selected = parseMultipleChoiceValue(
+                                controllerField.value ?? "",
+                            );
+                            const useInline =
+                                options.length <= 4 &&
+                                options.every((o) => o.length <= 20);
+                            return (
+                                <div
+                                    className={
+                                        useInline
+                                            ? "flex flex-wrap gap-2"
+                                            : "space-y-2"
+                                    }
+                                >
+                                    {options.map((option) => {
+                                        const isChecked =
+                                            selected.includes(option);
+                                        return (
+                                            <div
+                                                key={option}
+                                                className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2"
+                                            >
+                                                <Checkbox
+                                                    id={`${field.id}-${option}`}
+                                                    checked={isChecked}
+                                                    onCheckedChange={(
+                                                        checked,
+                                                    ) => {
+                                                        const next =
+                                                            checked === true
+                                                                ? [
+                                                                      ...selected,
+                                                                      option,
+                                                                  ]
+                                                                : selected.filter(
+                                                                      (v) =>
+                                                                          v !==
+                                                                          option,
+                                                                  );
+                                                        controllerField.onChange(
+                                                            serializeMultipleChoiceValue(
+                                                                next,
+                                                            ),
+                                                        );
+                                                    }}
+                                                />
+                                                <Label
+                                                    htmlFor={`${field.id}-${option}`}
+                                                    className="text-sm font-normal"
+                                                >
+                                                    {option}
+                                                </Label>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        }}
+                    />
+                )}
+
                 {field.type === "address" && (
                     <Controller
                         name={field.id}
@@ -718,8 +805,19 @@ export function FormRenderer({
         </Card>
     );
 
+    const Wrapper = preview ? "div" : "form";
+    const wrapperProps = preview
+        ? { className: "space-y-6" }
+        : { onSubmit: handleFormSubmit, className: "space-y-6" };
+
     return (
-        <form onSubmit={handleFormSubmit} className="space-y-6">
+        <Wrapper {...(wrapperProps as React.HTMLAttributes<HTMLElement>)}>
+            {preview && (
+                <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-primary">
+                    <Eye className="h-4 w-4 shrink-0" />
+                    Preview — this is what patients will see
+                </div>
+            )}
             <div className="space-y-3">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
@@ -858,7 +956,7 @@ export function FormRenderer({
                     <div className="space-y-6">
                         {currentStep.kind === "section" ? (
                             currentStep.sections.map(renderSectionCard)
-                        ) : (
+                        ) : preview ? null : (
                             <Card className="rounded-2xl sm:rounded-3xl border-border/70 shadow-sm">
                                 <CardHeader>
                                     <CardTitle>{copy.reviewTitle}</CardTitle>
@@ -907,7 +1005,7 @@ export function FormRenderer({
                                 {copy.back}
                             </Button>
 
-                            {isFinalWizardStep ? (
+                            {preview && isFinalWizardStep ? null : isFinalWizardStep ? (
                                 <Button
                                     type="submit"
                                     disabled={submitting || !consentAgreed}
@@ -941,44 +1039,48 @@ export function FormRenderer({
                 <>
                     {enabledSections.map(renderSectionCard)}
 
-                    <ConsentNotice
-                        consentText={copy.consentNoticeText}
-                        consentVersion="1.0"
-                        language={language}
-                        agreed={consentAgreed}
-                        onAgreeChange={(agreed) =>
-                            setValue(CONSENT_FIELD_ID, agreed ? "true" : "", {
-                                shouldValidate: true,
-                            })
-                        }
-                    />
+                    {!preview && (
+                        <>
+                            <ConsentNotice
+                                consentText={copy.consentNoticeText}
+                                consentVersion="1.0"
+                                language={language}
+                                agreed={consentAgreed}
+                                onAgreeChange={(agreed) =>
+                                    setValue(CONSENT_FIELD_ID, agreed ? "true" : "", {
+                                        shouldValidate: true,
+                                    })
+                                }
+                            />
 
-                    {getErrorMessage(errors[CONSENT_FIELD_ID]) && (
-                        <p className="text-center text-sm text-destructive">
-                            {getErrorMessage(errors[CONSENT_FIELD_ID])}
-                        </p>
+                            {getErrorMessage(errors[CONSENT_FIELD_ID]) && (
+                                <p className="text-center text-sm text-destructive">
+                                    {getErrorMessage(errors[CONSENT_FIELD_ID])}
+                                </p>
+                            )}
+
+                            <Button
+                                type="submit"
+                                disabled={submitting || !consentAgreed}
+                                className="h-12 w-full text-base"
+                            >
+                                {submitting ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                        {copy.submitting}
+                                    </>
+                                ) : (
+                                    copy.submit
+                                )}
+                            </Button>
+                        </>
                     )}
-
-                    <Button
-                        type="submit"
-                        disabled={submitting || !consentAgreed}
-                        className="h-12 w-full text-base"
-                    >
-                        {submitting ? (
-                            <>
-                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                {copy.submitting}
-                            </>
-                        ) : (
-                            copy.submit
-                        )}
-                    </Button>
                 </>
             )}
 
             <p className="text-center text-xs text-muted-foreground">
                 {copy.encryptedFooter}
             </p>
-        </form>
+        </Wrapper>
     );
 }

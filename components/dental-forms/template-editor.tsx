@@ -76,6 +76,7 @@ const FIELD_TYPES: { value: FieldType; label: string }[] = [
     { value: "number", label: "Number" },
     { value: "select", label: "Dropdown" },
     { value: "radio", label: "Single Choice" },
+    { value: "multiSelect", label: "Multiple Choice" },
     { value: "checkbox", label: "Checkbox" },
     { value: "signature", label: "Signature" },
     { value: "address", label: "Address" },
@@ -147,6 +148,10 @@ function getDefaultOptions(fieldType: FieldType): string[] | undefined {
         return ["Choice 1", "Choice 2"];
     }
 
+    if (fieldType === "multiSelect") {
+        return ["Option 1", "Option 2", "Option 3"];
+    }
+
     return undefined;
 }
 
@@ -157,6 +162,10 @@ function getDefaultFieldLabel(fieldType: FieldType): string {
 
     if (fieldType === "select") {
         return "New dropdown";
+    }
+
+    if (fieldType === "multiSelect") {
+        return "New multiple choice";
     }
 
     return "New field";
@@ -174,13 +183,13 @@ function createField(fieldType: FieldType = "text"): TemplateField {
 }
 
 function supportsPlaceholder(fieldType: FieldType): boolean {
-    return !["date", "select", "radio", "signature", "address"].includes(
+    return !["date", "select", "radio", "multiSelect", "signature", "address"].includes(
         fieldType,
     );
 }
 
 function supportsOptions(fieldType: FieldType): boolean {
-    return fieldType === "select" || fieldType === "radio";
+    return fieldType === "select" || fieldType === "radio" || fieldType === "multiSelect";
 }
 
 function supportsValidation(fieldType: FieldType): boolean {

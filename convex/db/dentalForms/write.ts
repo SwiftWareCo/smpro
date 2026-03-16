@@ -22,6 +22,7 @@ interface TemplateField {
         | "select"
         | "radio"
         | "checkbox"
+        | "multiSelect"
         | "number"
         | "signature"
         | "address";
