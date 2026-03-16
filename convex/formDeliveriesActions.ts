@@ -81,7 +81,12 @@ export const createLink = action({
         const isPatientChoice = !rawLang || rawLang === "patient_choice";
 
         // Use pre-computed translations from the template
-        const templateTranslations = (template as unknown as { translations?: LocalizedTemplateSnapshot[] }).translations ?? [];
+        const templateTranslations =
+            (
+                template as unknown as {
+                    translations?: LocalizedTemplateSnapshot[];
+                }
+            ).translations ?? [];
 
         let preferredLanguage: FormLanguage | undefined;
         let localizedTemplate: LocalizedTemplateSnapshot | undefined;
@@ -193,10 +198,12 @@ export const sendEmail = action({
     handler: async (ctx, args) => {
         await requireUserId(ctx);
 
-        const client = await ctx.runQuery(api.clients.get, {
-            clientId: args.clientId,
-        });
-        const clinicName = client?.name ?? "Your Clinic";
+        const clinicName = await ctx.runQuery(
+            internal.clients.getAccessibleName,
+            {
+                clientId: args.clientId,
+            },
+        );
 
         const apiKey = process.env.RESEND_API_KEY;
         if (!apiKey) {

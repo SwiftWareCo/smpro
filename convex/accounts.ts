@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAgencyAdminUserId } from "./_lib/auth";
+import { getAgencyAdminUserId, requireAgencyAdminUserId } from "./_lib/auth";
 import * as AccountsRead from "./db/accounts/read";
 import * as AccountsWrite from "./db/accounts/write";
 import * as ContentWrite from "./db/content/write";
@@ -8,7 +8,8 @@ import * as ContentWrite from "./db/content/write";
 export const list = query({
     args: {},
     handler: async (ctx) => {
-        const userId = await requireAgencyAdminUserId(ctx);
+        const userId = await getAgencyAdminUserId(ctx);
+        if (!userId) return [];
         return AccountsRead.listByUser(ctx, userId);
     },
 });
@@ -16,7 +17,8 @@ export const list = query({
 export const listByPlatform = query({
     args: { platform: v.string() },
     handler: async (ctx, args) => {
-        const userId = await requireAgencyAdminUserId(ctx);
+        const userId = await getAgencyAdminUserId(ctx);
+        if (!userId) return [];
         return AccountsRead.listByPlatform(ctx, userId, args.platform);
     },
 });
@@ -24,7 +26,8 @@ export const listByPlatform = query({
 export const listByClient = query({
     args: { clientId: v.id("clients") },
     handler: async (ctx, args) => {
-        const userId = await requireAgencyAdminUserId(ctx);
+        const userId = await getAgencyAdminUserId(ctx);
+        if (!userId) return [];
         return AccountsRead.listByClient(ctx, userId, args.clientId);
     },
 });
@@ -32,7 +35,8 @@ export const listByClient = query({
 export const listUnlinked = query({
     args: {},
     handler: async (ctx) => {
-        const userId = await requireAgencyAdminUserId(ctx);
+        const userId = await getAgencyAdminUserId(ctx);
+        if (!userId) return [];
         return AccountsRead.listUnlinked(ctx, userId);
     },
 });
@@ -40,7 +44,8 @@ export const listUnlinked = query({
 export const countByClient = query({
     args: { clientId: v.id("clients") },
     handler: async (ctx, args) => {
-        const userId = await requireAgencyAdminUserId(ctx);
+        const userId = await getAgencyAdminUserId(ctx);
+        if (!userId) return { instagram: 0, facebook: 0 };
         return AccountsRead.countByClient(ctx, userId, args.clientId);
     },
 });
@@ -48,7 +53,8 @@ export const countByClient = query({
 export const countByPlatform = query({
     args: { clientId: v.id("clients") },
     handler: async (ctx, args) => {
-        const userId = await requireAgencyAdminUserId(ctx);
+        const userId = await getAgencyAdminUserId(ctx);
+        if (!userId) return { instagram: 0, facebook: 0 };
         return AccountsRead.countByPlatform(ctx, userId, args.clientId);
     },
 });

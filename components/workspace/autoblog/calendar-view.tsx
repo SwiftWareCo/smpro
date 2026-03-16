@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id, Doc } from "@/convex/_generated/dataModel";
+import { useAuthenticatedQuery } from "@/hooks/use-authenticated-query";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -51,7 +51,7 @@ export function CalendarView({ clientId }: CalendarViewProps) {
     const startDate = startOfMonth(currentMonth).getTime();
     const endDate = endOfMonth(currentMonth).getTime();
 
-    const posts = useQuery(api.autoblog.listPostsForCalendar, {
+    const posts = useAuthenticatedQuery(api.autoblog.listPostsForCalendar, {
         clientId,
         startDate,
         endDate,

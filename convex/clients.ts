@@ -1,6 +1,16 @@
 import { ConvexError, v } from "convex/values";
-import { internalMutation, mutation, query } from "./_generated/server";
-import { requireAgencyAdminUserId, requireUserId } from "./_lib/auth";
+import {
+    internalMutation,
+    internalQuery,
+    mutation,
+    query,
+} from "./_generated/server";
+import {
+    getAgencyAdminUserId,
+    requireAgencyAdminUserId,
+    requireClientAccess,
+    requireUserId,
+} from "./_lib/auth";
 import * as AccountsRead from "./db/accounts/read";
 import * as AccountsWrite from "./db/accounts/write";
 import * as ClientsRead from "./db/clients/read";
@@ -149,7 +159,8 @@ function buildSetupStatus(items: ChecklistItem[]): SetupStatus {
 export const list = query({
     args: {},
     handler: async (ctx) => {
-        const userId = await requireAgencyAdminUserId(ctx);
+        const userId = await getAgencyAdminUserId(ctx);
+        if (!userId) return [];
         return ClientsRead.listByUser(ctx, userId);
     },
 });
@@ -157,20 +168,28 @@ export const list = query({
 export const get = query({
     args: { clientId: v.id("clients") },
     handler: async (ctx, args) => {
-        const userId = await requireAgencyAdminUserId(ctx);
+        const userId = await getAgencyAdminUserId(ctx);
+        if (!userId) return null;
         const client = await ClientsRead.getById(ctx, args.clientId);
-        if (!client) return null;
-        if (client.userId !== userId) {
-            throw new Error("Unauthorized");
-        }
+        if (!client || client.userId !== userId) return null;
         return client;
+    },
+});
+
+export const getAccessibleName = internalQuery({
+    args: { clientId: v.id("clients") },
+    returns: v.string(),
+    handler: async (ctx, args) => {
+        const client = await requireClientAccess(ctx, args.clientId);
+        return client.name;
     },
 });
 
 export const getSummary = query({
     args: { clientId: v.id("clients") },
     handler: async (ctx, args) => {
-        const userId = await requireAgencyAdminUserId(ctx);
+        const userId = await getAgencyAdminUserId(ctx);
+        if (!userId) return null;
         const client = await ClientsRead.getById(ctx, args.clientId);
         if (!client || client.userId !== userId) {
             return null;
@@ -396,7 +415,8 @@ export const remove = mutation({
 export const getSetupStatus = query({
     args: { clientId: v.id("clients") },
     handler: async (ctx, args) => {
-        const userId = await requireAgencyAdminUserId(ctx);
+        const userId = await getAgencyAdminUserId(ctx);
+        if (!userId) return buildSetupStatus([]);
         const client = await ClientsRead.getById(ctx, args.clientId);
         if (!client || client.userId !== userId) {
             return buildSetupStatus([]);
@@ -426,7 +446,8 @@ export const getSetupStatus = query({
 export const getSetupStatuses = query({
     args: { clientIds: v.array(v.id("clients")) },
     handler: async (ctx, args) => {
-        const userId = await requireAgencyAdminUserId(ctx);
+        const userId = await getAgencyAdminUserId(ctx);
+        if (!userId) return [];
         const results: Array<{ clientId: string; status: SetupStatus }> = [];
 
         for (const clientId of args.clientIds) {

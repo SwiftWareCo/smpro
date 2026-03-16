@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useAuthenticatedQuery } from "@/hooks/use-authenticated-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -46,7 +47,7 @@ const isPostingCadence = (value: string): value is PostingCadence =>
 type WizardStep = "connect" | "repository" | "settings";
 
 export function AutoblogTab({ clientId }: AutoblogTabProps) {
-    const settings = useQuery(api.autoblog.getSettings, { clientId });
+    const settings = useAuthenticatedQuery(api.autoblog.getSettings, { clientId });
     const upsertSettings = useMutation(api.autoblog.upsertSettings);
     const saveGithubInstallation = useMutation(
         api.autoblog.saveGithubInstallation,

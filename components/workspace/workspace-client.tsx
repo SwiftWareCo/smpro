@@ -1,12 +1,12 @@
 "use client";
 
-import { useQuery } from "convex/react";
 import { WorkspaceHeader } from "./workspace-header";
 import { WorkspaceTabs } from "./workspace-tabs";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import type { SetupStatus } from "./setup-types";
+import { useAuthenticatedQuery } from "@/hooks/use-authenticated-query";
 
 type Client = Doc<"clients">;
 type ConnectedAccount = Doc<"connectedAccounts">;
@@ -26,10 +26,10 @@ export function WorkspaceClient({
     initialSetupStatus,
     initialSeoConfigured,
 }: WorkspaceClientProps) {
-    const client = useQuery(api.clients.get, { clientId });
-    const accounts = useQuery(api.accounts.listByClient, { clientId });
-    const setupStatus = useQuery(api.clients.getSetupStatus, { clientId });
-    const seoSettings = useQuery(api.seo.getByClient, { clientId });
+    const client = useAuthenticatedQuery(api.clients.get, { clientId });
+    const accounts = useAuthenticatedQuery(api.accounts.listByClient, { clientId });
+    const setupStatus = useAuthenticatedQuery(api.clients.getSetupStatus, { clientId });
+    const seoSettings = useAuthenticatedQuery(api.seo.getByClient, { clientId });
 
     const resolvedClient = client === undefined ? initialClient : client;
     const resolvedAccounts =

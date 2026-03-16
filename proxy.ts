@@ -14,6 +14,7 @@ const isPublicRoute = createRouteMatcher([
     "/sign-in(.*)",
     "/api/oauth/github/callback(.*)",
     "/form/(.*)",
+    "/select-org(.*)",
 ]);
 
 function shouldBypassTenantRewrite(pathname: string) {
@@ -22,7 +23,8 @@ function shouldBypassTenantRewrite(pathname: string) {
         pathname.startsWith("/trpc") ||
         pathname.startsWith("/sign-in") ||
         pathname === "/form" ||
-        pathname.startsWith("/form/")
+        pathname.startsWith("/form/") ||
+        pathname.startsWith("/select-org")
     );
 }
 
@@ -34,14 +36,16 @@ function hasAgencyAdminMetadata(
 }
 
 export default clerkMiddleware(async (auth, req) => {
+    const requestHost = getRequestHost(req.headers) ?? req.nextUrl.host;
+    const appRootDomain = getAppRootDomain();
+
     if (!isPublicRoute(req)) {
         await auth.protect();
     }
 
-    const requestHost = getRequestHost(req.headers) ?? req.nextUrl.host;
-    const appRootDomain = getAppRootDomain();
     const { userId } = await auth();
 
+    // Admin app domain check
     if (appRootDomain && requestHost === appRootDomain && userId) {
         const clerk = await clerkClient();
         const user = await clerk.users.getUser(userId);

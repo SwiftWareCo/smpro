@@ -42,9 +42,10 @@ import {
     MAX_PAGES_TO_CRAWL,
 } from "@/lib/constants/seo";
 import { CrawlProgress } from "./crawl-progress";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useAuthenticatedQuery } from "@/hooks/use-authenticated-query";
 
 interface SeoTabProps {
     clientId: Id<"clients">;
@@ -74,7 +75,7 @@ interface SavedSettings {
 }
 
 export function SeoTab({ clientId }: SeoTabProps) {
-    const seoSettings = useQuery(api.seo.getByClient, { clientId });
+    const seoSettings = useAuthenticatedQuery(api.seo.getByClient, { clientId });
     const upsertSeoSettings = useMutation(api.seo.upsert);
     const [step, setStep] = useState<WizardStep>("input");
     const [url, setUrl] = useState("");

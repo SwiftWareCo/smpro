@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAgencyAdminUserId } from "./_lib/auth";
+import { getAgencyAdminUserId, requireAgencyAdminUserId } from "./_lib/auth";
 import * as ClientsRead from "./db/clients/read";
 import * as SeoRead from "./db/seo/read";
 import * as SeoWrite from "./db/seo/write";
@@ -8,7 +8,8 @@ import * as SeoWrite from "./db/seo/write";
 export const getByClient = query({
     args: { clientId: v.id("clients") },
     handler: async (ctx, args) => {
-        const userId = await requireAgencyAdminUserId(ctx);
+        const userId = await getAgencyAdminUserId(ctx);
+        if (!userId) return null;
         const client = await ClientsRead.getById(ctx, args.clientId);
         if (!client || client.userId !== userId) {
             return null;

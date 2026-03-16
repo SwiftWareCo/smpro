@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation, useAction } from "convex/react";
+import { useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id, Doc } from "@/convex/_generated/dataModel";
+import { useAuthenticatedQuery } from "@/hooks/use-authenticated-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -68,8 +69,8 @@ export function IdeasPanel({ clientId }: IdeasPanelProps) {
     );
     const [topicSeeds, setTopicSeeds] = useState("");
 
-    const ideas = useQuery(api.autoblog.listIdeas, { clientId });
-    const seoSettings = useQuery(api.seo.getByClient, { clientId });
+    const ideas = useAuthenticatedQuery(api.autoblog.listIdeas, { clientId });
+    const seoSettings = useAuthenticatedQuery(api.seo.getByClient, { clientId });
     const generateTopics = useAction(api.autoblogTopics.generateTopics);
     const updateIdeaStatus = useMutation(api.autoblog.updateIdeaStatus);
     const generatePost = useAction(api.autoblogPosts.generateFromIdea);

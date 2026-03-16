@@ -42,6 +42,33 @@ export async function requireAgencyAdminUserId(ctx: {
     return identity.subject;
 }
 
+/**
+ * Non-throwing variant: returns userId if authenticated, or null if not.
+ * Use this in queries that run on initial page load to avoid throwing
+ * before the Clerk token arrives (Convex will re-run once the identity is set).
+ */
+export async function getUserId(ctx: {
+    auth: { getUserIdentity: () => Promise<UserIdentity | null> };
+}): Promise<string | null> {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+    return identity.subject;
+}
+
+/**
+ * Non-throwing variant: returns userId if the caller is an agency admin,
+ * or null if not authenticated / not an admin.
+ * Use this in queries that run on initial page load to avoid throwing
+ * before the Clerk token arrives (Convex will re-run once the identity is set).
+ */
+export async function getAgencyAdminUserId(ctx: {
+    auth: { getUserIdentity: () => Promise<UserIdentity | null> };
+}): Promise<string | null> {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity || !hasAgencyAdminClaim(identity)) return null;
+    return identity.subject;
+}
+
 export async function requireOwnedClient(
     ctx: QueryCtx | MutationCtx,
     clientId: Id<"clients">,
