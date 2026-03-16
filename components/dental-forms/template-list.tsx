@@ -755,11 +755,12 @@ export function TemplateList({
                 open={!!previewTemplate}
                 onOpenChange={(open) => !open && setPreviewTemplate(null)}
             >
-                <DialogContent className="sm:max-w-3xl p-0 gap-0">
+                <DialogContent className="sm:max-w-6xl p-0 gap-0">
                     <DialogHeader className="px-6 pt-6 pb-0">
                         <DialogTitle>Form Preview</DialogTitle>
                         <DialogDescription>
-                            Preview of &quot;{previewTemplate?.name}&quot; as patients will see it
+                            Preview of &quot;{previewTemplate?.name}&quot; as
+                            patients will see it
                         </DialogDescription>
                     </DialogHeader>
                     <ScrollArea className="max-h-[70vh] px-6 pb-6 pt-4">

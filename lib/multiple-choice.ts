@@ -71,7 +71,5 @@ export function matchesFollowUpTrigger(
         return false;
     }
 
-    return field.type === "checkbox"
-        ? parseMultipleChoiceValue(value).includes(trigger)
-        : value === trigger;
+    return value === trigger;
 }

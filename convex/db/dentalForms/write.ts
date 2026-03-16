@@ -21,7 +21,6 @@ interface TemplateField {
         | "date"
         | "select"
         | "radio"
-        | "checkbox"
         | "multiSelect"
         | "number"
         | "signature"

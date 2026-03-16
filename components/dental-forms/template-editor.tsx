@@ -33,7 +33,14 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Copy, GripVertical, Loader2, Plus, Trash2 } from "lucide-react";
+import {
+    ArrowLeft,
+    Copy,
+    GripVertical,
+    Loader2,
+    Plus,
+    Trash2,
+} from "lucide-react";
 import {
     DndContext,
     closestCenter,
@@ -77,7 +84,6 @@ const FIELD_TYPES: { value: FieldType; label: string }[] = [
     { value: "select", label: "Dropdown" },
     { value: "radio", label: "Single Choice" },
     { value: "multiSelect", label: "Multiple Choice" },
-    { value: "checkbox", label: "Checkbox" },
     { value: "signature", label: "Signature" },
     { value: "address", label: "Address" },
 ];
@@ -133,7 +139,7 @@ const OPTION_PRESETS = [
 ] as const;
 
 const SECTION_ACTION_BUTTON_CLASS =
-    "border-slate-950 bg-slate-950 text-white shadow-sm hover:border-slate-800 hover:bg-slate-800 dark:border-slate-100 dark:bg-slate-100 dark:text-slate-950 dark:hover:border-slate-200 dark:hover:bg-slate-200";
+    "border-2 border-blue-500 bg-white text-slate-950 shadow-sm hover:border-blue-600 hover:bg-blue-50 hover:text-slate-950 dark:border-blue-400 dark:bg-white dark:text-slate-950 dark:hover:border-blue-300 dark:hover:bg-blue-50";
 
 function generateId(): string {
     return `f-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -183,13 +189,22 @@ function createField(fieldType: FieldType = "text"): TemplateField {
 }
 
 function supportsPlaceholder(fieldType: FieldType): boolean {
-    return !["date", "select", "radio", "multiSelect", "signature", "address"].includes(
-        fieldType,
-    );
+    return ![
+        "date",
+        "select",
+        "radio",
+        "multiSelect",
+        "signature",
+        "address",
+    ].includes(fieldType);
 }
 
 function supportsOptions(fieldType: FieldType): boolean {
-    return fieldType === "select" || fieldType === "radio" || fieldType === "multiSelect";
+    return (
+        fieldType === "select" ||
+        fieldType === "radio" ||
+        fieldType === "multiSelect"
+    );
 }
 
 function supportsValidation(fieldType: FieldType): boolean {
@@ -201,11 +216,7 @@ function supportsPattern(fieldType: FieldType): boolean {
 }
 
 function supportsFollowUp(fieldType: FieldType): boolean {
-    return (
-        fieldType === "radio" ||
-        fieldType === "select" ||
-        fieldType === "checkbox"
-    );
+    return fieldType === "radio" || fieldType === "select";
 }
 
 function supportsRequired(fieldType: FieldType): boolean {
@@ -296,7 +307,9 @@ function FieldEditorDialog({
                                             label: event.target.value,
                                         })
                                     }
-                                    placeholder={getDefaultFieldLabel(field.type)}
+                                    placeholder={getDefaultFieldLabel(
+                                        field.type,
+                                    )}
                                     autoFocus
                                 />
                             </div>
@@ -360,30 +373,7 @@ function FieldEditorDialog({
                             </div>
 
                             {supportsPlaceholder(field.type) &&
-                                (field.type === "checkbox" ? (
-                                    <div className="space-y-2">
-                                        <Label
-                                            htmlFor={`dialog-field-placeholder-${field.id}`}
-                                        >
-                                            Checkbox label
-                                        </Label>
-                                        <Input
-                                            id={`dialog-field-placeholder-${field.id}`}
-                                            value={field.placeholder ?? ""}
-                                            onChange={(event) =>
-                                                onUpdateField(
-                                                    sectionId,
-                                                    field.id,
-                                                    {
-                                                        placeholder:
-                                                            event.target.value,
-                                                    },
-                                                )
-                                            }
-                                            placeholder="Yes"
-                                        />
-                                    </div>
-                                ) : showPlaceholder ? (
+                                (showPlaceholder ? (
                                     <div className="space-y-2">
                                         <Label
                                             htmlFor={`dialog-field-placeholder-${field.id}`}
@@ -730,12 +720,9 @@ function FieldEditorDialog({
                                                             ? {
                                                                   enabled: true,
                                                                   trigger:
-                                                                      field.type ===
-                                                                      "checkbox"
-                                                                          ? "true"
-                                                                          : (field
-                                                                                .options?.[0] ??
-                                                                            ""),
+                                                                      field
+                                                                          .options?.[0] ??
+                                                                      "",
                                                                   label: "If yes, please explain",
                                                                   required: false,
                                                               }
@@ -751,82 +738,40 @@ function FieldEditorDialog({
                                                 <Label className="text-xs text-muted-foreground">
                                                     Show when answer is
                                                 </Label>
-                                                {field.type === "checkbox" ? (
-                                                    <Select
-                                                        value={
-                                                            field.followUp
-                                                                .trigger
-                                                        }
-                                                        onValueChange={(
-                                                            value,
-                                                        ) =>
-                                                            onUpdateField(
-                                                                sectionId,
-                                                                field.id,
-                                                                {
-                                                                    followUp: {
-                                                                        ...field.followUp!,
-                                                                        trigger:
-                                                                            value,
-                                                                    },
+                                                <Select
+                                                    value={
+                                                        field.followUp.trigger
+                                                    }
+                                                    onValueChange={(value) =>
+                                                        onUpdateField(
+                                                            sectionId,
+                                                            field.id,
+                                                            {
+                                                                followUp: {
+                                                                    ...field.followUp!,
+                                                                    trigger:
+                                                                        value,
                                                                 },
-                                                            )
-                                                        }
-                                                    >
-                                                        <SelectTrigger className="h-9">
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="true">
-                                                                Checked
+                                                            },
+                                                        )
+                                                    }
+                                                >
+                                                    <SelectTrigger className="h-9">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {(
+                                                            field.options ?? []
+                                                        ).map((option) => (
+                                                            <SelectItem
+                                                                key={option}
+                                                                value={option}
+                                                            >
+                                                                {option}
                                                             </SelectItem>
-                                                            <SelectItem value="false">
-                                                                Unchecked
-                                                            </SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                ) : (
-                                                    <Select
-                                                        value={
-                                                            field.followUp
-                                                                .trigger
-                                                        }
-                                                        onValueChange={(
-                                                            value,
-                                                        ) =>
-                                                            onUpdateField(
-                                                                sectionId,
-                                                                field.id,
-                                                                {
-                                                                    followUp: {
-                                                                        ...field.followUp!,
-                                                                        trigger:
-                                                                            value,
-                                                                    },
-                                                                },
-                                                            )
-                                                        }
-                                                    >
-                                                        <SelectTrigger className="h-9">
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {(
-                                                                field.options ??
-                                                                []
-                                                            ).map((option) => (
-                                                                <SelectItem
-                                                                    key={option}
-                                                                    value={
-                                                                        option
-                                                                    }
-                                                                >
-                                                                    {option}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                )}
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
                                             <div className="space-y-2">
                                                 <Label className="text-xs text-muted-foreground">
@@ -1461,38 +1406,33 @@ export function TemplateEditor({
         toast.success("Field removed");
     }, []);
 
-    const duplicateField = useCallback(
-        (sectionId: string, fieldId: string) => {
-            let cloneId = "";
-            setSections((prev) =>
-                prev.map((section) => {
-                    if (section.id !== sectionId) return section;
-                    const fieldIndex = section.fields.findIndex(
-                        (f) => f.id === fieldId,
-                    );
-                    if (fieldIndex === -1) return section;
-                    const original = section.fields[fieldIndex];
-                    cloneId = generateId();
-                    const clone: TemplateField = {
-                        ...structuredClone(original),
-                        id: cloneId,
-                        label: original.label
-                            ? `${original.label} (copy)`
-                            : "",
-                    };
-                    const nextFields = [...section.fields];
-                    nextFields.splice(fieldIndex + 1, 0, clone);
-                    return { ...section, fields: nextFields };
-                }),
-            );
-            // Open editor for the clone after state settles
-            if (cloneId) {
-                setEditingField({ sectionId, fieldId: cloneId });
-            }
-            toast.success("Field duplicated");
-        },
-        [],
-    );
+    const duplicateField = useCallback((sectionId: string, fieldId: string) => {
+        let cloneId = "";
+        setSections((prev) =>
+            prev.map((section) => {
+                if (section.id !== sectionId) return section;
+                const fieldIndex = section.fields.findIndex(
+                    (f) => f.id === fieldId,
+                );
+                if (fieldIndex === -1) return section;
+                const original = section.fields[fieldIndex];
+                cloneId = generateId();
+                const clone: TemplateField = {
+                    ...structuredClone(original),
+                    id: cloneId,
+                    label: original.label ? `${original.label} (copy)` : "",
+                };
+                const nextFields = [...section.fields];
+                nextFields.splice(fieldIndex + 1, 0, clone);
+                return { ...section, fields: nextFields };
+            }),
+        );
+        // Open editor for the clone after state settles
+        if (cloneId) {
+            setEditingField({ sectionId, fieldId: cloneId });
+        }
+        toast.success("Field duplicated");
+    }, []);
 
     const reorderFields = useCallback(
         (sectionId: string, oldIndex: number, newIndex: number) => {

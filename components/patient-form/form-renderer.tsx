@@ -80,7 +80,11 @@ function isWideField(field: TemplateFieldDoc): boolean {
         const options = field.options ?? [];
         return options.length > 4 || options.some((o) => o.length > 20);
     }
-    return field.type === "textarea" || field.type === "signature" || field.type === "address";
+    return (
+        field.type === "textarea" ||
+        field.type === "signature" ||
+        field.type === "address"
+    );
 }
 
 function getFieldRules(
@@ -162,8 +166,7 @@ function getFieldRules(
             if (v.max != null)
                 rules.maxLength = {
                     value: v.max,
-                    message:
-                        v.message ?? `Must be at most ${v.max} characters`,
+                    message: v.message ?? `Must be at most ${v.max} characters`,
                 };
             if (v.pattern) {
                 rules.pattern = {
@@ -327,6 +330,12 @@ export function FormRenderer({
 
         const isValid = await trigger(currentStep.fieldIds);
         if (!isValid) {
+            if (preview) {
+                setCurrentStepIndex((index) =>
+                    Math.min(index + 1, steps.length - 1),
+                );
+                return;
+            }
             toast.error(copy.stepIncomplete);
             return;
         }
@@ -643,33 +652,6 @@ export function FormRenderer({
                                 </RadioGroup>
                             );
                         }}
-                    />
-                )}
-
-                {field.type === "checkbox" && (
-                    <Controller
-                        name={field.id}
-                        control={control}
-                        rules={getFieldRules(field, language)}
-                        render={({ field: controllerField }) => (
-                            <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
-                                <Checkbox
-                                    id={field.id}
-                                    checked={controllerField.value === "true"}
-                                    onCheckedChange={(checked) =>
-                                        controllerField.onChange(
-                                            checked === true ? "true" : "",
-                                        )
-                                    }
-                                />
-                                <Label
-                                    htmlFor={field.id}
-                                    className="text-sm font-normal"
-                                >
-                                    {field.placeholder ?? "Yes"}
-                                </Label>
-                            </div>
-                        )}
                     />
                 )}
 
@@ -1005,7 +987,8 @@ export function FormRenderer({
                                 {copy.back}
                             </Button>
 
-                            {preview && isFinalWizardStep ? null : isFinalWizardStep ? (
+                            {preview &&
+                            isFinalWizardStep ? null : isFinalWizardStep ? (
                                 <Button
                                     type="submit"
                                     disabled={submitting || !consentAgreed}
@@ -1047,9 +1030,13 @@ export function FormRenderer({
                                 language={language}
                                 agreed={consentAgreed}
                                 onAgreeChange={(agreed) =>
-                                    setValue(CONSENT_FIELD_ID, agreed ? "true" : "", {
-                                        shouldValidate: true,
-                                    })
+                                    setValue(
+                                        CONSENT_FIELD_ID,
+                                        agreed ? "true" : "",
+                                        {
+                                            shouldValidate: true,
+                                        },
+                                    )
                                 }
                             />
 

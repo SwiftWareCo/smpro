@@ -10,7 +10,6 @@ export const fieldTypeSchema = z.enum([
     "date",
     "select",
     "radio",
-    "checkbox",
     "multiSelect",
     "number",
     "signature",
@@ -168,15 +167,6 @@ export function validateSubmissionData(
             if (!selected.every((v) => allowed.includes(v))) {
                 throw new Error(`${field.label} has an invalid selection`);
             }
-        }
-
-        if (
-            field.type === "checkbox" &&
-            value &&
-            value !== "true" &&
-            value !== "false"
-        ) {
-            throw new Error(`${field.label} must be true or false`);
         }
 
         if (field.type === "number" && value && Number.isNaN(Number(value))) {

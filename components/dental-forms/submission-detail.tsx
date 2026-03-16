@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Printer, Copy } from "lucide-react";
 import { formatProjectDate, formatProjectDateTime } from "@/lib/date-utils";
+import { parseMultipleChoiceValue } from "@/lib/multiple-choice";
 import { cn } from "@/lib/utils";
 
 interface SubmissionDetailProps {
@@ -134,19 +135,10 @@ function formatAnswerValue(field: TemplateFieldDoc | null, value: string) {
         return formatAddressValue(value);
     }
 
-    if (field?.type === "checkbox") {
-        if (value === "true") {
-            return {
-                display: field.placeholder?.trim() || "Yes",
-                copy: field.placeholder?.trim() || "Yes",
-            };
-        }
-        if (value === "false") {
-            return {
-                display: "No",
-                copy: "No",
-            };
-        }
+    if (field?.type === "multiSelect") {
+        const selected = parseMultipleChoiceValue(value);
+        const display = selected.join(", ") || "None";
+        return { display, copy: display };
     }
 
     return {

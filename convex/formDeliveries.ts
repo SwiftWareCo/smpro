@@ -53,7 +53,6 @@ const localizedTemplateValidator = v.object({
                         v.literal("date"),
                         v.literal("select"),
                         v.literal("radio"),
-                        v.literal("checkbox"),
                         v.literal("multiSelect"),
                         v.literal("number"),
                         v.literal("signature"),

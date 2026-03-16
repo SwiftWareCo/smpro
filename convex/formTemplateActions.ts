@@ -24,11 +24,20 @@ type LocalizedTemplateSnapshot = NonNullable<
 >;
 
 function extractJsonObject(text: string): unknown {
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-        throw new Error("Could not parse translation response");
+    // Strip markdown code fences if present
+    let cleaned = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "");
+    // Try direct parse first
+    try {
+        return JSON.parse(cleaned);
+    } catch {
+        // Fallback: extract outermost balanced braces
+        const start = cleaned.indexOf("{");
+        const end = cleaned.lastIndexOf("}");
+        if (start === -1 || end === -1 || end <= start) {
+            throw new Error("Could not parse translation response");
+        }
+        return JSON.parse(cleaned.slice(start, end + 1));
     }
-    return JSON.parse(jsonMatch[0]);
 }
 
 function getTranslatedString(
