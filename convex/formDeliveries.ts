@@ -3,6 +3,7 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import * as DentalFormsWrite from "./db/dentalForms/write";
 import * as DentalFormsRead from "./db/dentalForms/read";
 import { requireClientAccess } from "./_lib/auth";
+import { buildPatientFormUrl } from "./_lib/patientFormUrl";
 import { logAuditEvent } from "./_lib/audit";
 
 export const updateDeliveryStatus = internalMutation({
@@ -191,18 +192,22 @@ export const listForTemplate = query({
         templateId: v.id("formTemplates"),
     },
     handler: async (ctx, args) => {
-        await requireClientAccess(ctx, args.clientId);
+        const client = await requireClientAccess(ctx, args.clientId);
 
-        const deliveries =
-            await DentalFormsRead.listDeliveriesByClientTemplate(
-                ctx,
-                args.clientId,
-                args.templateId,
-            );
+        const deliveries = await DentalFormsRead.listDeliveriesByClientTemplate(
+            ctx,
+            args.clientId,
+            args.templateId,
+        );
 
         return deliveries.map((d) => ({
             deliveryId: d._id,
             token: d.token,
+            formUrl: buildPatientFormUrl(
+                d.token,
+                client.slug,
+                d.preferredLanguage,
+            ),
             channel: d.channel,
             patientName: d.patientName,
             status: d.status,

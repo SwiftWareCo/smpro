@@ -185,6 +185,15 @@ export const getAccessibleName = internalQuery({
     },
 });
 
+export const getPatientFormRouting = internalQuery({
+    args: { clientId: v.id("clients") },
+    returns: v.object({ slug: v.string() }),
+    handler: async (ctx, args) => {
+        const client = await requireClientAccess(ctx, args.clientId);
+        return { slug: client.slug };
+    },
+});
+
 export const getSummary = query({
     args: { clientId: v.id("clients") },
     handler: async (ctx, args) => {

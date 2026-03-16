@@ -6,6 +6,7 @@ import { ConvexError, v } from "convex/values";
 import { action } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { requireUserId } from "./_lib/auth";
+import { buildPatientFormUrl } from "./_lib/patientFormUrl";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { FormLanguage } from "../lib/validation/dental-form";
 import { formatProjectDate } from "../lib/date-utils";
@@ -118,13 +119,17 @@ export const createLink = action({
             },
         );
 
-        const appUrl =
-            process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-        const languageQuery =
-            !preferredLanguage || preferredLanguage === "en"
-                ? ""
-                : `?lang=${preferredLanguage}`;
-        const formUrl = `${appUrl}/form/${token}${languageQuery}`;
+        const routing = await ctx.runQuery(
+            internal.clients.getPatientFormRouting,
+            {
+                clientId: args.clientId,
+            },
+        );
+        const formUrl = buildPatientFormUrl(
+            token,
+            routing.slug,
+            preferredLanguage,
+        );
 
         return {
             deliveryId,
@@ -175,7 +180,7 @@ function buildEmailHtml(opts: {
         </td></tr>
         <tr><td style="background-color:#f4f4f5;padding:16px 32px;">
           <p style="margin:0;color:#a1a1aa;font-size:12px;text-align:center;">
-            Sent by ${opts.clinicName} via SMPro
+            Sent by ${opts.clinicName} via Swiftware
           </p>
         </td></tr>
       </table>

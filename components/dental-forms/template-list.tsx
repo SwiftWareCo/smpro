@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type KeyboardEvent, type MouseEvent } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id, Doc } from "@/convex/_generated/dataModel";
@@ -30,6 +30,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+    Copy,
     FileText,
     Plus,
     Pencil,
@@ -83,6 +84,24 @@ export function TemplateList({
     const updateTemplate = useMutation(api.formTemplates.update);
     const removeTemplate = useMutation(api.formTemplates.remove);
     const retranslateTemplate = useMutation(api.formTemplates.retranslate);
+    const createTemplate = useMutation(api.formTemplates.create);
+
+    const openTemplateEditor = (template: Doc<"formTemplates">) => {
+        setEditingTemplate(template);
+    };
+
+    const stopCardClick = (event: MouseEvent<HTMLButtonElement>) => {
+        event.stopPropagation();
+    };
+
+    const handleCardKeyDown = (
+        event: KeyboardEvent<HTMLDivElement>,
+        template: Doc<"formTemplates">,
+    ) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        openTemplateEditor(template);
+    };
 
     const handleStatusChange = async (
         templateId: Id<"formTemplates">,
@@ -126,6 +145,35 @@ export function TemplateList({
             console.error("Delete error:", error);
             toast.error(
                 `Failed to delete ${copyVariant === "form" ? "form" : "template"}`,
+            );
+        }
+    };
+
+    const handleDuplicate = async (template: Doc<"formTemplates">) => {
+        try {
+            const clonedSections = template.sections.map((section) => ({
+                ...section,
+                id: `f-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                fields: section.fields.map((field) => ({
+                    ...field,
+                    id: `f-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                })),
+            }));
+            await createTemplate({
+                clientId,
+                name: `${template.name} (Copy)`,
+                description: template.description ?? undefined,
+                sections: clonedSections,
+                consentText: template.consentText,
+                consentVersion: template.consentVersion,
+            });
+            toast.success(
+                `${copyVariant === "form" ? "Form" : "Template"} duplicated`,
+            );
+        } catch (error) {
+            console.error("Duplicate error:", error);
+            toast.error(
+                `Failed to duplicate ${copyVariant === "form" ? "form" : "template"}`,
             );
         }
     };
@@ -205,7 +253,27 @@ export function TemplateList({
                 ) : (
                     <div className="grid gap-4">
                         {templates.map((template) => (
-                            <Card key={template._id}>
+                            <Card
+                                key={template._id}
+                                className={
+                                    readOnly
+                                        ? undefined
+                                        : "cursor-pointer transition-colors hover:bg-muted/30"
+                                }
+                                onClick={
+                                    readOnly
+                                        ? undefined
+                                        : () => openTemplateEditor(template)
+                                }
+                                onKeyDown={
+                                    readOnly
+                                        ? undefined
+                                        : (event) =>
+                                              handleCardKeyDown(event, template)
+                                }
+                                role={readOnly ? undefined : "button"}
+                                tabIndex={readOnly ? undefined : 0}
+                            >
                                 <CardHeader className="pb-3">
                                     <div className="flex items-start justify-between">
                                         <div className="space-y-1">
@@ -242,12 +310,17 @@ export function TemplateList({
                                                                     variant="ghost"
                                                                     size="icon"
                                                                     className="h-8 w-8"
-                                                                    onClick={() =>
+                                                                    onClick={(
+                                                                        event,
+                                                                    ) => {
+                                                                        stopCardClick(
+                                                                            event,
+                                                                        );
                                                                         handleStatusChange(
                                                                             template._id,
                                                                             "active",
-                                                                        )
-                                                                    }
+                                                                        );
+                                                                    }}
                                                                 >
                                                                     <CheckCircle className="h-4 w-4" />
                                                                 </Button>
@@ -263,17 +336,46 @@ export function TemplateList({
                                                                 variant="ghost"
                                                                 size="icon"
                                                                 className="h-8 w-8"
-                                                                onClick={() =>
-                                                                    setEditingTemplate(
+                                                                onClick={(
+                                                                    event,
+                                                                ) => {
+                                                                    stopCardClick(
+                                                                        event,
+                                                                    );
+                                                                    openTemplateEditor(
                                                                         template,
-                                                                    )
-                                                                }
+                                                                    );
+                                                                }}
                                                             >
                                                                 <Pencil className="h-4 w-4" />
                                                             </Button>
                                                         </TooltipTrigger>
                                                         <TooltipContent>
                                                             Edit
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8"
+                                                                onClick={(
+                                                                    event,
+                                                                ) => {
+                                                                    stopCardClick(
+                                                                        event,
+                                                                    );
+                                                                    handleDuplicate(
+                                                                        template,
+                                                                    );
+                                                                }}
+                                                            >
+                                                                <Copy className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            Duplicate
                                                         </TooltipContent>
                                                     </Tooltip>
                                                     {template.status ===
@@ -286,7 +388,12 @@ export function TemplateList({
                                                                     variant="ghost"
                                                                     size="icon"
                                                                     className="h-8 w-8"
-                                                                    onClick={() => {
+                                                                    onClick={(
+                                                                        event,
+                                                                    ) => {
+                                                                        stopCardClick(
+                                                                            event,
+                                                                        );
                                                                         setDeliveryTemplate(
                                                                             template,
                                                                         );
@@ -309,11 +416,16 @@ export function TemplateList({
                                                                 variant="ghost"
                                                                 size="icon"
                                                                 className="h-8 w-8"
-                                                                onClick={() =>
+                                                                onClick={(
+                                                                    event,
+                                                                ) => {
+                                                                    stopCardClick(
+                                                                        event,
+                                                                    );
                                                                     setTranslateTarget(
                                                                         template,
-                                                                    )
-                                                                }
+                                                                    );
+                                                                }}
                                                             >
                                                                 <Languages className="h-4 w-4" />
                                                             </Button>
@@ -329,11 +441,16 @@ export function TemplateList({
                                                                 variant="ghost"
                                                                 size="icon"
                                                                 className="h-8 w-8 text-destructive hover:text-destructive"
-                                                                onClick={() =>
+                                                                onClick={(
+                                                                    event,
+                                                                ) => {
+                                                                    stopCardClick(
+                                                                        event,
+                                                                    );
                                                                     setDeleteTarget(
                                                                         template,
-                                                                    )
-                                                                }
+                                                                    );
+                                                                }}
                                                             >
                                                                 <Trash2 className="h-4 w-4" />
                                                             </Button>

@@ -61,7 +61,6 @@ const channelOptions: {
         icon: <Link className="h-4 w-4" />,
     },
     { value: "email", label: "Email", icon: <Mail className="h-4 w-4" /> },
-    { value: "sms", label: "SMS", icon: <Smartphone className="h-4 w-4" /> },
     { value: "qr", label: "QR Code", icon: <QrCode className="h-4 w-4" /> },
 ];
 
@@ -82,11 +81,14 @@ const buttonLabels: Record<DeliveryChannel, string> = {
 };
 
 const statusColors: Record<string, string> = {
-    pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+    pending:
+        "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
     sent: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-    delivered: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+    delivered:
+        "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
     opened: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300",
-    completed: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+    completed:
+        "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
     expired: "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300",
     failed: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
 };
@@ -127,7 +129,6 @@ export function DeliveryDialog({
 }: DeliveryDialogProps) {
     const [channel, setChannel] = useState<DeliveryChannel>("link");
     const [recipientEmail, setRecipientEmail] = useState("");
-    const [recipientPhone, setRecipientPhone] = useState("");
     const [patientName, setPatientName] = useState("");
     const [generatedUrl, setGeneratedUrl] = useState("");
     const [generating, setGenerating] = useState(false);
@@ -150,7 +151,8 @@ export function DeliveryDialog({
     // Keep a stable template reference for the query during the close animation.
     // When `open` flips to false, the query would immediately skip and return
     // undefined — causing the history list to unmount before the fade-out finishes.
-    const [queryTemplate, setQueryTemplate] = useState<Doc<"formTemplates"> | null>(null);
+    const [queryTemplate, setQueryTemplate] =
+        useState<Doc<"formTemplates"> | null>(null);
 
     useEffect(() => {
         if (open && template) {
@@ -161,7 +163,6 @@ export function DeliveryDialog({
                 setQueryTemplate(null);
                 setGeneratedUrl("");
                 setRecipientEmail("");
-                setRecipientPhone("");
                 setPatientName("");
                 setChannel("link");
                 setGenerating(false);
@@ -178,10 +179,6 @@ export function DeliveryDialog({
         api.formDeliveries.listForTemplate,
         queryTemplate ? { clientId, templateId: queryTemplate._id } : "skip",
     );
-
-    const buildFormUrl = useCallback((token: string) => {
-        return `${window.location.origin}/form/${token}`;
-    }, []);
 
     const handleCopyUrl = useCallback(async (url: string) => {
         try {
@@ -288,7 +285,6 @@ h2{margin-bottom:16px;color:#333;}p{color:#666;font-size:14px;margin-top:12px;}<
     const handleReset = () => {
         setGeneratedUrl("");
         setRecipientEmail("");
-        setRecipientPhone("");
         setPatientName("");
         setEmailSending(false);
         setEmailSent(false);
@@ -373,13 +369,6 @@ h2{margin-bottom:16px;color:#333;}p{color:#666;font-size:14px;margin-top:12px;}<
                                     </div>
                                 )}
                             </div>
-                        )}
-
-                        {channel === "sms" && (
-                            <p className="text-sm text-muted-foreground">
-                                SMS delivery is not yet configured. Please copy
-                                and send the link manually for now.
-                            </p>
                         )}
 
                         <div className="space-y-2">
@@ -490,23 +479,6 @@ h2{margin-bottom:16px;color:#333;}p{color:#666;font-size:14px;margin-top:12px;}<
                                 </div>
                             )}
 
-                            {channel === "sms" && (
-                                <div className="space-y-2">
-                                    <Label htmlFor="phone">
-                                        Patient Phone (not stored)
-                                    </Label>
-                                    <Input
-                                        id="phone"
-                                        type="tel"
-                                        value={recipientPhone}
-                                        onChange={(e) =>
-                                            setRecipientPhone(e.target.value)
-                                        }
-                                        placeholder="+1 (604) 555-0123"
-                                    />
-                                </div>
-                            )}
-
                             <Button
                                 onClick={handleGenerate}
                                 disabled={generating}
@@ -533,78 +505,92 @@ h2{margin-bottom:16px;color:#333;}p{color:#666;font-size:14px;margin-top:12px;}<
                                     </Label>
                                     <ScrollArea className="max-h-48">
                                         <div className="space-y-2 pr-3">
-                                        {deliveryHistory.map((d) => {
-                                            const now = Date.now();
-                                            const isExpired =
-                                                d.tokenExpiresAt < now;
-                                            const isTerminal =
-                                                d.status === "completed" ||
-                                                d.status === "expired" ||
-                                                d.status === "failed";
-                                            const url = buildFormUrl(d.token);
+                                            {deliveryHistory.map((d) => {
+                                                const now = Date.now();
+                                                const isExpired =
+                                                    d.tokenExpiresAt < now;
+                                                const isTerminal =
+                                                    d.status === "completed" ||
+                                                    d.status === "expired" ||
+                                                    d.status === "failed";
 
-                                            return (
-                                                <div
-                                                    key={d.deliveryId}
-                                                    className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-xs"
-                                                >
-                                                    <span className="text-muted-foreground">
-                                                        {channelIcons[d.channel]}
-                                                    </span>
-                                                    <span className="min-w-0 flex-1 truncate">
-                                                        {d.patientName || "—"}
-                                                    </span>
-                                                    <Badge
-                                                        variant="secondary"
-                                                        className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] ${statusColors[d.status] ?? ""}`}
+                                                return (
+                                                    <div
+                                                        key={d.deliveryId}
+                                                        className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-xs"
                                                     >
-                                                        {d.status}
-                                                    </Badge>
-                                                    <span className="shrink-0 text-muted-foreground">
-                                                        {formatProjectDate(
-                                                            d.createdAt,
-                                                        )}
-                                                    </span>
-                                                    {isExpired && !isTerminal && (
-                                                        <span className="shrink-0 text-[10px] text-destructive">
-                                                            Expired
+                                                        <span className="text-muted-foreground">
+                                                            {
+                                                                channelIcons[
+                                                                    d.channel
+                                                                ]
+                                                            }
                                                         </span>
-                                                    )}
-                                                    {!isExpired &&
-                                                        !isTerminal && (
-                                                            <>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="h-6 w-6 shrink-0"
-                                                                    onClick={() =>
-                                                                        void handleCopyUrl(
-                                                                            url,
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    <Copy className="h-3 w-3" />
-                                                                </Button>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="h-6 w-6 shrink-0 text-destructive hover:text-destructive"
-                                                                    onClick={async () => {
-                                                                        try {
-                                                                            await revokeDelivery({ deliveryId: d.deliveryId });
-                                                                            toast.success("Link revoked");
-                                                                        } catch {
-                                                                            toast.error("Failed to revoke link");
+                                                        <span className="min-w-0 flex-1 truncate">
+                                                            {d.patientName ||
+                                                                "—"}
+                                                        </span>
+                                                        <Badge
+                                                            variant="secondary"
+                                                            className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] ${statusColors[d.status] ?? ""}`}
+                                                        >
+                                                            {d.status}
+                                                        </Badge>
+                                                        <span className="shrink-0 text-muted-foreground">
+                                                            {formatProjectDate(
+                                                                d.createdAt,
+                                                            )}
+                                                        </span>
+                                                        {isExpired &&
+                                                            !isTerminal && (
+                                                                <span className="shrink-0 text-[10px] text-destructive">
+                                                                    Expired
+                                                                </span>
+                                                            )}
+                                                        {!isExpired &&
+                                                            !isTerminal && (
+                                                                <>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-6 w-6 shrink-0"
+                                                                        onClick={() =>
+                                                                            void handleCopyUrl(
+                                                                                d.formUrl,
+                                                                            )
                                                                         }
-                                                                    }}
-                                                                >
-                                                                    <Trash2 className="h-3 w-3" />
-                                                                </Button>
-                                                            </>
-                                                        )}
-                                                </div>
-                                            );
-                                        })}
+                                                                    >
+                                                                        <Copy className="h-3 w-3" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-6 w-6 shrink-0 text-destructive hover:text-destructive"
+                                                                        onClick={async () => {
+                                                                            try {
+                                                                                await revokeDelivery(
+                                                                                    {
+                                                                                        deliveryId:
+                                                                                            d.deliveryId,
+                                                                                    },
+                                                                                );
+                                                                                toast.success(
+                                                                                    "Link revoked",
+                                                                                );
+                                                                            } catch {
+                                                                                toast.error(
+                                                                                    "Failed to revoke link",
+                                                                                );
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        <Trash2 className="h-3 w-3" />
+                                                                    </Button>
+                                                                </>
+                                                            )}
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </ScrollArea>
                                 </div>

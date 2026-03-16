@@ -11,6 +11,7 @@
 import type * as _lib_audit from "../_lib/audit.js";
 import type * as _lib_auth from "../_lib/auth.js";
 import type * as _lib_clerkAdmin from "../_lib/clerkAdmin.js";
+import type * as _lib_patientFormUrl from "../_lib/patientFormUrl.js";
 import type * as accounts from "../accounts.js";
 import type * as auditLogs from "../auditLogs.js";
 import type * as autoblog from "../autoblog.js";
@@ -61,6 +62,7 @@ declare const fullApi: ApiFromModules<{
   "_lib/audit": typeof _lib_audit;
   "_lib/auth": typeof _lib_auth;
   "_lib/clerkAdmin": typeof _lib_clerkAdmin;
+  "_lib/patientFormUrl": typeof _lib_patientFormUrl;
   accounts: typeof accounts;
   auditLogs: typeof auditLogs;
   autoblog: typeof autoblog;

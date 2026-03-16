@@ -33,7 +33,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, GripVertical, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Copy, GripVertical, Loader2, Plus, Trash2 } from "lucide-react";
 import {
     DndContext,
     closestCenter,
@@ -93,12 +93,36 @@ const NEW_TEMPLATE_NAME = "";
 const NEW_TEMPLATE_DESCRIPTION = "";
 
 const FORMAT_PRESETS: { label: string; pattern: string; message: string }[] = [
-    { label: "Numbers only", pattern: "^\\d+$", message: "Only numbers are allowed" },
-    { label: "Letters only", pattern: "^[a-zA-Z\\s]+$", message: "Only letters are allowed" },
-    { label: "No special characters", pattern: "^[a-zA-Z0-9\\s]+$", message: "Special characters are not allowed" },
-    { label: "Phone number", pattern: "^\\+?[\\d\\s\\-()]{7,15}$", message: "Enter a valid phone number" },
-    { label: "Postal code (Canada)", pattern: "^[A-Za-z]\\d[A-Za-z]\\s?\\d[A-Za-z]\\d$", message: "Enter a valid Canadian postal code (e.g. V6B 1A1)" },
-    { label: "Zip code (US)", pattern: "^\\d{5}(-\\d{4})?$", message: "Enter a valid US zip code (e.g. 90210)" },
+    {
+        label: "Numbers only",
+        pattern: "^\\d+$",
+        message: "Only numbers are allowed",
+    },
+    {
+        label: "Letters only",
+        pattern: "^[a-zA-Z\\s]+$",
+        message: "Only letters are allowed",
+    },
+    {
+        label: "No special characters",
+        pattern: "^[a-zA-Z0-9\\s]+$",
+        message: "Special characters are not allowed",
+    },
+    {
+        label: "Phone number",
+        pattern: "^\\+?[\\d\\s\\-()]{7,15}$",
+        message: "Enter a valid phone number",
+    },
+    {
+        label: "Postal code (Canada)",
+        pattern: "^[A-Za-z]\\d[A-Za-z]\\s?\\d[A-Za-z]\\d$",
+        message: "Enter a valid Canadian postal code (e.g. V6B 1A1)",
+    },
+    {
+        label: "Zip code (US)",
+        pattern: "^\\d{5}(-\\d{4})?$",
+        message: "Enter a valid US zip code (e.g. 90210)",
+    },
 ];
 
 const OPTION_PRESETS = [
@@ -106,6 +130,9 @@ const OPTION_PRESETS = [
     { label: "Male / Female", options: ["Male", "Female"] },
     { label: "Daily / Weekly / Never", options: ["Daily", "Weekly", "Never"] },
 ] as const;
+
+const SECTION_ACTION_BUTTON_CLASS =
+    "border-slate-950 bg-slate-950 text-white shadow-sm hover:border-slate-800 hover:bg-slate-800 dark:border-slate-100 dark:bg-slate-100 dark:text-slate-950 dark:hover:border-slate-200 dark:hover:bg-slate-200";
 
 function generateId(): string {
     return `f-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -139,7 +166,7 @@ function createField(fieldType: FieldType = "text"): TemplateField {
     return {
         id: generateId(),
         type: fieldType,
-        label: getDefaultFieldLabel(fieldType),
+        label: "",
         required: false,
         placeholder: supportsPlaceholder(fieldType) ? "" : undefined,
         options: getDefaultOptions(fieldType),
@@ -260,6 +287,7 @@ function FieldEditorDialog({
                                             label: event.target.value,
                                         })
                                     }
+                                    placeholder={getDefaultFieldLabel(field.type)}
                                     autoFocus
                                 />
                             </div>
@@ -396,8 +424,10 @@ function FieldEditorDialog({
                                                             ? {
                                                                   min: undefined,
                                                                   max: undefined,
-                                                                  pattern: undefined,
-                                                                  message: undefined,
+                                                                  pattern:
+                                                                      undefined,
+                                                                  message:
+                                                                      undefined,
                                                               }
                                                             : undefined,
                                                     },
@@ -425,18 +455,19 @@ function FieldEditorDialog({
                                                                 sectionId,
                                                                 field.id,
                                                                 {
-                                                                    validation: {
-                                                                        ...field.validation!,
-                                                                        min: e
-                                                                            .target
-                                                                            .value
-                                                                            ? Number(
-                                                                                  e
-                                                                                      .target
-                                                                                      .value,
-                                                                              )
-                                                                            : undefined,
-                                                                    },
+                                                                    validation:
+                                                                        {
+                                                                            ...field.validation!,
+                                                                            min: e
+                                                                                .target
+                                                                                .value
+                                                                                ? Number(
+                                                                                      e
+                                                                                          .target
+                                                                                          .value,
+                                                                                  )
+                                                                                : undefined,
+                                                                        },
                                                                 },
                                                             )
                                                         }
@@ -461,18 +492,19 @@ function FieldEditorDialog({
                                                                 sectionId,
                                                                 field.id,
                                                                 {
-                                                                    validation: {
-                                                                        ...field.validation!,
-                                                                        max: e
-                                                                            .target
-                                                                            .value
-                                                                            ? Number(
-                                                                                  e
-                                                                                      .target
-                                                                                      .value,
-                                                                              )
-                                                                            : undefined,
-                                                                    },
+                                                                    validation:
+                                                                        {
+                                                                            ...field.validation!,
+                                                                            max: e
+                                                                                .target
+                                                                                .value
+                                                                                ? Number(
+                                                                                      e
+                                                                                          .target
+                                                                                          .value,
+                                                                                  )
+                                                                                : undefined,
+                                                                        },
                                                                 },
                                                             )
                                                         }
@@ -489,7 +521,8 @@ function FieldEditorDialog({
                                                     <Select
                                                         value={
                                                             field.validation
-                                                                .pattern ?? "__none"
+                                                                .pattern ??
+                                                            "__none"
                                                         }
                                                         onValueChange={(
                                                             value,
@@ -504,24 +537,25 @@ function FieldEditorDialog({
                                                                 sectionId,
                                                                 field.id,
                                                                 {
-                                                                    validation: {
-                                                                        ...field.validation!,
-                                                                        pattern:
-                                                                            value ===
-                                                                            "__none"
-                                                                                ? undefined
-                                                                                : value,
-                                                                        message:
-                                                                            value ===
-                                                                            "__none"
-                                                                                ? field
-                                                                                      .validation!
-                                                                                      .message
-                                                                                : (field
-                                                                                      .validation!
-                                                                                      .message ||
-                                                                                  preset?.message),
-                                                                    },
+                                                                    validation:
+                                                                        {
+                                                                            ...field.validation!,
+                                                                            pattern:
+                                                                                value ===
+                                                                                "__none"
+                                                                                    ? undefined
+                                                                                    : value,
+                                                                            message:
+                                                                                value ===
+                                                                                "__none"
+                                                                                    ? field
+                                                                                          .validation!
+                                                                                          .message
+                                                                                    : field
+                                                                                          .validation!
+                                                                                          .message ||
+                                                                                      preset?.message,
+                                                                        },
                                                                 },
                                                             );
                                                         }}
@@ -531,7 +565,8 @@ function FieldEditorDialog({
                                                         </SelectTrigger>
                                                         <SelectContent>
                                                             <SelectItem value="__none">
-                                                                No format restriction
+                                                                No format
+                                                                restriction
                                                             </SelectItem>
                                                             {FORMAT_PRESETS.map(
                                                                 (preset) => (
@@ -858,6 +893,7 @@ interface SortableFieldItemProps {
     fieldIndex: number;
     sectionId: string;
     onEditField: (sectionId: string, fieldId: string) => void;
+    onDuplicateField: (sectionId: string, fieldId: string) => void;
     onRemoveField: (sectionId: string, fieldId: string) => void;
 }
 
@@ -866,6 +902,7 @@ function SortableFieldItem({
     fieldIndex,
     sectionId,
     onEditField,
+    onDuplicateField,
     onRemoveField,
 }: SortableFieldItemProps) {
     const {
@@ -940,6 +977,24 @@ function SortableFieldItem({
             <span
                 role="button"
                 tabIndex={-1}
+                className="shrink-0 rounded-md p-1 text-muted-foreground hover:text-primary"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onDuplicateField(sectionId, field.id);
+                }}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        onDuplicateField(sectionId, field.id);
+                    }
+                }}
+            >
+                <Copy className="h-3.5 w-3.5" />
+            </span>
+            <span
+                role="button"
+                tabIndex={-1}
                 className="shrink-0 rounded-md p-1 text-muted-foreground hover:text-destructive"
                 onClick={(e) => {
                     e.stopPropagation();
@@ -972,6 +1027,7 @@ interface TemplateSectionCardProps {
         updates: Partial<Omit<TemplateSection, "fields">>,
     ) => void;
     onRemoveSection: (sectionId: string) => void;
+    onDuplicateField: (sectionId: string, fieldId: string) => void;
     onRemoveField: (sectionId: string, fieldId: string) => void;
     onEditField: (sectionId: string, fieldId: string) => void;
     onAddField: (sectionId: string, fieldType?: FieldType) => void;
@@ -990,6 +1046,7 @@ const TemplateSectionCard = memo(function TemplateSectionCard({
     onSetActiveSection,
     onUpdateSection,
     onRemoveSection,
+    onDuplicateField,
     onRemoveField,
     onEditField,
     onAddField,
@@ -1137,6 +1194,7 @@ const TemplateSectionCard = memo(function TemplateSectionCard({
                                         fieldIndex={fieldIndex}
                                         sectionId={section.id}
                                         onEditField={onEditField}
+                                        onDuplicateField={onDuplicateField}
                                         onRemoveField={onRemoveField}
                                     />
                                 ))}
@@ -1244,6 +1302,23 @@ export function TemplateEditor({
         [],
     );
 
+    const focusSection = useCallback((sectionId: string) => {
+        setActiveSectionId(sectionId);
+        sectionRefs.current[sectionId]?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+        });
+
+        window.setTimeout(() => {
+            const sectionTitleInput = document.getElementById(
+                `section-title-${sectionId}`,
+            );
+            if (sectionTitleInput instanceof HTMLElement) {
+                sectionTitleInput.focus({ preventScroll: true });
+            }
+        }, 180);
+    }, []);
+
     const addSection = useCallback(() => {
         const newSection: TemplateSection = {
             id: generateId(),
@@ -1255,7 +1330,8 @@ export function TemplateEditor({
         setSections((prev) => [...prev, newSection]);
         setActiveSectionId(newSection.id);
         toast.success("Section added");
-    }, []);
+        window.setTimeout(() => focusSection(newSection.id), 50);
+    }, [focusSection]);
 
     const removeSection = useCallback((sectionId: string) => {
         setSections((prev) => {
@@ -1309,16 +1385,17 @@ export function TemplateEditor({
                                                 ? field.required
                                                 : false,
                                             label:
+                                                field.label === "" ||
                                                 field.label === "New field" ||
                                                 field.label ===
                                                     "New dropdown" ||
                                                 field.label ===
                                                     "New radio group"
-                                                    ? getDefaultFieldLabel(
-                                                          nextType,
-                                                      )
+                                                    ? ""
                                                     : field.label,
-                                            validation: supportsValidation(nextType)
+                                            validation: supportsValidation(
+                                                nextType,
+                                            )
                                                 ? field.validation
                                                 : undefined,
                                             followUp: supportsFollowUp(nextType)
@@ -1374,6 +1451,39 @@ export function TemplateEditor({
         );
         toast.success("Field removed");
     }, []);
+
+    const duplicateField = useCallback(
+        (sectionId: string, fieldId: string) => {
+            let cloneId = "";
+            setSections((prev) =>
+                prev.map((section) => {
+                    if (section.id !== sectionId) return section;
+                    const fieldIndex = section.fields.findIndex(
+                        (f) => f.id === fieldId,
+                    );
+                    if (fieldIndex === -1) return section;
+                    const original = section.fields[fieldIndex];
+                    cloneId = generateId();
+                    const clone: TemplateField = {
+                        ...structuredClone(original),
+                        id: cloneId,
+                        label: original.label
+                            ? `${original.label} (copy)`
+                            : "",
+                    };
+                    const nextFields = [...section.fields];
+                    nextFields.splice(fieldIndex + 1, 0, clone);
+                    return { ...section, fields: nextFields };
+                }),
+            );
+            // Open editor for the clone after state settles
+            if (cloneId) {
+                setEditingField({ sectionId, fieldId: cloneId });
+            }
+            toast.success("Field duplicated");
+        },
+        [],
+    );
 
     const reorderFields = useCallback(
         (sectionId: string, oldIndex: number, newIndex: number) => {
@@ -1575,23 +1685,6 @@ export function TemplateEditor({
         [],
     );
 
-    const focusSection = useCallback((sectionId: string) => {
-        setActiveSectionId(sectionId);
-        sectionRefs.current[sectionId]?.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-        });
-
-        window.setTimeout(() => {
-            const sectionTitleInput = document.getElementById(
-                `section-title-${sectionId}`,
-            );
-            if (sectionTitleInput instanceof HTMLElement) {
-                sectionTitleInput.focus({ preventScroll: true });
-            }
-        }, 180);
-    }, []);
-
     const setActiveSection = useCallback((sectionId: string) => {
         setActiveSectionId(sectionId);
     }, []);
@@ -1693,7 +1786,7 @@ export function TemplateEditor({
                         </div>
                         <Button
                             variant="outline"
-                            className="shrink-0"
+                            className={`shrink-0 ${SECTION_ACTION_BUTTON_CLASS}`}
                             onClick={addSection}
                         >
                             <Plus className="mr-2 h-4 w-4" />
@@ -1826,6 +1919,7 @@ export function TemplateEditor({
                                     onSetActiveSection={setActiveSection}
                                     onUpdateSection={updateSection}
                                     onRemoveSection={removeSection}
+                                    onDuplicateField={duplicateField}
                                     onRemoveField={removeField}
                                     onEditField={openFieldEditor}
                                     onAddField={addField}
@@ -1870,10 +1964,10 @@ export function TemplateEditor({
                     </div>
                     <div className="flex shrink-0 items-center gap-3">
                         <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
                             onClick={addSection}
-                            className="text-muted-foreground"
+                            className={SECTION_ACTION_BUTTON_CLASS}
                         >
                             <Plus className="mr-1.5 h-3.5 w-3.5" />
                             Section

@@ -15,8 +15,14 @@ import { FileText, Eye, Inbox } from "lucide-react";
 import { SubmissionDetail } from "./submission-detail";
 import { formatProjectDateTime } from "@/lib/date-utils";
 
+type SubmissionListItem = Doc<"formSubmissions"> & {
+    submittedByName: string;
+    templateName: string;
+    templateVersion: number | null;
+};
+
 interface SubmissionsListProps {
-    submissions: Doc<"formSubmissions">[];
+    submissions: SubmissionListItem[];
 }
 
 const statusLabels: Record<string, string> = {
@@ -35,18 +41,9 @@ const statusColors: Record<string, string> = {
     entered_in_pms: "bg-gray-100 text-gray-800",
 };
 
-function getPatientName(submission: Doc<"formSubmissions">): string {
-    const data = submission.formData as Record<string, unknown> | undefined;
-    if (!data) return "Submission";
-    const first = data["first-name"] ?? "";
-    const last = data["last-name"] ?? "";
-    const name = `${first} ${last}`.trim();
-    return name || "Submission";
-}
-
 export function SubmissionsList({ submissions }: SubmissionsListProps) {
     const [selectedSubmission, setSelectedSubmission] =
-        useState<Doc<"formSubmissions"> | null>(null);
+        useState<SubmissionListItem | null>(null);
 
     if (selectedSubmission) {
         return (
@@ -94,7 +91,7 @@ export function SubmissionsList({ submissions }: SubmissionsListProps) {
                                 <div className="flex items-center gap-2">
                                     <FileText className="h-4 w-4 text-muted-foreground" />
                                     <CardTitle className="text-base">
-                                        {getPatientName(submission)}
+                                        {submission.submittedByName}
                                     </CardTitle>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -121,7 +118,13 @@ export function SubmissionsList({ submissions }: SubmissionsListProps) {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                                <span>
+                                    Form {submission.templateName}
+                                    {submission.templateVersion
+                                        ? ` (v${submission.templateVersion})`
+                                        : ""}
+                                </span>
                                 <span>
                                     Submitted{" "}
                                     {formatProjectDateTime(

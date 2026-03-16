@@ -1,10 +1,29 @@
 import { ConvexError, v } from "convex/values";
+import type { Doc } from "./_generated/dataModel";
 import { internalMutation, query } from "./_generated/server";
 import { requireClientAccess } from "./_lib/auth";
 import { logAuditEvent } from "./_lib/audit";
 import * as DentalFormsRead from "./db/dentalForms/read";
 import * as DentalFormsWrite from "./db/dentalForms/write";
 import * as ConsentsWrite from "./db/consents/write";
+
+function getSubmittedByName(
+    submission: Doc<"formSubmissions">,
+    delivery: Doc<"formDeliveries"> | null,
+): string {
+    const explicitPatientName = delivery?.patientName?.trim();
+    if (explicitPatientName) {
+        return explicitPatientName;
+    }
+
+    const formData = submission.formData as Record<string, unknown> | undefined;
+    if (!formData) return "Unknown patient";
+
+    const firstName = String(formData["first-name"] ?? "").trim();
+    const lastName = String(formData["last-name"] ?? "").trim();
+    const fullName = `${firstName} ${lastName}`.trim();
+    return fullName || "Unknown patient";
+}
 
 export const list = query({
     args: {
@@ -15,18 +34,35 @@ export const list = query({
     handler: async (ctx, args) => {
         await requireClientAccess(ctx, args.clientId);
 
-        if (args.status) {
-            return DentalFormsRead.listSubmissionsByClientAndStatus(
-                ctx,
-                args.clientId,
-                args.status,
-                args.limit ?? 50,
-            );
-        }
-        return DentalFormsRead.listSubmissionsByClient(
-            ctx,
-            args.clientId,
-            args.limit ?? 50,
+        const submissions = args.status
+            ? await DentalFormsRead.listSubmissionsByClientAndStatus(
+                  ctx,
+                  args.clientId,
+                  args.status,
+                  args.limit ?? 50,
+              )
+            : await DentalFormsRead.listSubmissionsByClient(
+                  ctx,
+                  args.clientId,
+                  args.limit ?? 50,
+              );
+
+        return Promise.all(
+            submissions.map(async (submission) => {
+                const [template, delivery] = await Promise.all([
+                    ctx.db.get(submission.templateId),
+                    submission.deliveryId
+                        ? ctx.db.get(submission.deliveryId)
+                        : Promise.resolve(null),
+                ]);
+
+                return {
+                    ...submission,
+                    submittedByName: getSubmittedByName(submission, delivery),
+                    templateName: template?.name ?? "Unknown form",
+                    templateVersion: template?.version ?? null,
+                };
+            }),
         );
     },
 });

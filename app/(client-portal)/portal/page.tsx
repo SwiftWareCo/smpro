@@ -68,9 +68,6 @@ export default function TenantDashboardPage() {
         const draftForms = templates.filter(
             (template) => template.status === "draft",
         ).length;
-        const archivedForms = templates.filter(
-            (template) => template.status === "archived",
-        ).length;
         const recentSubmissions = submissions.filter(
             (submission) => submission.submittedAt >= recentCutoff,
         ).length;
@@ -99,7 +96,6 @@ export default function TenantDashboardPage() {
             totalForms: templates.length,
             activeForms,
             draftForms,
-            archivedForms,
             totalSubmissions: submissions.length,
             recentSubmissions,
             latestSubmissionAt: submissions[0]?.submittedAt ?? null,
@@ -152,7 +148,7 @@ export default function TenantDashboardPage() {
                 </CardContent>
             </Card>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <StatCard
                     label="Total Forms"
                     value={String(stats.totalForms)}
@@ -171,11 +167,6 @@ export default function TenantDashboardPage() {
                     label="Last 30 Days"
                     value={String(stats.recentSubmissions)}
                     detail="Recent patient intake activity"
-                />
-                <StatCard
-                    label="Archived Forms"
-                    value={String(stats.archivedForms)}
-                    detail="Inactive forms kept for reference"
                 />
             </div>
 
@@ -263,16 +254,6 @@ export default function TenantDashboardPage() {
                                 </span>
                                 <span className="text-lg font-semibold tracking-tight">
                                     {stats.draftForms}
-                                </span>
-                            </div>
-                        </div>
-                        <div className="rounded-2xl border border-border/70 bg-muted/15 p-4">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-muted-foreground">
-                                    Archived forms
-                                </span>
-                                <span className="text-lg font-semibold tracking-tight">
-                                    {stats.archivedForms}
                                 </span>
                             </div>
                         </div>
