@@ -52,6 +52,7 @@ import {
     FormLabel,
     FormMessage,
 } from "@/components/ui/form";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 import { useAction, usePreloadedQuery } from "convex/react";
 import type { Preloaded } from "convex/react";
@@ -84,6 +85,21 @@ const createClientFormDefaults: ClientOnboardingFormData = {
     portalPrimaryColor: DEFAULT_PORTAL_PRIMARY_COLOR,
     portalSecondaryColor: DEFAULT_PORTAL_SECONDARY_COLOR,
 };
+
+function getClientInitials(name: string) {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+
+    if (parts.length === 0) return "?";
+
+    if (parts.length === 1) {
+        return parts[0].slice(0, 2).toUpperCase();
+    }
+
+    return parts
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? "")
+        .join("");
+}
 
 const navMain = [
     {
@@ -264,31 +280,61 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
                                             No clients yet
                                         </div>
                                     ) : (
-                                        filteredClients.map((client) => (
-                                            <SidebarMenuItem key={client._id}>
-                                                <SidebarMenuButton
-                                                    asChild
-                                                    isActive={
-                                                        selectedClientId ===
-                                                        client._id
-                                                    }
-                                                    tooltip={client.name}
+                                        filteredClients.map((client) => {
+                                            const palette =
+                                                resolveTenantThemePalette({
+                                                    primaryColor:
+                                                        client.portalPrimaryColor,
+                                                    secondaryColor:
+                                                        client.portalSecondaryColor,
+                                                });
+
+                                            return (
+                                                <SidebarMenuItem
+                                                    key={client._id}
                                                 >
-                                                    <Link
-                                                        href={`/workspace/${client._id}`}
+                                                    <SidebarMenuButton
+                                                        asChild
+                                                        isActive={
+                                                            selectedClientId ===
+                                                            client._id
+                                                        }
+                                                        tooltip={client.name}
                                                     >
-                                                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
-                                                            {client.name
-                                                                .charAt(0)
-                                                                .toUpperCase()}
-                                                        </div>
-                                                        <span className="truncate">
-                                                            {client.name}
-                                                        </span>
-                                                    </Link>
-                                                </SidebarMenuButton>
-                                            </SidebarMenuItem>
-                                        ))
+                                                        <Link
+                                                            href={`/workspace/${client._id}`}
+                                                        >
+                                                            <Avatar className="h-6 w-6 shrink-0 rounded-lg border border-sidebar-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.12)]">
+                                                                <AvatarImage
+                                                                    src={
+                                                                        client.avatarUrl ||
+                                                                        ""
+                                                                    }
+                                                                    alt={
+                                                                        client.name
+                                                                    }
+                                                                    className="object-cover"
+                                                                />
+                                                                <AvatarFallback
+                                                                    className="rounded-lg text-[10px] font-semibold uppercase leading-none tracking-[0.12em]"
+                                                                    style={{
+                                                                        background: `linear-gradient(135deg, ${palette.sidebarPrimary} 0%, ${palette.sidebarAccent} 100%)`,
+                                                                        color: palette.sidebarPrimaryForeground,
+                                                                    }}
+                                                                >
+                                                                    {getClientInitials(
+                                                                        client.name,
+                                                                    )}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            <span className="truncate">
+                                                                {client.name}
+                                                            </span>
+                                                        </Link>
+                                                    </SidebarMenuButton>
+                                                </SidebarMenuItem>
+                                            );
+                                        })
                                     )}
 
                                     {/* Add Client Dialog */}

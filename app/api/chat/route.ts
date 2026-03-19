@@ -33,7 +33,7 @@ When generating ideas:
 4. Be specific with titles and hooks
 
 Only respond using information from tool calls. If no relevant data, ask the user to sync their accounts or provide more context.`,
-        messages: convertToModelMessages(messages),
+        messages: await convertToModelMessages(messages),
         stopWhen: stepCountIs(5),
         tools: {
             searchContent: tool({

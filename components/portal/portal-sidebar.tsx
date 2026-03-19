@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, ClipboardList, LayoutDashboard } from "lucide-react";
+import {
+    BookOpen,
+    Building2,
+    ClipboardList,
+    LayoutDashboard,
+} from "lucide-react";
 import {
     Sidebar,
     SidebarContent,
@@ -17,10 +22,19 @@ import {
 
 type PortalSidebarProps = {
     clientName: string;
+    enabledModules?: string[];
 };
 
-export function PortalSidebar({ clientName }: PortalSidebarProps) {
+const menuButtonClassName =
+    "hover:border-sidebar-primary/20 hover:bg-sidebar-primary/10 data-[active=true]:border-sidebar-primary/30 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0";
+
+export function PortalSidebar({
+    clientName,
+    enabledModules = [],
+}: PortalSidebarProps) {
     const pathname = usePathname();
+    const hasPatientFormsModule = enabledModules.includes("patient_forms");
+    const hasKnowledgeBaseModule = enabledModules.includes("knowledge_base");
 
     return (
         <Sidebar variant="floating" collapsible="icon">
@@ -44,7 +58,7 @@ export function PortalSidebar({ clientName }: PortalSidebarProps) {
                                     asChild
                                     isActive={pathname === "/"}
                                     tooltip="Dashboard"
-                                    className="hover:border-sidebar-primary/20 hover:bg-sidebar-primary/10 data-[active=true]:border-sidebar-primary/30 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
+                                    className={menuButtonClassName}
                                 >
                                     <Link href="/">
                                         <LayoutDashboard className="h-4 w-4" />
@@ -52,22 +66,44 @@ export function PortalSidebar({ clientName }: PortalSidebarProps) {
                                     </Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
-                            <SidebarMenuItem>
-                                <SidebarMenuButton
-                                    asChild
-                                    isActive={
-                                        pathname === "/forms" ||
-                                        pathname.startsWith("/forms/")
-                                    }
-                                    tooltip="Patient Forms"
-                                    className="hover:border-sidebar-primary/20 hover:bg-sidebar-primary/10 data-[active=true]:border-sidebar-primary/30 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
-                                >
-                                    <Link href="/forms">
-                                        <ClipboardList className="h-4 w-4" />
-                                        <span>Patient Forms</span>
-                                    </Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
+                            {hasPatientFormsModule && (
+                                <SidebarMenuItem>
+                                    <SidebarMenuButton
+                                        asChild
+                                        isActive={
+                                            pathname === "/forms" ||
+                                            pathname.startsWith("/forms/")
+                                        }
+                                        tooltip="Patient Forms"
+                                        className={menuButtonClassName}
+                                    >
+                                        <Link href="/forms">
+                                            <ClipboardList className="h-4 w-4" />
+                                            <span>Patient Forms</span>
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            )}
+                            {hasKnowledgeBaseModule && (
+                                <SidebarMenuItem>
+                                    <SidebarMenuButton
+                                        asChild
+                                        isActive={
+                                            pathname === "/knowledge-base" ||
+                                            pathname.startsWith(
+                                                "/knowledge-base/",
+                                            )
+                                        }
+                                        tooltip="Knowledge Base"
+                                        className={menuButtonClassName}
+                                    >
+                                        <Link href="/knowledge-base">
+                                            <BookOpen className="h-4 w-4" />
+                                            <span>Knowledge Base</span>
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            )}
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>

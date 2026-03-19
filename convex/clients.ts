@@ -226,6 +226,7 @@ export const getPortalBySlug = query({
             clerkOrganizationId: client.clerkOrganizationId,
             portalPrimaryColor: client.portalPrimaryColor,
             portalSecondaryColor: client.portalSecondaryColor,
+            enabledModules: client.enabledModules ?? [],
         };
     },
 });
@@ -247,6 +248,7 @@ export const getPortalByClerkOrganizationId = query({
             clerkOrganizationId: client.clerkOrganizationId,
             portalPrimaryColor: client.portalPrimaryColor,
             portalSecondaryColor: client.portalSecondaryColor,
+            enabledModules: client.enabledModules ?? [],
         };
     },
 });

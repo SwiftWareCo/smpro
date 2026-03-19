@@ -7,6 +7,7 @@ import { SocialTab } from "./social-tab";
 import { SeoTab } from "./seo-tab";
 import { AutoblogTab } from "./autoblog-tab";
 import { PatientFormsTab } from "./patient-forms-tab";
+import { KnowledgeBaseTab } from "./knowledge-base-tab";
 import { PlaceholderModuleTab } from "./placeholder-module-tab";
 import type { Doc } from "@/convex/_generated/dataModel";
 
@@ -24,6 +25,7 @@ const moduleDisplayNames: Record<string, string> = {
     seo: "SEO",
     autoblog: "Auto-Blog",
     patient_forms: "Patient Forms",
+    knowledge_base: "Knowledge Base",
     website_gmb: "Website/GMB",
     ai_receptionist: "AI Receptionist",
     automations: "Automations",
@@ -35,6 +37,7 @@ const moduleDescriptions: Record<string, string> = {
     seo: "SEO settings and optimization",
     autoblog: "AI-powered blog automation with MDX publishing",
     patient_forms: "Digital patient intake forms with PIPA-compliant consent and encrypted storage",
+    knowledge_base: "AI-powered document knowledge base with natural language Q&A",
     website_gmb: "Website and Google My Business management",
     ai_receptionist: "AI-powered call handling and automation",
     automations: "Workflow automation and scheduling",
@@ -136,6 +139,17 @@ export function WorkspaceTabs({
                             className="mt-4"
                         >
                             <PatientFormsTab clientId={client._id} clientName={client.name} />
+                        </TabsContent>
+                    );
+                }
+                if (moduleType === "knowledge_base") {
+                    return (
+                        <TabsContent
+                            key={moduleType}
+                            value={moduleType}
+                            className="mt-4"
+                        >
+                            <KnowledgeBaseTab clientId={client._id} />
                         </TabsContent>
                     );
                 }

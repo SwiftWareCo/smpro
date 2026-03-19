@@ -47,6 +47,12 @@ const availableModules = [
             "Digital patient intake forms with PIPA-compliant consent and encrypted storage",
     },
     {
+        type: "knowledge_base" as const,
+        name: "Knowledge Base",
+        description:
+            "AI-powered document knowledge base with natural language Q&A",
+    },
+    {
         type: "website_gmb" as const,
         name: "Website/GMB",
         description: "Website and Google My Business management",

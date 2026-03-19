@@ -8,25 +8,38 @@ interface PortalClientContextValue {
     clientName: string;
     portalPrimaryColor?: string | null;
     portalSecondaryColor?: string | null;
+    enabledModules: string[];
 }
 
-const PortalClientContext = createContext<PortalClientContextValue | null>(null);
+const PortalClientContext = createContext<PortalClientContextValue | null>(
+    null,
+);
 
 export function PortalClientProvider({
     clientId,
     clientName,
     portalPrimaryColor,
     portalSecondaryColor,
+    enabledModules,
     children,
 }: {
     clientId: Id<"clients">;
     clientName: string;
     portalPrimaryColor?: string | null;
     portalSecondaryColor?: string | null;
+    enabledModules?: string[];
     children: React.ReactNode;
 }) {
     return (
-        <PortalClientContext.Provider value={{ clientId, clientName, portalPrimaryColor, portalSecondaryColor }}>
+        <PortalClientContext.Provider
+            value={{
+                clientId,
+                clientName,
+                portalPrimaryColor,
+                portalSecondaryColor,
+                enabledModules: enabledModules ?? [],
+            }}
+        >
             {children}
         </PortalClientContext.Provider>
     );

@@ -1,8 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
 import { UserButton } from "@clerk/nextjs";
-import { fetchQuery } from "convex/nextjs";
-import { headers } from "next/headers";
-import { notFound, redirect } from "next/navigation";
 import { PortalSidebar } from "@/components/portal/portal-sidebar";
 import { PortalClientProvider } from "@/components/portal/portal-client-provider";
 import { Separator } from "@/components/ui/separator";
@@ -11,39 +7,16 @@ import {
     SidebarProvider,
     SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { buildTenantThemeStyle } from "@/lib/tenant-theme";
+import { getPortalTenant } from "./_lib/portal-access";
 
 export default async function TenantPortalLayout({
     children,
 }: Readonly<{
     children: React.ReactNode;
 }>) {
-    const requestHeaders = await headers();
-    const tenantSlug = requestHeaders.get("x-tenant-slug");
-
-    if (!tenantSlug) {
-        notFound();
-    }
-
-    const { userId, getToken } = await auth();
-    if (!userId) {
-        redirect("/sign-in");
-    }
-
-    const token = (await getToken({ template: "convex" })) ?? undefined;
-    const convexOptions = { token };
-
-    const tenant = await fetchQuery(
-        api.clients.getPortalBySlug,
-        { slug: tenantSlug },
-        convexOptions,
-    );
-
-    if (!tenant || !tenant.clerkOrganizationId) {
-        notFound();
-    }
+    const tenant = await getPortalTenant();
 
     const themeStyle = buildTenantThemeStyle({
         primaryColor: tenant.portalPrimaryColor,
@@ -56,7 +29,10 @@ export default async function TenantPortalLayout({
             className="force-light min-h-svh bg-background text-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
             <SidebarProvider defaultOpen={false}>
-                <PortalSidebar clientName={tenant.name} />
+                <PortalSidebar
+                    clientName={tenant.name}
+                    enabledModules={tenant.enabledModules}
+                />
                 <SidebarInset>
                     <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/75">
                         <SidebarTrigger className="-ml-1" />
@@ -80,6 +56,7 @@ export default async function TenantPortalLayout({
                             clientName={tenant.name}
                             portalPrimaryColor={tenant.portalPrimaryColor}
                             portalSecondaryColor={tenant.portalSecondaryColor}
+                            enabledModules={tenant.enabledModules}
                         >
                             {children}
                         </PortalClientProvider>
