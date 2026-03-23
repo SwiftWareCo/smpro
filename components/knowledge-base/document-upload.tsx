@@ -5,7 +5,7 @@ import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
-import { Upload, FileText, X } from "lucide-react";
+import { Upload, FileText, X, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +13,15 @@ interface DocumentUploadProps {
     clientId: Id<"clients">;
     folderId?: Id<"kbFolders">;
     onComplete?: () => void;
+}
+
+type FileStatus = "pending" | "uploading" | "done" | "error";
+
+interface QueuedFile {
+    file: File;
+    fileType: "pdf" | "markdown" | "csv" | "txt";
+    status: FileStatus;
+    error?: string;
 }
 
 const ACCEPTED_TYPES: Record<string, "pdf" | "markdown" | "csv" | "txt"> = {
@@ -30,13 +39,23 @@ const ACCEPTED_EXTENSIONS: Record<string, "pdf" | "markdown" | "csv" | "txt"> = 
 };
 
 function getFileType(file: File): "pdf" | "markdown" | "csv" | "txt" | null {
-    // Check MIME type first
     const byMime = ACCEPTED_TYPES[file.type];
     if (byMime) return byMime;
-
-    // Fallback to extension
     const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
     return ACCEPTED_EXTENSIONS[ext] ?? null;
+}
+
+function FileStatusIcon({ status }: { status: FileStatus }) {
+    switch (status) {
+        case "pending":
+            return null;
+        case "uploading":
+            return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
+        case "done":
+            return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+        case "error":
+            return <XCircle className="h-4 w-4 text-destructive" />;
+    }
 }
 
 export function DocumentUpload({
@@ -46,72 +65,120 @@ export function DocumentUpload({
 }: DocumentUploadProps) {
     const [isDragging, setIsDragging] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [files, setFiles] = useState<QueuedFile[]>([]);
     const inputRef = useRef<HTMLInputElement>(null);
 
     const generateUploadUrl = useMutation(api.knowledgeBase.generateUploadUrl);
     const uploadDocument = useMutation(api.knowledgeBase.uploadDocument);
 
-    const handleFile = useCallback((file: File) => {
-        const fileType = getFileType(file);
-        if (!fileType) {
-            toast.error("Unsupported file type. Use PDF, Markdown, CSV, or TXT.");
-            return;
+    const addFiles = useCallback((fileList: FileList | File[]) => {
+        const newFiles: QueuedFile[] = [];
+        for (const file of fileList) {
+            const fileType = getFileType(file);
+            if (!fileType) {
+                toast.error(`"${file.name}" — unsupported file type`);
+                continue;
+            }
+            if (file.size > 10 * 1024 * 1024) {
+                toast.error(`"${file.name}" — exceeds 10MB limit`);
+                continue;
+            }
+            newFiles.push({ file, fileType, status: "pending" });
         }
-        if (file.size > 10 * 1024 * 1024) {
-            toast.error("File too large. Maximum size is 10MB.");
-            return;
+        if (newFiles.length > 0) {
+            setFiles((prev) => [...prev, ...newFiles]);
         }
-        setSelectedFile(file);
     }, []);
 
-    const handleUpload = async () => {
-        if (!selectedFile) return;
+    const removeFile = useCallback((index: number) => {
+        setFiles((prev) => prev.filter((_, i) => i !== index));
+    }, []);
 
-        const fileType = getFileType(selectedFile);
-        if (!fileType) return;
-
+    const handleUploadAll = async () => {
+        if (files.length === 0) return;
         setIsUploading(true);
-        try {
-            const uploadUrl = await generateUploadUrl({ clientId });
-            const res = await fetch(uploadUrl, {
-                method: "POST",
-                headers: { "Content-Type": selectedFile.type || "application/octet-stream" },
-                body: selectedFile,
-            });
 
-            if (!res.ok) throw new Error("Failed to upload file");
+        let doneCount = 0;
+        let errorCount = 0;
 
-            const { storageId } = (await res.json()) as { storageId: Id<"_storage"> };
+        for (let i = 0; i < files.length; i++) {
+            if (files[i].status === "done") {
+                doneCount++;
+                continue;
+            }
 
-            const title = selectedFile.name.replace(/\.[^.]+$/, "");
-            await uploadDocument({
-                clientId,
-                title,
-                folderId,
-                storageId,
-                fileType,
-            });
+            setFiles((prev) =>
+                prev.map((f, idx) =>
+                    idx === i ? { ...f, status: "uploading" } : f,
+                ),
+            );
 
-            toast.success(`"${title}" uploaded. Processing will begin shortly.`);
-            setSelectedFile(null);
-            onComplete?.();
-        } catch (error) {
-            console.error("Upload error:", error);
-            toast.error("Failed to upload document");
-        } finally {
-            setIsUploading(false);
+            try {
+                const uploadUrl = await generateUploadUrl({ clientId });
+                const res = await fetch(uploadUrl, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            files[i].file.type || "application/octet-stream",
+                    },
+                    body: files[i].file,
+                });
+
+                if (!res.ok) throw new Error("Upload failed");
+
+                const { storageId } = (await res.json()) as {
+                    storageId: Id<"_storage">;
+                };
+
+                const title = files[i].file.name.replace(/\.[^.]+$/, "");
+                await uploadDocument({
+                    clientId,
+                    title,
+                    folderId,
+                    storageId,
+                    fileType: files[i].fileType,
+                });
+
+                setFiles((prev) =>
+                    prev.map((f, idx) =>
+                        idx === i ? { ...f, status: "done" } : f,
+                    ),
+                );
+                doneCount++;
+            } catch (error) {
+                const msg =
+                    error instanceof Error ? error.message : "Upload failed";
+                setFiles((prev) =>
+                    prev.map((f, idx) =>
+                        idx === i ? { ...f, status: "error", error: msg } : f,
+                    ),
+                );
+                errorCount++;
+            }
         }
+
+        setIsUploading(false);
+
+        if (errorCount === 0) {
+            toast.success(
+                `${doneCount} file${doneCount !== 1 ? "s" : ""} uploaded`,
+            );
+            setFiles([]);
+        } else {
+            toast.error(
+                `${doneCount} uploaded, ${errorCount} failed`,
+            );
+        }
+        onComplete?.();
     };
 
     const handleDrop = useCallback(
         (e: React.DragEvent) => {
             e.preventDefault();
             setIsDragging(false);
-            const file = e.dataTransfer.files[0];
-            if (file) handleFile(file);
+            addFiles(e.dataTransfer.files);
         },
-        [handleFile],
+        [addFiles],
     );
 
     const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -123,6 +190,8 @@ export function DocumentUpload({
         e.preventDefault();
         setIsDragging(false);
     }, []);
+
+    const pendingCount = files.filter((f) => f.status === "pending").length;
 
     return (
         <div className="space-y-3">
@@ -137,55 +206,73 @@ export function DocumentUpload({
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
             >
-                {selectedFile ? (
-                    <div className="flex items-center gap-3">
-                        <FileText className="h-8 w-8 text-muted-foreground" />
-                        <div className="text-sm">
-                            <p className="font-medium">{selectedFile.name}</p>
-                            <p className="text-muted-foreground">
-                                {(selectedFile.size / 1024).toFixed(1)} KB
-                            </p>
-                        </div>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => setSelectedFile(null)}
-                        >
-                            <X className="h-4 w-4" />
-                        </Button>
-                    </div>
-                ) : (
-                    <>
-                        <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground">
-                            Drag and drop a file here, or click to browse
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground/70">
-                            PDF, Markdown, CSV, or TXT (max 10MB)
-                        </p>
-                    </>
-                )}
+                <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                    Drag and drop files here, or click to browse
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground/70">
+                    PDF, Markdown, CSV, or TXT (max 10MB each)
+                </p>
                 <input
                     ref={inputRef}
                     type="file"
                     accept=".pdf,.md,.csv,.txt"
+                    multiple
                     className="absolute inset-0 cursor-pointer opacity-0"
                     onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleFile(file);
+                        if (e.target.files) addFiles(e.target.files);
+                        e.target.value = "";
                     }}
                 />
             </div>
 
-            {selectedFile && (
-                <Button
-                    onClick={handleUpload}
-                    disabled={isUploading}
-                    className="w-full"
-                >
-                    {isUploading ? "Uploading..." : "Upload Document"}
-                </Button>
+            {files.length > 0 && (
+                <div className="space-y-2">
+                    {files.map((qf, i) => (
+                        <div
+                            key={`${qf.file.name}-${i}`}
+                            className="flex items-center gap-3 rounded-md border px-3 py-2"
+                        >
+                            <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium">
+                                    {qf.file.name}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    {(qf.file.size / 1024).toFixed(1)} KB
+                                    {qf.error && (
+                                        <span className="ml-2 text-destructive">
+                                            {qf.error}
+                                        </span>
+                                    )}
+                                </p>
+                            </div>
+                            <FileStatusIcon status={qf.status} />
+                            {qf.status === "pending" && !isUploading && (
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={() => removeFile(i)}
+                                >
+                                    <X className="h-3.5 w-3.5" />
+                                </Button>
+                            )}
+                        </div>
+                    ))}
+
+                    {pendingCount > 0 && (
+                        <Button
+                            onClick={handleUploadAll}
+                            disabled={isUploading}
+                            className="w-full"
+                        >
+                            {isUploading
+                                ? "Uploading..."
+                                : `Upload ${pendingCount} file${pendingCount !== 1 ? "s" : ""}`}
+                        </Button>
+                    )}
+                </div>
             )}
         </div>
     );

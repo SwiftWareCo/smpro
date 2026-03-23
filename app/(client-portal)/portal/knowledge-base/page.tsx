@@ -3,20 +3,36 @@
 import { useState } from "react";
 import { useConvexAuth } from "convex/react";
 import { usePortalClient } from "@/components/portal/portal-client-provider";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { DocumentList } from "@/components/knowledge-base/document-list";
+import { KBFileTree } from "@/components/knowledge-base/kb-file-tree";
+import { KBDocumentPanel } from "@/components/knowledge-base/kb-document-panel";
+import { KBChatOverlay } from "@/components/knowledge-base/kb-chat-overlay";
 import { DocumentUpload } from "@/components/knowledge-base/document-upload";
-import { KBChat } from "@/components/knowledge-base/kb-chat";
 import { FolderCreateDialog } from "@/components/knowledge-base/folder-create-dialog";
-import { Button } from "@/components/ui/button";
-import { FolderPlus } from "lucide-react";
+import { ManualDocumentDialog } from "@/components/knowledge-base/manual-document-dialog";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
+import type { Id } from "@/convex/_generated/dataModel";
 
 export default function PortalKnowledgeBasePage() {
     const { clientId } = usePortalClient();
-    const [tab, setTab] = useState("documents");
-    const [folderDialogOpen, setFolderDialogOpen] = useState(false);
     const { isLoading, isAuthenticated } = useConvexAuth();
+
+    const [selectedDocumentId, setSelectedDocumentId] =
+        useState<Id<"kbDocuments"> | null>(null);
+    const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+    const [folderDialogOpen, setFolderDialogOpen] = useState(false);
+    const [folderParentId, setFolderParentId] = useState<
+        Id<"kbFolders"> | undefined
+    >();
+    const [manualDocDialogOpen, setManualDocDialogOpen] = useState(false);
+    const [manualDocFolderId, setManualDocFolderId] = useState<
+        Id<"kbFolders"> | undefined
+    >();
 
     if (isLoading || !isAuthenticated) {
         return (
@@ -27,53 +43,61 @@ export default function PortalKnowledgeBasePage() {
     }
 
     return (
-        <div className="space-y-6">
-            <div className="space-y-1">
-                <h1 className="text-2xl font-semibold tracking-tight">
-                    Knowledge Base
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                    Upload documents and ask questions about your data.
-                </p>
+        <div className="flex h-[calc(100vh-7rem)]">
+            {/* File tree sidebar */}
+            <div className="w-64 shrink-0 border-r overflow-y-auto">
+                <KBFileTree
+                    clientId={clientId}
+                    selectedDocumentId={selectedDocumentId}
+                    onSelectDocument={setSelectedDocumentId}
+                    onRequestUpload={() => setUploadDialogOpen(true)}
+                    onRequestNewFolder={(parentId) => {
+                        setFolderParentId(parentId);
+                        setFolderDialogOpen(true);
+                    }}
+                    onRequestNewDocument={(folderId) => {
+                        setManualDocFolderId(folderId);
+                        setManualDocDialogOpen(true);
+                    }}
+                />
             </div>
 
-            <Tabs value={tab} onValueChange={setTab} className="gap-4">
-                <TabsList className="rounded-2xl bg-background/80 backdrop-blur">
-                    <TabsTrigger value="documents">Documents</TabsTrigger>
-                    <TabsTrigger value="chat">Ask Questions</TabsTrigger>
-                </TabsList>
+            {/* Center document panel */}
+            <div className="flex-1 overflow-y-auto">
+                <KBDocumentPanel documentId={selectedDocumentId} />
+            </div>
 
-                <TabsContent value="documents" className="mt-4 space-y-6">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-lg font-medium">Upload</h2>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setFolderDialogOpen(true)}
-                        >
-                            <FolderPlus className="mr-2 h-4 w-4" />
-                            New Folder
-                        </Button>
-                    </div>
+            {/* Floating chat overlay */}
+            <KBChatOverlay clientId={clientId} />
 
-                    <DocumentUpload clientId={clientId} />
-
-                    <div>
-                        <h2 className="mb-3 text-lg font-medium">Documents</h2>
-                        <DocumentList clientId={clientId} />
-                    </div>
-
-                    <FolderCreateDialog
-                        open={folderDialogOpen}
-                        onOpenChange={setFolderDialogOpen}
+            {/* Upload dialog */}
+            <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Upload Documents</DialogTitle>
+                    </DialogHeader>
+                    <DocumentUpload
                         clientId={clientId}
+                        onComplete={() => setUploadDialogOpen(false)}
                     />
-                </TabsContent>
+                </DialogContent>
+            </Dialog>
 
-                <TabsContent value="chat" className="mt-4">
-                    <KBChat clientId={clientId} />
-                </TabsContent>
-            </Tabs>
+            {/* Folder create dialog */}
+            <FolderCreateDialog
+                open={folderDialogOpen}
+                onOpenChange={setFolderDialogOpen}
+                clientId={clientId}
+                parentId={folderParentId}
+            />
+
+            {/* Manual document dialog */}
+            <ManualDocumentDialog
+                open={manualDocDialogOpen}
+                onOpenChange={setManualDocDialogOpen}
+                clientId={clientId}
+                folderId={manualDocFolderId}
+            />
         </div>
     );
 }

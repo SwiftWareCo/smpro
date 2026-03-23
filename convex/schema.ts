@@ -19,7 +19,7 @@ import {
 } from "./schema/dental-forms.schema";
 import { embeddings } from "./schema/embeddings.schema";
 import { savedIdeas } from "./schema/ideas.schema";
-import { kbDocuments, kbFolders } from "./schema/knowledge-base.schema";
+import { kbDocuments, kbFolders, kbThreads } from "./schema/knowledge-base.schema";
 import { resources } from "./schema/resources.schema";
 
 export default defineSchema({
@@ -38,6 +38,7 @@ export default defineSchema({
     formTemplates,
     kbDocuments,
     kbFolders,
+    kbThreads,
     savedIdeas,
     resources,
     embeddings,

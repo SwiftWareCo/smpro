@@ -25,6 +25,7 @@ export const kbDocuments = defineTable({
         v.literal("ready"),
         v.literal("failed"),
     ),
+    chunkCount: v.optional(v.number()),
     processingError: v.optional(v.string()),
     createdBy: v.string(),
     createdAt: v.number(),
@@ -46,3 +47,13 @@ export const kbFolders = defineTable({
 })
     .index("by_client_id", ["clientId"])
     .index("by_client_parent", ["clientId", "parentId"]);
+
+export const kbThreads = defineTable({
+    clientId: v.id("clients"),
+    agentThreadId: v.string(),
+    title: v.optional(v.string()),
+    userId: v.string(),
+    lastMessageAt: v.number(),
+})
+    .index("by_client_user", ["clientId", "userId"])
+    .index("by_agent_thread", ["agentThreadId"]);

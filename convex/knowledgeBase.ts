@@ -156,6 +156,40 @@ export const listFolders = query({
     },
 });
 
+export const listFoldersByParent = query({
+    args: {
+        clientId: v.id("clients"),
+        parentId: v.optional(v.id("kbFolders")),
+    },
+    handler: async (ctx, args) => {
+        await requireClientAccess(ctx, args.clientId);
+        return KBRead.listFoldersByParent(ctx, args.clientId, args.parentId);
+    },
+});
+
+export const getFolderAncestors = query({
+    args: { folderId: v.id("kbFolders") },
+    handler: async (ctx, args) => {
+        const folder = await KBRead.getFolderById(ctx, args.folderId);
+        if (!folder) return [];
+        await requireClientAccess(ctx, folder.clientId);
+
+        const ancestors: Array<{ _id: typeof args.folderId; name: string }> = [];
+        let current = folder;
+        while (current) {
+            ancestors.unshift({ _id: current._id, name: current.name });
+            if (current.parentId) {
+                const parent = await KBRead.getFolderById(ctx, current.parentId);
+                if (!parent) break;
+                current = parent;
+            } else {
+                break;
+            }
+        }
+        return ancestors;
+    },
+});
+
 // --- Folder Mutations ---
 
 export const createFolder = mutation({
@@ -234,6 +268,98 @@ export const removeFolder = mutation({
     },
 });
 
+// --- Document Move ---
+
+export const moveDocument = mutation({
+    args: {
+        documentId: v.id("kbDocuments"),
+        folderId: v.optional(v.id("kbFolders")),
+    },
+    handler: async (ctx, args) => {
+        const doc = await KBRead.getDocumentById(ctx, args.documentId);
+        if (!doc) throw new Error("Document not found");
+        await requireClientAccess(ctx, doc.clientId);
+
+        // Validate target folder belongs to same client
+        if (args.folderId) {
+            const folder = await KBRead.getFolderById(ctx, args.folderId);
+            if (!folder || folder.clientId !== doc.clientId) {
+                throw new Error("Folder not found");
+            }
+        }
+
+        await KBWrite.patchDocument(ctx, args.documentId, {
+            folderId: args.folderId,
+        });
+        return { success: true };
+    },
+});
+
+// --- Stats ---
+
+export const getStats = query({
+    args: { clientId: v.id("clients") },
+    handler: async (ctx, args) => {
+        await requireClientAccess(ctx, args.clientId);
+        const docs = await KBRead.listDocumentsByClient(ctx, args.clientId, 10000);
+        const folders = await KBRead.listFoldersByClient(ctx, args.clientId);
+
+        let totalChars = 0;
+        let ready = 0;
+        let pending = 0;
+        let failed = 0;
+        for (const doc of docs) {
+            if (doc.charCount) totalChars += doc.charCount;
+            if (doc.processingStatus === "ready") ready++;
+            else if (doc.processingStatus === "failed") failed++;
+            else pending++;
+        }
+
+        return {
+            totalDocuments: docs.length,
+            ready,
+            pending,
+            failed,
+            totalChars,
+            folderCount: folders.length,
+        };
+    },
+});
+
+// --- Document Content Update ---
+
+export const updateDocumentContent = mutation({
+    args: {
+        documentId: v.id("kbDocuments"),
+        rawText: v.string(),
+        title: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        const doc = await KBRead.getDocumentById(ctx, args.documentId);
+        if (!doc) throw new Error("Document not found");
+
+        await requireClientAccess(ctx, doc.clientId);
+
+        const patch: Record<string, unknown> = {
+            rawText: args.rawText,
+            charCount: args.rawText.length,
+            processingStatus: "pending",
+        };
+        if (args.title !== undefined) {
+            patch.title = args.title;
+        }
+        await KBWrite.patchDocument(ctx, args.documentId, patch);
+
+        await ctx.scheduler.runAfter(
+            0,
+            internal.knowledgeBaseActions.reindexDocument,
+            { documentId: args.documentId },
+        );
+
+        return { success: true };
+    },
+});
+
 // --- Internal Mutations (called from actions) ---
 
 export const setDocumentText = internalMutation({
@@ -255,11 +381,16 @@ export const setDocumentReady = internalMutation({
     args: {
         documentId: v.id("kbDocuments"),
         ragEntryId: v.optional(v.string()),
+        chunkCount: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
-        await KBWrite.patchDocument(ctx, args.documentId, {
+        const patch: Record<string, unknown> = {
             processingStatus: "ready",
-        });
+        };
+        if (args.chunkCount !== undefined) {
+            patch.chunkCount = args.chunkCount;
+        }
+        await KBWrite.patchDocument(ctx, args.documentId, patch);
     },
 });
 

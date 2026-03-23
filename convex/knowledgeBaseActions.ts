@@ -82,9 +82,11 @@ export const processDocument = internalAction({
                 text,
             });
 
-            // Mark as ready
+            // Mark as ready with estimated chunk count
+            const chunkCount = Math.ceil(text.length / 1000);
             await ctx.runMutation(internal.knowledgeBase.setDocumentReady, {
                 documentId: args.documentId,
+                chunkCount,
             });
         } catch (error) {
             const message =
@@ -94,6 +96,57 @@ export const processDocument = internalAction({
 
             console.error(
                 `processDocument failed for ${args.documentId}:`,
+                message,
+            );
+
+            await ctx.runMutation(internal.knowledgeBase.setDocumentFailed, {
+                documentId: args.documentId,
+                processingError: message.slice(0, 500),
+            });
+        }
+    },
+});
+
+export const reindexDocument = internalAction({
+    args: { documentId: v.id("kbDocuments") },
+    handler: async (ctx, args) => {
+        const doc = await ctx.runQuery(api.knowledgeBase.getDocumentInternal, {
+            documentId: args.documentId,
+        });
+        if (!doc) {
+            console.error(
+                `reindexDocument: document ${args.documentId} not found`,
+            );
+            return;
+        }
+
+        try {
+            const text = doc.rawText ?? "";
+            if (!text.trim()) {
+                throw new Error("Document has no text content to index");
+            }
+
+            // Re-add to RAG — same key replaces old chunks automatically
+            await rag.add(ctx, {
+                namespace: doc.clientId,
+                key: args.documentId,
+                title: doc.title,
+                text,
+            });
+
+            const chunkCount = Math.ceil(text.length / 1000);
+            await ctx.runMutation(internal.knowledgeBase.setDocumentReady, {
+                documentId: args.documentId,
+                chunkCount,
+            });
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "Unknown re-indexing error";
+
+            console.error(
+                `reindexDocument failed for ${args.documentId}:`,
                 message,
             );
 
@@ -140,14 +193,14 @@ export const searchKnowledgeBase = action({
 
 export const reprocessAllDocuments = action({
     args: { clientId: v.id("clients") },
-    handler: async (ctx, args) => {
+    handler: async (ctx, args): Promise<{ reprocessed: number }> => {
         // Auth check + get all documents (listDocuments calls requireClientAccess)
         const documents = await ctx.runQuery(api.knowledgeBase.listDocuments, {
             clientId: args.clientId,
         });
 
         const ready = documents.filter(
-            (d) => d.processingStatus === "ready" || d.processingStatus === "failed",
+            (d: { processingStatus: string }) => d.processingStatus === "ready" || d.processingStatus === "failed",
         );
 
         for (const doc of ready) {

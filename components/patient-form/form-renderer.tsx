@@ -40,6 +40,7 @@ import {
     type FormLanguage,
 } from "@/lib/patient-form-i18n";
 import {
+    matchesFollowUpTrigger,
     parseMultipleChoiceValue,
     serializeMultipleChoiceValue,
 } from "@/lib/multiple-choice";
@@ -364,7 +365,10 @@ export function FormRenderer({
                 const parentField = allFields.find((f) => f.id === parentId);
                 if (
                     parentField?.followUp?.enabled &&
-                    rawFormData[parentId] === parentField.followUp.trigger
+                    matchesFollowUpTrigger(
+                        parentField,
+                        rawFormData[parentId] ?? "",
+                    )
                 ) {
                     formData[key] = value;
                 }
@@ -451,7 +455,7 @@ export function FormRenderer({
 
         const followUpId = `${field.id}${FOLLOW_UP_SUFFIX}`;
         const parentValue = watch(field.id);
-        const isVisible = parentValue === field.followUp.trigger;
+        const isVisible = matchesFollowUpTrigger(field, parentValue ?? "");
 
         if (!isVisible) return null;
 
@@ -859,7 +863,9 @@ export function FormRenderer({
                                 <button
                                     key={step.id}
                                     type="button"
-                                    disabled={!preview && index > currentStepIndex}
+                                    disabled={
+                                        !preview && index > currentStepIndex
+                                    }
                                     onClick={() => {
                                         if (preview || index < currentStepIndex)
                                             setCurrentStepIndex(index);
@@ -911,7 +917,12 @@ export function FormRenderer({
                                         key={step.id}
                                         role={preview ? "button" : undefined}
                                         tabIndex={preview ? 0 : undefined}
-                                        onClick={preview ? () => setCurrentStepIndex(index) : undefined}
+                                        onClick={
+                                            preview
+                                                ? () =>
+                                                      setCurrentStepIndex(index)
+                                                : undefined
+                                        }
                                         className={`rounded-2xl border px-4 py-3 text-sm transition-colors ${
                                             preview ? "cursor-pointer" : ""
                                         } ${

@@ -57,9 +57,7 @@ export function serializeMultipleChoiceValue(values: string[]): string {
         new Set(values.map((value) => value.trim()).filter(Boolean)),
     );
 
-    return normalizedValues.length > 0
-        ? JSON.stringify(normalizedValues)
-        : "";
+    return normalizedValues.length > 0 ? JSON.stringify(normalizedValues) : "";
 }
 
 export function matchesFollowUpTrigger(
@@ -69,6 +67,10 @@ export function matchesFollowUpTrigger(
     const trigger = field.followUp?.trigger;
     if (!trigger) {
         return false;
+    }
+
+    if (field.type === "multiSelect") {
+        return parseMultipleChoiceValue(value).includes(trigger);
     }
 
     return value === trigger;

@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { FORM_LANGUAGES } from "@/lib/patient-form-i18n";
-import { parseMultipleChoiceValue } from "@/lib/multiple-choice";
+import {
+    matchesFollowUpTrigger,
+    parseMultipleChoiceValue,
+} from "@/lib/multiple-choice";
 
 export const fieldTypeSchema = z.enum([
     "text",
@@ -203,8 +206,7 @@ export function validateSubmissionData(
             }
             if (fv.pattern && !new RegExp(fv.pattern).test(value)) {
                 throw new Error(
-                    fv.message ??
-                        `${field.label} has an invalid format`,
+                    fv.message ?? `${field.label} has an invalid format`,
                 );
             }
         }
@@ -213,7 +215,7 @@ export function validateSubmissionData(
         if (field.followUp?.enabled && field.followUp.required) {
             const followUpKey = `${field.id}${FOLLOW_UP_SUFFIX}`;
             const followUpValue = normalized[followUpKey] ?? "";
-            const parentMatchesTrigger = value === field.followUp.trigger;
+            const parentMatchesTrigger = matchesFollowUpTrigger(field, value);
 
             if (parentMatchesTrigger && followUpValue.trim().length === 0) {
                 throw new Error(`${field.followUp.label} is required`);

@@ -104,3 +104,45 @@ export async function deleteFolder(
     await ctx.db.delete(folderId);
     return folder;
 }
+
+// --- KB Threads ---
+
+export async function createThread(
+    ctx: MutationCtx,
+    data: {
+        clientId: Id<"clients">;
+        agentThreadId: string;
+        title?: string;
+        userId: string;
+        lastMessageAt: number;
+    },
+) {
+    return ctx.db.insert("kbThreads", {
+        clientId: data.clientId,
+        agentThreadId: data.agentThreadId,
+        title: data.title,
+        userId: data.userId,
+        lastMessageAt: data.lastMessageAt,
+    });
+}
+
+export async function patchThread(
+    ctx: MutationCtx,
+    threadId: Id<"kbThreads">,
+    patch: Record<string, unknown>,
+) {
+    const thread = await ctx.db.get(threadId);
+    if (!thread) return null;
+    await ctx.db.patch(threadId, patch);
+    return thread;
+}
+
+export async function deleteThread(
+    ctx: MutationCtx,
+    threadId: Id<"kbThreads">,
+) {
+    const thread = await ctx.db.get(threadId);
+    if (!thread) return null;
+    await ctx.db.delete(threadId);
+    return thread;
+}

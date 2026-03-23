@@ -85,3 +85,32 @@ export async function listFoldersByParent(
         .order("asc")
         .collect();
 }
+
+// --- KB Threads ---
+
+export async function listThreadsByClientUser(
+    ctx: QueryCtx,
+    clientId: Id<"clients">,
+    userId: string,
+    limit = 30,
+) {
+    return ctx.db
+        .query("kbThreads")
+        .withIndex("by_client_user", (q) =>
+            q.eq("clientId", clientId).eq("userId", userId),
+        )
+        .order("desc")
+        .take(limit);
+}
+
+export async function getThreadByAgentId(
+    ctx: QueryCtx,
+    agentThreadId: string,
+) {
+    return ctx.db
+        .query("kbThreads")
+        .withIndex("by_agent_thread", (q) =>
+            q.eq("agentThreadId", agentThreadId),
+        )
+        .unique();
+}

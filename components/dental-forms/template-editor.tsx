@@ -219,7 +219,11 @@ function supportsPattern(fieldType: FieldType): boolean {
 }
 
 function supportsFollowUp(fieldType: FieldType): boolean {
-    return fieldType === "radio" || fieldType === "select";
+    return (
+        fieldType === "radio" ||
+        fieldType === "select" ||
+        fieldType === "multiSelect"
+    );
 }
 
 function supportsRequired(fieldType: FieldType): boolean {
@@ -284,7 +288,10 @@ function FieldEditorDialog({
 
     return (
         <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-            <DialogContent className={`sm:max-w-lg${dialogClassName ? ` ${dialogClassName}` : ""}`} style={dialogStyle}>
+            <DialogContent
+                className={`sm:max-w-lg${dialogClassName ? ` ${dialogClassName}` : ""}`}
+                style={dialogStyle}
+            >
                 {!field ? null : (
                     <>
                         <DialogHeader>
@@ -337,7 +344,9 @@ function FieldEditorDialog({
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
-                                        <SelectContent className={dialogClassName}>
+                                        <SelectContent
+                                            className={dialogClassName}
+                                        >
                                             {FIELD_TYPES.map((fieldType) => (
                                                 <SelectItem
                                                     key={fieldType.value}
@@ -569,7 +578,11 @@ function FieldEditorDialog({
                                                         <SelectTrigger className="h-9">
                                                             <SelectValue placeholder="No format restriction" />
                                                         </SelectTrigger>
-                                                        <SelectContent className={dialogClassName}>
+                                                        <SelectContent
+                                                            className={
+                                                                dialogClassName
+                                                            }
+                                                        >
                                                             <SelectItem value="__none">
                                                                 No format
                                                                 restriction
@@ -730,7 +743,7 @@ function FieldEditorDialog({
                                                                       field
                                                                           .options?.[0] ??
                                                                       "",
-                                                                  label: "If yes, please explain",
+                                                                  label: "Please provide details",
                                                                   required: false,
                                                               }
                                                             : undefined,
@@ -743,7 +756,10 @@ function FieldEditorDialog({
                                         <div className="space-y-3">
                                             <div className="space-y-2">
                                                 <Label className="text-xs text-muted-foreground">
-                                                    Show when answer is
+                                                    {field.type ===
+                                                    "multiSelect"
+                                                        ? "Show when answer includes"
+                                                        : "Show when answer is"}
                                                 </Label>
                                                 <Select
                                                     value={
@@ -766,7 +782,11 @@ function FieldEditorDialog({
                                                     <SelectTrigger className="h-9">
                                                         <SelectValue />
                                                     </SelectTrigger>
-                                                    <SelectContent className={dialogClassName}>
+                                                    <SelectContent
+                                                        className={
+                                                            dialogClassName
+                                                        }
+                                                    >
                                                         {(
                                                             field.options ?? []
                                                         ).map((option) => (
@@ -950,14 +970,17 @@ function SortableFieldItem({
             <div className="flex shrink-0 items-center rounded-lg border border-border/60 bg-background">
                 {(["third", "half", "full"] as const).map((w) => {
                     const active = (field.width ?? "half") === w;
-                    const label = w === "third" ? "1/3" : w === "half" ? "1/2" : "Full";
+                    const label =
+                        w === "third" ? "1/3" : w === "half" ? "1/2" : "Full";
                     return (
                         <button
                             key={w}
                             type="button"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                onUpdateField(sectionId, field.id, { width: w });
+                                onUpdateField(sectionId, field.id, {
+                                    width: w,
+                                });
                             }}
                             className={`px-2 py-1 text-xs font-medium transition-colors first:rounded-l-md last:rounded-r-md ${
                                 active
@@ -1190,7 +1213,10 @@ const TemplateSectionCard = memo(function TemplateSectionCard({
                         >
                             <div className="grid grid-cols-1 gap-2 sm:grid-cols-6">
                                 {section.fields.map((field, fieldIndex) => (
-                                    <div key={field.id} className={`${getWidthColSpan(field.width)} transition-all duration-200`}>
+                                    <div
+                                        key={field.id}
+                                        className={`${getWidthColSpan(field.width)} transition-all duration-200`}
+                                    >
                                         <SortableFieldItem
                                             field={field}
                                             fieldIndex={fieldIndex}
@@ -1743,7 +1769,10 @@ export function TemplateEditor({
         editingField?.sectionId ?? lastFieldSnapshot.current?.sectionId ?? "";
 
     return (
-        <div className={`w-full animate-in fade-in-0 slide-in-from-bottom-2 duration-200 space-y-6 pb-24${isPortal ? " force-light" : ""}`} style={portalStyle}>
+        <div
+            className={`w-full animate-in fade-in-0 slide-in-from-bottom-2 duration-200 space-y-6 pb-24${isPortal ? " force-light" : ""}`}
+            style={portalStyle}
+        >
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex items-start gap-3">
                     <Button variant="ghost" size="icon" onClick={onClose}>
