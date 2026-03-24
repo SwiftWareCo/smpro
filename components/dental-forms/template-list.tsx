@@ -1,6 +1,12 @@
 "use client";
 
-import { useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
+import {
+    useMemo,
+    useRef,
+    useState,
+    type KeyboardEvent,
+    type MouseEvent,
+} from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id, Doc } from "@/convex/_generated/dataModel";
@@ -334,7 +340,13 @@ export function TemplateList({
                                                 </CardDescription>
                                             )}
                                         </div>
-                                        <div className="flex items-center gap-2" onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()}>
+                                        <div
+                                            className="flex items-center gap-2"
+                                            onClick={(e) => e.stopPropagation()}
+                                            onPointerDown={(e) =>
+                                                e.stopPropagation()
+                                            }
+                                        >
                                             <Badge
                                                 variant="secondary"
                                                 className={
@@ -373,39 +385,105 @@ export function TemplateList({
                                             </div>
                                             {!readOnly && (
                                                 <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
+                                                    <DropdownMenuTrigger
+                                                        asChild
+                                                    >
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
                                                             className="h-8 w-8"
-                                                            onClick={stopCardClick}
+                                                            onClick={
+                                                                stopCardClick
+                                                            }
                                                         >
                                                             <MoreVertical className="h-4 w-4" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className={isPortal ? "force-light" : undefined} style={portalDialogStyle} onCloseAutoFocus={(e) => e.preventDefault()}>
-                                                        {template.status === "draft" && (
-                                                            <DropdownMenuItem onClick={() => handleStatusChange(template._id, "active")}>
-                                                                <CheckCircle className="mr-2 h-4 w-4" /> Activate
+                                                    <DropdownMenuContent
+                                                        align="end"
+                                                        className={
+                                                            isPortal
+                                                                ? "force-light"
+                                                                : undefined
+                                                        }
+                                                        style={
+                                                            portalDialogStyle
+                                                        }
+                                                        onCloseAutoFocus={(e) =>
+                                                            e.preventDefault()
+                                                        }
+                                                    >
+                                                        {template.status ===
+                                                            "draft" && (
+                                                            <DropdownMenuItem
+                                                                onClick={() =>
+                                                                    handleStatusChange(
+                                                                        template._id,
+                                                                        "active",
+                                                                    )
+                                                                }
+                                                            >
+                                                                <CheckCircle className="mr-2 h-4 w-4" />{" "}
+                                                                Activate
                                                             </DropdownMenuItem>
                                                         )}
-                                                        <DropdownMenuItem onClick={() => openTemplateEditor(template)}>
-                                                            <Pencil className="mr-2 h-4 w-4" /> Edit
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                openTemplateEditor(
+                                                                    template,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Pencil className="mr-2 h-4 w-4" />{" "}
+                                                            Edit
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleDuplicate(template)}>
-                                                            <Copy className="mr-2 h-4 w-4" /> Duplicate
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                handleDuplicate(
+                                                                    template,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Copy className="mr-2 h-4 w-4" />{" "}
+                                                            Duplicate
                                                         </DropdownMenuItem>
-                                                        {template.status === "active" && (
-                                                            <DropdownMenuItem onClick={() => { setDeliveryTemplate(template); setDeliveryOpen(true); }}>
-                                                                <Send className="mr-2 h-4 w-4" /> Send to Patient
+                                                        {template.status ===
+                                                            "active" && (
+                                                            <DropdownMenuItem
+                                                                onClick={() => {
+                                                                    setDeliveryTemplate(
+                                                                        template,
+                                                                    );
+                                                                    setDeliveryOpen(
+                                                                        true,
+                                                                    );
+                                                                }}
+                                                            >
+                                                                <Send className="mr-2 h-4 w-4" />{" "}
+                                                                Send to Patient
                                                             </DropdownMenuItem>
                                                         )}
-                                                        <DropdownMenuItem onClick={() => setTranslateTarget(template)}>
-                                                            <Languages className="mr-2 h-4 w-4" /> Translate
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                setTranslateTarget(
+                                                                    template,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Languages className="mr-2 h-4 w-4" />{" "}
+                                                            Translate
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
-                                                        <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(template)}>
-                                                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                                        <DropdownMenuItem
+                                                            className="text-destructive"
+                                                            onClick={() =>
+                                                                setDeleteTarget(
+                                                                    template,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Trash2 className="mr-2 h-4 w-4" />{" "}
+                                                            Delete
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
@@ -577,7 +655,10 @@ export function TemplateList({
                 open={!!deleteTarget}
                 onOpenChange={(open) => !open && setDeleteTarget(null)}
             >
-                <AlertDialogContent className={isPortal ? "force-light" : undefined} style={portalDialogStyle}>
+                <AlertDialogContent
+                    className={isPortal ? "force-light" : undefined}
+                    style={portalDialogStyle}
+                >
                     <AlertDialogHeader>
                         <AlertDialogTitle>
                             {copyVariant === "form"
@@ -606,7 +687,10 @@ export function TemplateList({
                 open={!!translateTarget}
                 onOpenChange={(open) => !open && setTranslateTarget(null)}
             >
-                <AlertDialogContent className={isPortal ? "force-light" : undefined} style={portalDialogStyle}>
+                <AlertDialogContent
+                    className={isPortal ? "force-light" : undefined}
+                    style={portalDialogStyle}
+                >
                     <AlertDialogHeader>
                         <AlertDialogTitle>
                             {(() => {
@@ -690,6 +774,14 @@ export function TemplateList({
                                 language="en"
                                 clientName={clientName ?? "Your Practice"}
                                 preview
+                                dialogClassName="force-light"
+                                dialogStyle={{
+                                    colorScheme: "light",
+                                    ...buildTenantThemeStyle({
+                                        primaryColor: portalPrimaryColor,
+                                        secondaryColor: portalSecondaryColor,
+                                    }),
+                                }}
                             />
                         )}
                     </ScrollArea>

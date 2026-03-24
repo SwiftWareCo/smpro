@@ -39,7 +39,7 @@ interface DisplaySection {
     answers: DisplayAnswer[];
 }
 
-const FOLLOW_UP_SUFFIX = "__followUp";
+const FOLLOW_UP_INFIX = "__fu__";
 
 const statusLabels: Record<string, string> = {
     submitted: "Submitted",
@@ -70,7 +70,10 @@ function isPresent(value: unknown): value is string | number | boolean {
 }
 
 function humanizeKey(key: string): string {
-    const normalized = key.replace(FOLLOW_UP_SUFFIX, "").replace(/[-_]/g, " ");
+    // Strip follow-up infix and IDs for display
+    const normalized = key
+        .replace(/__fu__.*$/, "")
+        .replace(/[-_]/g, " ");
     return normalized.replace(/\b\w/g, (char) => char.toUpperCase()).trim();
 }
 
@@ -216,7 +219,7 @@ export function SubmissionDetail({
                 copyValue: formatted.copy,
                 wide: isWideAnswer(field, formatted.display),
                 kind:
-                    field?.type === "signature" && isSignatureValue(value)
+                    field?.type === "signature"
                         ? "signature"
                         : "text",
             });
@@ -228,6 +231,9 @@ export function SubmissionDetail({
 
             const answers: DisplayAnswer[] = [];
             for (const field of section.fields) {
+                // Skip paragraph fields — they're display-only
+                if (field.type === "paragraph") continue;
+
                 addAnswer(
                     answers,
                     field.id,
@@ -236,19 +242,24 @@ export function SubmissionDetail({
                     field,
                 );
 
-                if (field.followUp?.enabled) {
-                    const followUpKey = `${field.id}${FOLLOW_UP_SUFFIX}`;
-                    addAnswer(
-                        answers,
-                        followUpKey,
-                        field.followUp.label,
-                        formData[followUpKey],
-                        {
-                            ...field,
-                            label: field.followUp.label,
-                            type: "textarea",
-                        },
-                    );
+                // Iterate follow-ups
+                if (field.followUps) {
+                    for (const fu of field.followUps) {
+                        if (fu.type === "paragraph") continue;
+                        const fuKey = `${field.id}${FOLLOW_UP_INFIX}${fu.id}`;
+                        addAnswer(
+                            answers,
+                            fuKey,
+                            fu.label,
+                            formData[fuKey],
+                            {
+                                ...field,
+                                label: fu.label,
+                                type: fu.type as TemplateFieldDoc["type"],
+                                options: fu.options,
+                            },
+                        );
+                    }
                 }
             }
 
@@ -422,18 +433,26 @@ export function SubmissionDetail({
 
                                                     {answer.kind ===
                                                     "signature" ? (
-                                                        <div className="mt-3 overflow-hidden rounded-xl border border-border/60 bg-white p-3">
-                                                            <Image
-                                                                src={
-                                                                    answer.copyValue
-                                                                }
-                                                                alt={`${answer.label} signature`}
-                                                                width={640}
-                                                                height={220}
-                                                                className="max-h-36 w-full object-contain"
-                                                                unoptimized
-                                                            />
-                                                        </div>
+                                                        isSignatureValue(
+                                                            answer.copyValue,
+                                                        ) ? (
+                                                            <div className="mt-3 overflow-hidden rounded-xl border border-border/60 bg-white p-3">
+                                                                <Image
+                                                                    src={
+                                                                        answer.copyValue
+                                                                    }
+                                                                    alt={`${answer.label} signature`}
+                                                                    width={640}
+                                                                    height={220}
+                                                                    className="max-h-36 w-full object-contain"
+                                                                    unoptimized
+                                                                />
+                                                            </div>
+                                                        ) : (
+                                                            <p className="mt-3 whitespace-pre-wrap break-words text-3xl leading-tight text-foreground [font-family:'Brush_Script_MT','Lucida_Handwriting',cursive]">
+                                                                {answer.value}
+                                                            </p>
+                                                        )
                                                     ) : (
                                                         <p className="mt-3 whitespace-pre-wrap break-words text-[15px] leading-6 text-foreground">
                                                             {answer.value}

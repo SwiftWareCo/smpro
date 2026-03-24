@@ -74,6 +74,11 @@ function buildLocalizedTemplateSnapshot(
                 label?: unknown;
                 placeholder?: unknown;
                 options?: unknown;
+                followUps?: Array<{
+                    label?: unknown;
+                    placeholder?: unknown;
+                    options?: unknown;
+                }>;
             }>;
         }>;
     };
@@ -110,6 +115,37 @@ function buildLocalizedTemplateSnapshot(
                         ? translatedField.options
                         : undefined;
 
+                    const translatedFollowUps = field.followUps?.map(
+                        (fu, fuIndex) => {
+                            const translatedFu =
+                                translatedField?.followUps?.[fuIndex];
+                            const translatedFuOptions = Array.isArray(
+                                translatedFu?.options,
+                            )
+                                ? translatedFu.options
+                                : undefined;
+
+                            return {
+                                ...fu,
+                                label: getTranslatedString(
+                                    fu.label,
+                                    translatedFu?.label,
+                                ),
+                                placeholder: getOptionalTranslatedString(
+                                    fu.placeholder,
+                                    translatedFu?.placeholder,
+                                ),
+                                options: fu.options?.map(
+                                    (option, optionIndex) =>
+                                        getTranslatedString(
+                                            option,
+                                            translatedFuOptions?.[optionIndex],
+                                        ),
+                                ),
+                            };
+                        },
+                    );
+
                     return {
                         ...field,
                         label: getTranslatedString(
@@ -126,6 +162,7 @@ function buildLocalizedTemplateSnapshot(
                                 translatedOptions?.[optionIndex],
                             ),
                         ),
+                        followUps: translatedFollowUps,
                     };
                 }),
             };
@@ -271,6 +308,13 @@ async function localizeTemplate(
                     required: field.required,
                     options: field.options,
                     validation: field.validation,
+                    followUps: field.followUps?.map((fu) => ({
+                        id: fu.id,
+                        type: fu.type,
+                        label: fu.label,
+                        placeholder: fu.placeholder,
+                        options: fu.options,
+                    })),
                 })),
             })),
         }),

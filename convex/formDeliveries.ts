@@ -57,6 +57,7 @@ const localizedTemplateValidator = v.object({
                         v.literal("number"),
                         v.literal("signature"),
                         v.literal("address"),
+                        v.literal("paragraph"),
                     ),
                     label: v.string(),
                     placeholder: v.optional(v.string()),
@@ -70,12 +71,66 @@ const localizedTemplateValidator = v.object({
                             message: v.optional(v.string()),
                         }),
                     ),
-                    followUp: v.optional(
+                    followUps: v.optional(
+                        v.array(
+                            v.object({
+                                id: v.string(),
+                                type: v.union(
+                                    v.literal("text"),
+                                    v.literal("textarea"),
+                                    v.literal("date"),
+                                    v.literal("number"),
+                                    v.literal("select"),
+                                    v.literal("radio"),
+                                    v.literal("multiSelect"),
+                                    v.literal("paragraph"),
+                                ),
+                                label: v.string(),
+                                placeholder: v.optional(v.string()),
+                                required: v.boolean(),
+                                options: v.optional(v.array(v.string())),
+                                triggers: v.array(v.string()),
+                                width: v.optional(
+                                    v.union(
+                                        v.literal("third"),
+                                        v.literal("half"),
+                                        v.literal("full"),
+                                    ),
+                                ),
+                                paragraphStyle: v.optional(
+                                    v.object({
+                                        fontSize: v.optional(
+                                            v.union(
+                                                v.literal("sm"),
+                                                v.literal("base"),
+                                                v.literal("lg"),
+                                                v.literal("xl"),
+                                            ),
+                                        ),
+                                        bold: v.optional(v.boolean()),
+                                    }),
+                                ),
+                            }),
+                        ),
+                    ),
+                    width: v.optional(
+                        v.union(
+                            v.literal("third"),
+                            v.literal("half"),
+                            v.literal("full"),
+                        ),
+                    ),
+                    paragraphStyle: v.optional(
                         v.object({
-                            enabled: v.boolean(),
-                            trigger: v.string(),
-                            label: v.string(),
-                            required: v.boolean(),
+                            fontSize: v.optional(
+                                v.union(
+                                    v.literal("sm"),
+                                    v.literal("base"),
+                                    v.literal("lg"),
+                                    v.literal("xl"),
+                                ),
+                            ),
+                            bold: v.optional(v.boolean()),
                         }),
                     ),
                 }),

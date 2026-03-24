@@ -5,6 +5,41 @@ import { v } from "convex/values";
  * Form template field definition (stored as JSON in sections).
  * Each section contains an array of fields with type, label, validation rules, etc.
  */
+const followUpFieldSchema = v.object({
+    id: v.string(),
+    type: v.union(
+        v.literal("text"),
+        v.literal("textarea"),
+        v.literal("date"),
+        v.literal("number"),
+        v.literal("select"),
+        v.literal("radio"),
+        v.literal("multiSelect"),
+        v.literal("paragraph"),
+    ),
+    label: v.string(),
+    placeholder: v.optional(v.string()),
+    required: v.boolean(),
+    options: v.optional(v.array(v.string())),
+    triggers: v.array(v.string()),
+    width: v.optional(
+        v.union(v.literal("third"), v.literal("half"), v.literal("full")),
+    ),
+    paragraphStyle: v.optional(
+        v.object({
+            fontSize: v.optional(
+                v.union(
+                    v.literal("sm"),
+                    v.literal("base"),
+                    v.literal("lg"),
+                    v.literal("xl"),
+                ),
+            ),
+            bold: v.optional(v.boolean()),
+        }),
+    ),
+});
+
 const fieldSchema = v.object({
     id: v.string(),
     type: v.union(
@@ -19,6 +54,7 @@ const fieldSchema = v.object({
         v.literal("number"),
         v.literal("signature"),
         v.literal("address"),
+        v.literal("paragraph"),
     ),
     label: v.string(),
     placeholder: v.optional(v.string()),
@@ -32,6 +68,9 @@ const fieldSchema = v.object({
             message: v.optional(v.string()),
         }),
     ),
+    // New follow-up system: array of typed follow-up fields
+    followUps: v.optional(v.array(followUpFieldSchema)),
+    // Temporary legacy support for migration rollout.
     followUp: v.optional(
         v.object({
             enabled: v.boolean(),
@@ -40,7 +79,22 @@ const fieldSchema = v.object({
             required: v.boolean(),
         }),
     ),
-    width: v.optional(v.union(v.literal("third"), v.literal("half"), v.literal("full"))),
+    width: v.optional(
+        v.union(v.literal("third"), v.literal("half"), v.literal("full")),
+    ),
+    paragraphStyle: v.optional(
+        v.object({
+            fontSize: v.optional(
+                v.union(
+                    v.literal("sm"),
+                    v.literal("base"),
+                    v.literal("lg"),
+                    v.literal("xl"),
+                ),
+            ),
+            bold: v.optional(v.boolean()),
+        }),
+    ),
 });
 
 const sectionSchema = v.object({

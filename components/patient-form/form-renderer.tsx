@@ -44,6 +44,10 @@ import {
     parseMultipleChoiceValue,
     serializeMultipleChoiceValue,
 } from "@/lib/multiple-choice";
+import {
+    makeFollowUpKey,
+    parseFollowUpKey,
+} from "@/lib/validation/dental-form";
 
 type TemplateSectionDoc = Doc<"formTemplates">["sections"][number];
 type TemplateFieldDoc = TemplateSectionDoc["fields"][number];
@@ -56,6 +60,8 @@ interface FormRendererProps {
     clientName: string;
     onSubmitStart?: () => void;
     preview?: boolean;
+    dialogClassName?: string;
+    dialogStyle?: React.CSSProperties;
 }
 
 interface FormStep {
@@ -67,29 +73,37 @@ interface FormStep {
     kind: "section" | "consent";
 }
 
-const LONG_FORM_FIELD_THRESHOLD = 10;
-const CONSENT_FIELD_ID = "__consent";
-const FOLLOW_UP_SUFFIX = "__followUp";
-
-function isInteractiveField(field: TemplateFieldDoc): boolean {
-    return true;
+interface ParagraphStyleConfig {
+    fontSize?: "sm" | "base" | "lg" | "xl";
+    bold?: boolean;
 }
 
-/** Fields that need full width in the 2-col grid */
-function isWideField(field: TemplateFieldDoc): boolean {
-    if (field.type === "radio" || field.type === "multiSelect") {
-        const options = field.options ?? [];
-        return options.length > 4 || options.some((o) => o.length > 20);
-    }
-    return (
-        field.type === "textarea" ||
-        field.type === "signature" ||
-        field.type === "address"
-    );
+const LONG_FORM_FIELD_THRESHOLD = 10;
+const CONSENT_FIELD_ID = "__consent";
+
+function isInteractiveField(field: TemplateFieldDoc): boolean {
+    return field.type !== "paragraph";
+}
+
+function getChoiceGridClass(width?: string): string {
+    if (width === "third") return "grid grid-cols-1 gap-2";
+    if (width === "full") return "grid grid-cols-2 sm:grid-cols-3 gap-2";
+    return "grid grid-cols-2 gap-2";
 }
 
 function getFieldRules(
-    field: TemplateFieldDoc,
+    field: {
+        type: string;
+        required: boolean;
+        label: string;
+        options?: string[];
+        validation?: {
+            min?: number;
+            max?: number;
+            pattern?: string;
+            message?: string;
+        };
+    },
     language: FormLanguage,
 ): RegisterOptions<FormValues, string> {
     const copy = PATIENT_FORM_COPY[language];
@@ -188,6 +202,41 @@ function getErrorMessage(error: unknown): string | undefined {
     return typeof error.message === "string" ? error.message : undefined;
 }
 
+function getFieldSpanClass(field: {
+    width?: string;
+    type: string;
+    options?: string[];
+}): string {
+    if (field.type === "address") return "sm:col-span-6";
+
+    const w = field.width;
+    if (w === "third") return "sm:col-span-2";
+    if (w === "full") return "sm:col-span-6";
+    if (w === "half") return "sm:col-span-3";
+    // No explicit width: auto-detect wide fields (backward compat)
+    if (
+        field.type === "textarea" ||
+        field.type === "signature" ||
+        field.type === "paragraph"
+    ) {
+        return "sm:col-span-6";
+    }
+    return "sm:col-span-3";
+}
+
+function getParagraphTextClass(paragraphStyle?: ParagraphStyleConfig): string {
+    const fontSizeClass =
+        paragraphStyle?.fontSize === "sm"
+            ? "text-sm"
+            : paragraphStyle?.fontSize === "lg"
+              ? "text-lg"
+              : paragraphStyle?.fontSize === "xl"
+                ? "text-xl"
+                : "text-base";
+
+    return `${fontSizeClass} ${paragraphStyle?.bold ? "font-semibold" : "font-normal"} text-foreground whitespace-pre-wrap`;
+}
+
 export function FormRenderer({
     template,
     token,
@@ -195,6 +244,8 @@ export function FormRenderer({
     clientName,
     onSubmitStart,
     preview,
+    dialogClassName,
+    dialogStyle,
 }: FormRendererProps) {
     const router = useRouter();
     const [submitting, setSubmitting] = useState(false);
@@ -228,8 +279,11 @@ export function FormRenderer({
             for (const field of section.fields) {
                 if (!isInteractiveField(field)) continue;
                 values[field.id] = "";
-                if (field.followUp?.enabled) {
-                    values[`${field.id}${FOLLOW_UP_SUFFIX}`] = "";
+                if (field.followUps) {
+                    for (const fu of field.followUps) {
+                        if (fu.type === "paragraph") continue;
+                        values[makeFollowUpKey(field.id, fu.id)] = "";
+                    }
                 }
             }
         }
@@ -257,8 +311,11 @@ export function FormRenderer({
         const fieldIdsWithFollowUps = (fields: TemplateFieldDoc[]) =>
             fields.filter(isInteractiveField).flatMap((field) => {
                 const ids = [field.id];
-                if (field.followUp?.enabled) {
-                    ids.push(`${field.id}${FOLLOW_UP_SUFFIX}`);
+                if (field.followUps) {
+                    for (const fu of field.followUps) {
+                        if (fu.type === "paragraph") continue;
+                        ids.push(makeFollowUpKey(field.id, fu.id));
+                    }
                 }
                 return ids;
             });
@@ -316,9 +373,9 @@ export function FormRenderer({
     const consentAgreed = watch(CONSENT_FIELD_ID) === "true";
 
     useEffect(() => {
-        if (!wizardMode) return;
+        if (!wizardMode || preview) return;
         window.scrollTo({ top: 0, behavior: "smooth" });
-    }, [currentStepIndex, wizardMode]);
+    }, [currentStepIndex, preview, wizardMode]);
 
     const goToNextStep = async () => {
         if (!wizardMode || !currentStep) return;
@@ -356,18 +413,28 @@ export function FormRenderer({
 
         const { [CONSENT_FIELD_ID]: _consent, ...rawFormData } = values;
 
-        // Strip follow-up values where parent doesn't match the trigger
-        const formData: FormValues = {};
+        // Build lookup of all fields
         const allFields = enabledSections.flatMap((s) => s.fields);
+        const fieldMap = new Map(allFields.map((f) => [f.id, f]));
+
+        // Strip follow-up values where parent doesn't match the triggers
+        const formData: FormValues = {};
         for (const [key, value] of Object.entries(rawFormData)) {
-            if (key.endsWith(FOLLOW_UP_SUFFIX)) {
-                const parentId = key.slice(0, -FOLLOW_UP_SUFFIX.length);
-                const parentField = allFields.find((f) => f.id === parentId);
+            const parsed = parseFollowUpKey(key);
+            if (parsed) {
+                const parentField = fieldMap.get(parsed.parentId);
+                if (!parentField?.followUps) continue;
+                const fu = parentField.followUps.find(
+                    (f) => f.id === parsed.followUpId,
+                );
+                if (!fu) continue;
+                if (fu.type === "paragraph") continue;
+                const parentValue = rawFormData[parsed.parentId] ?? "";
                 if (
-                    parentField?.followUp?.enabled &&
                     matchesFollowUpTrigger(
                         parentField,
-                        rawFormData[parentId] ?? "",
+                        fu.triggers,
+                        parentValue,
                     )
                 ) {
                     formData[key] = value;
@@ -431,8 +498,6 @@ export function FormRenderer({
         }
 
         if (wizardMode) {
-            // Bypass handleSubmit — validate via trigger() which works
-            // reliably on unmounted Controller fields
             const allFieldIds = steps.flatMap((s) => s.fieldIds);
             const isValid = await trigger(allFieldIds);
             if (isValid) {
@@ -450,61 +515,315 @@ export function FormRenderer({
         await handleSubmit(onSubmit, handleInvalidSubmit)(event);
     };
 
-    const renderFollowUp = (field: TemplateFieldDoc) => {
-        if (!field.followUp?.enabled) return null;
-
-        const followUpId = `${field.id}${FOLLOW_UP_SUFFIX}`;
-        const parentValue = watch(field.id);
-        const isVisible = matchesFollowUpTrigger(field, parentValue ?? "");
-
-        if (!isVisible) return null;
-
-        const followUpError = getErrorMessage(errors[followUpId]);
-
-        return (
-            <div className="space-y-1.5 sm:col-span-6">
-                <Label htmlFor={followUpId} className="text-sm">
-                    {field.followUp.label}
-                    {field.followUp.required && (
-                        <span className="ml-1 text-destructive">*</span>
+    // Shared field input renderer for both main fields and follow-ups
+    const renderFieldInput = (
+        fieldType: string,
+        fieldKey: string,
+        fieldConfig: {
+            label: string;
+            placeholder?: string;
+            required: boolean;
+            options?: string[];
+            validation?: {
+                min?: number;
+                max?: number;
+                pattern?: string;
+                message?: string;
+            };
+            width?: string;
+            paragraphStyle?: ParagraphStyleConfig;
+        },
+    ) => {
+        if (fieldType === "paragraph") {
+            return (
+                <p
+                    className={getParagraphTextClass(
+                        fieldConfig.paragraphStyle,
                     )}
-                </Label>
-                <Textarea
-                    id={followUpId}
-                    rows={2}
-                    placeholder={field.followUp.label}
-                    {...register(followUpId, {
-                        required: field.followUp.required
-                            ? copy.requiredField(field.followUp.label)
-                            : false,
-                    })}
+                >
+                    {fieldConfig.label}
+                </p>
+            );
+        }
+
+        if (fieldType === "text") {
+            return (
+                <Input
+                    id={fieldKey}
+                    placeholder={fieldConfig.placeholder}
+                    {...register(
+                        fieldKey,
+                        getFieldRules(
+                            { ...fieldConfig, type: fieldType },
+                            language,
+                        ),
+                    )}
                 />
-                {followUpError && (
-                    <p className="text-sm text-destructive">{followUpError}</p>
-                )}
-            </div>
-        );
+            );
+        }
+
+        if (fieldType === "textarea") {
+            return (
+                <Textarea
+                    id={fieldKey}
+                    rows={3}
+                    placeholder={fieldConfig.placeholder}
+                    {...register(
+                        fieldKey,
+                        getFieldRules(
+                            { ...fieldConfig, type: fieldType },
+                            language,
+                        ),
+                    )}
+                />
+            );
+        }
+
+        if (fieldType === "number") {
+            return (
+                <Input
+                    id={fieldKey}
+                    type="number"
+                    placeholder={fieldConfig.placeholder}
+                    {...register(
+                        fieldKey,
+                        getFieldRules(
+                            { ...fieldConfig, type: fieldType },
+                            language,
+                        ),
+                    )}
+                />
+            );
+        }
+
+        if (fieldType === "date") {
+            return (
+                <Controller
+                    name={fieldKey}
+                    control={control}
+                    rules={getFieldRules(
+                        { ...fieldConfig, type: fieldType },
+                        language,
+                    )}
+                    render={({ field: controllerField }) => (
+                        <ClientFormDatePicker
+                            value={controllerField.value ?? ""}
+                            onChange={controllerField.onChange}
+                            language={language}
+                        />
+                    )}
+                />
+            );
+        }
+
+        if (fieldType === "select") {
+            return (
+                <Controller
+                    name={fieldKey}
+                    control={control}
+                    rules={getFieldRules(
+                        { ...fieldConfig, type: fieldType },
+                        language,
+                    )}
+                    render={({ field: controllerField }) => (
+                        <Select
+                            value={controllerField.value ?? ""}
+                            onValueChange={controllerField.onChange}
+                        >
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder={copy.selectOption} />
+                            </SelectTrigger>
+                            <SelectContent className="force-light">
+                                {(fieldConfig.options ?? []).map((option) => (
+                                    <SelectItem key={option} value={option}>
+                                        {option}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+                />
+            );
+        }
+
+        if (fieldType === "radio") {
+            return (
+                <Controller
+                    name={fieldKey}
+                    control={control}
+                    rules={getFieldRules(
+                        { ...fieldConfig, type: fieldType },
+                        language,
+                    )}
+                    render={({ field: controllerField }) => {
+                        const options = fieldConfig.options ?? [];
+                        const gridClass = getChoiceGridClass(fieldConfig.width);
+                        return (
+                            <RadioGroup
+                                value={controllerField.value ?? ""}
+                                onValueChange={controllerField.onChange}
+                                className={gridClass}
+                            >
+                                {options.map((option) => (
+                                    <div
+                                        key={option}
+                                        className="flex items-center gap-2 rounded-lg border border-slate-300 bg-background px-3 py-2"
+                                    >
+                                        <RadioGroupItem
+                                            value={option}
+                                            id={`${fieldKey}-${option}`}
+                                        />
+                                        <Label
+                                            htmlFor={`${fieldKey}-${option}`}
+                                            className="text-sm font-normal"
+                                        >
+                                            {option}
+                                        </Label>
+                                    </div>
+                                ))}
+                            </RadioGroup>
+                        );
+                    }}
+                />
+            );
+        }
+
+        if (fieldType === "multiSelect") {
+            return (
+                <Controller
+                    name={fieldKey}
+                    control={control}
+                    rules={getFieldRules(
+                        { ...fieldConfig, type: fieldType },
+                        language,
+                    )}
+                    render={({ field: controllerField }) => {
+                        const options = fieldConfig.options ?? [];
+                        const selected = parseMultipleChoiceValue(
+                            controllerField.value ?? "",
+                        );
+                        const gridClass = getChoiceGridClass(fieldConfig.width);
+                        return (
+                            <div className={gridClass}>
+                                {options.map((option) => {
+                                    const isChecked = selected.includes(option);
+                                    return (
+                                        <div
+                                            key={option}
+                                            className="flex items-center gap-2 rounded-lg border border-slate-300 bg-background px-3 py-2"
+                                        >
+                                            <Checkbox
+                                                id={`${fieldKey}-${option}`}
+                                                checked={isChecked}
+                                                onCheckedChange={(checked) => {
+                                                    const next =
+                                                        checked === true
+                                                            ? [
+                                                                  ...selected,
+                                                                  option,
+                                                              ]
+                                                            : selected.filter(
+                                                                  (v) =>
+                                                                      v !==
+                                                                      option,
+                                                              );
+                                                    controllerField.onChange(
+                                                        serializeMultipleChoiceValue(
+                                                            next,
+                                                        ),
+                                                    );
+                                                }}
+                                            />
+                                            <Label
+                                                htmlFor={`${fieldKey}-${option}`}
+                                                className="text-sm font-normal"
+                                            >
+                                                {option}
+                                            </Label>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        );
+                    }}
+                />
+            );
+        }
+
+        return null;
     };
 
-    const getFieldSpanClass = (field: TemplateFieldDoc): string => {
-        // Explicit width takes priority
-        const w = (field as TemplateFieldDoc & { width?: string }).width;
-        if (w === "third") return "sm:col-span-2";
-        if (w === "full") return "sm:col-span-6";
-        if (w === "half") return "sm:col-span-3";
-        // No explicit width: auto-detect wide fields (backward compat)
-        if (isWideField(field)) return "sm:col-span-6";
-        // Default: half (2-per-row, matches old sm:grid-cols-2)
-        return "sm:col-span-3";
+    const renderFollowUps = (field: TemplateFieldDoc) => {
+        if (!field.followUps || field.followUps.length === 0) return null;
+
+        const parentValue = watch(field.id);
+
+        return field.followUps
+            .filter((fu) =>
+                matchesFollowUpTrigger(field, fu.triggers, parentValue ?? ""),
+            )
+            .map((fu) => {
+                const fuKey = makeFollowUpKey(field.id, fu.id);
+                const spanClass = getFieldSpanClass(fu);
+
+                if (fu.type === "paragraph") {
+                    return (
+                        <div key={fuKey} className={`${spanClass}`}>
+                            <p
+                                className={getParagraphTextClass(
+                                    fu.paragraphStyle,
+                                )}
+                            >
+                                {fu.label}
+                            </p>
+                        </div>
+                    );
+                }
+
+                const fuError = getErrorMessage(errors[fuKey]);
+                return (
+                    <div key={fuKey} className={`space-y-1.5 ${spanClass}`}>
+                        <Label htmlFor={fuKey} className="text-sm">
+                            {fu.label}
+                            {fu.required && (
+                                <span className="ml-1 text-destructive">*</span>
+                            )}
+                        </Label>
+                        {renderFieldInput(fu.type, fuKey, {
+                            label: fu.label,
+                            placeholder: fu.placeholder,
+                            required: fu.required,
+                            options: fu.options,
+                            width: fu.width,
+                            paragraphStyle: fu.paragraphStyle,
+                        })}
+                        {fuError && (
+                            <p className="text-sm text-destructive">
+                                {fuError}
+                            </p>
+                        )}
+                    </div>
+                );
+            });
     };
 
     const renderField = (field: TemplateFieldDoc) => {
+        if (field.type === "paragraph") {
+            return (
+                <div key={field.id} className="sm:col-span-6">
+                    <p className={getParagraphTextClass(field.paragraphStyle)}>
+                        {field.label}
+                    </p>
+                </div>
+            );
+        }
+
         const errorMessage = getErrorMessage(errors[field.id]);
         const spanClass = getFieldSpanClass(field);
 
         if (field.type === "signature") {
             return (
-                <div key={field.id} className="space-y-1.5 sm:col-span-6">
+                <div key={field.id} className={`space-y-1.5 ${spanClass}`}>
                     <Controller
                         name={field.id}
                         control={control}
@@ -520,6 +839,8 @@ export function FormRenderer({
                                 required={field.required}
                                 value={controllerField.value ?? ""}
                                 onChange={controllerField.onChange}
+                                dialogClassName={dialogClassName}
+                                dialogStyle={dialogStyle}
                             />
                         )}
                     />
@@ -532,213 +853,15 @@ export function FormRenderer({
             );
         }
 
-        return (
-            <div key={field.id} className={`space-y-1.5 ${spanClass}`}>
-                <Label htmlFor={field.id} className="text-sm">
-                    {field.label}
-                    {field.required && (
-                        <span className="ml-1 text-destructive">*</span>
-                    )}
-                </Label>
-
-                {field.type === "text" && (
-                    <Input
-                        id={field.id}
-                        placeholder={field.placeholder}
-                        {...register(field.id, getFieldRules(field, language))}
-                    />
-                )}
-
-                {field.type === "email" && (
-                    <Input
-                        id={field.id}
-                        type="email"
-                        placeholder={field.placeholder ?? "email@example.com"}
-                        {...register(field.id, getFieldRules(field, language))}
-                    />
-                )}
-
-                {field.type === "phone" && (
-                    <Input
-                        id={field.id}
-                        type="tel"
-                        placeholder={field.placeholder ?? "(555) 123-4567"}
-                        {...register(field.id, getFieldRules(field, language))}
-                    />
-                )}
-
-                {field.type === "date" && (
-                    <Controller
-                        name={field.id}
-                        control={control}
-                        rules={getFieldRules(field, language)}
-                        render={({ field: controllerField }) => (
-                            <ClientFormDatePicker
-                                value={controllerField.value ?? ""}
-                                onChange={controllerField.onChange}
-                                language={language}
-                            />
+        if (field.type === "address") {
+            return (
+                <div key={field.id} className={`space-y-1.5 ${spanClass}`}>
+                    <Label htmlFor={field.id} className="text-sm">
+                        {field.label}
+                        {field.required && (
+                            <span className="ml-1 text-destructive">*</span>
                         )}
-                    />
-                )}
-
-                {field.type === "number" && (
-                    <Input
-                        id={field.id}
-                        type="number"
-                        placeholder={field.placeholder}
-                        {...register(field.id, getFieldRules(field, language))}
-                    />
-                )}
-
-                {field.type === "textarea" && (
-                    <Textarea
-                        id={field.id}
-                        rows={3}
-                        placeholder={field.placeholder}
-                        {...register(field.id, getFieldRules(field, language))}
-                    />
-                )}
-
-                {field.type === "select" && (
-                    <Controller
-                        name={field.id}
-                        control={control}
-                        rules={getFieldRules(field, language)}
-                        render={({ field: controllerField }) => (
-                            <Select
-                                value={controllerField.value ?? ""}
-                                onValueChange={controllerField.onChange}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue
-                                        placeholder={copy.selectOption}
-                                    />
-                                </SelectTrigger>
-                                <SelectContent className="force-light">
-                                    {(field.options ?? []).map((option) => (
-                                        <SelectItem key={option} value={option}>
-                                            {option}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        )}
-                    />
-                )}
-
-                {field.type === "radio" && (
-                    <Controller
-                        name={field.id}
-                        control={control}
-                        rules={getFieldRules(field, language)}
-                        render={({ field: controllerField }) => {
-                            const options = field.options ?? [];
-                            const useInline =
-                                options.length <= 4 &&
-                                options.every((o) => o.length <= 20);
-                            return (
-                                <RadioGroup
-                                    value={controllerField.value ?? ""}
-                                    onValueChange={controllerField.onChange}
-                                    className={
-                                        useInline
-                                            ? "flex flex-wrap gap-2"
-                                            : "gap-2"
-                                    }
-                                >
-                                    {options.map((option) => (
-                                        <div
-                                            key={option}
-                                            className="flex items-center gap-2 rounded-lg border border-slate-300 bg-background px-3 py-2"
-                                        >
-                                            <RadioGroupItem
-                                                value={option}
-                                                id={`${field.id}-${option}`}
-                                            />
-                                            <Label
-                                                htmlFor={`${field.id}-${option}`}
-                                                className="text-sm font-normal"
-                                            >
-                                                {option}
-                                            </Label>
-                                        </div>
-                                    ))}
-                                </RadioGroup>
-                            );
-                        }}
-                    />
-                )}
-
-                {field.type === "multiSelect" && (
-                    <Controller
-                        name={field.id}
-                        control={control}
-                        rules={getFieldRules(field, language)}
-                        render={({ field: controllerField }) => {
-                            const options = field.options ?? [];
-                            const selected = parseMultipleChoiceValue(
-                                controllerField.value ?? "",
-                            );
-                            const useInline =
-                                options.length <= 4 &&
-                                options.every((o) => o.length <= 20);
-                            return (
-                                <div
-                                    className={
-                                        useInline
-                                            ? "flex flex-wrap gap-2"
-                                            : "space-y-2"
-                                    }
-                                >
-                                    {options.map((option) => {
-                                        const isChecked =
-                                            selected.includes(option);
-                                        return (
-                                            <div
-                                                key={option}
-                                                className="flex items-center gap-2 rounded-lg border border-slate-300 bg-background px-3 py-2"
-                                            >
-                                                <Checkbox
-                                                    id={`${field.id}-${option}`}
-                                                    checked={isChecked}
-                                                    onCheckedChange={(
-                                                        checked,
-                                                    ) => {
-                                                        const next =
-                                                            checked === true
-                                                                ? [
-                                                                      ...selected,
-                                                                      option,
-                                                                  ]
-                                                                : selected.filter(
-                                                                      (v) =>
-                                                                          v !==
-                                                                          option,
-                                                                  );
-                                                        controllerField.onChange(
-                                                            serializeMultipleChoiceValue(
-                                                                next,
-                                                            ),
-                                                        );
-                                                    }}
-                                                />
-                                                <Label
-                                                    htmlFor={`${field.id}-${option}`}
-                                                    className="text-sm font-normal"
-                                                >
-                                                    {option}
-                                                </Label>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            );
-                        }}
-                    />
-                )}
-
-                {field.type === "address" && (
+                    </Label>
                     <Controller
                         name={field.id}
                         control={control}
@@ -752,8 +875,81 @@ export function FormRenderer({
                             />
                         )}
                     />
-                )}
+                    {errorMessage && (
+                        <p className="text-sm text-destructive">
+                            {errorMessage}
+                        </p>
+                    )}
+                </div>
+            );
+        }
 
+        if (field.type === "email") {
+            return (
+                <div key={field.id} className={`space-y-1.5 ${spanClass}`}>
+                    <Label htmlFor={field.id} className="text-sm">
+                        {field.label}
+                        {field.required && (
+                            <span className="ml-1 text-destructive">*</span>
+                        )}
+                    </Label>
+                    <Input
+                        id={field.id}
+                        type="email"
+                        placeholder={field.placeholder ?? "email@example.com"}
+                        {...register(field.id, getFieldRules(field, language))}
+                    />
+                    {errorMessage && (
+                        <p className="text-sm text-destructive">
+                            {errorMessage}
+                        </p>
+                    )}
+                </div>
+            );
+        }
+
+        if (field.type === "phone") {
+            return (
+                <div key={field.id} className={`space-y-1.5 ${spanClass}`}>
+                    <Label htmlFor={field.id} className="text-sm">
+                        {field.label}
+                        {field.required && (
+                            <span className="ml-1 text-destructive">*</span>
+                        )}
+                    </Label>
+                    <Input
+                        id={field.id}
+                        type="tel"
+                        placeholder={field.placeholder ?? "(555) 123-4567"}
+                        {...register(field.id, getFieldRules(field, language))}
+                    />
+                    {errorMessage && (
+                        <p className="text-sm text-destructive">
+                            {errorMessage}
+                        </p>
+                    )}
+                </div>
+            );
+        }
+
+        // All remaining types: text, textarea, number, date, select, radio, multiSelect
+        return (
+            <div key={field.id} className={`space-y-1.5 ${spanClass}`}>
+                <Label htmlFor={field.id} className="text-sm">
+                    {field.label}
+                    {field.required && (
+                        <span className="ml-1 text-destructive">*</span>
+                    )}
+                </Label>
+                {renderFieldInput(field.type, field.id, {
+                    label: field.label,
+                    placeholder: field.placeholder,
+                    required: field.required,
+                    options: field.options,
+                    validation: field.validation,
+                    width: field.width,
+                    paragraphStyle: field.paragraphStyle,
+                })}
                 {errorMessage && (
                     <p className="text-sm text-destructive">{errorMessage}</p>
                 )}
@@ -788,11 +984,11 @@ export function FormRenderer({
             <CardContent className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-6">
                 {section.fields.flatMap((field) => {
                     const rendered = [renderField(field)];
-                    const followUp = renderFollowUp(field);
-                    if (followUp) {
+                    const followUps = renderFollowUps(field);
+                    if (followUps) {
                         rendered.push(
-                            <React.Fragment key={`${field.id}-followup`}>
-                                {followUp}
+                            <React.Fragment key={`${field.id}-followups`}>
+                                {followUps}
                             </React.Fragment>,
                         );
                     }

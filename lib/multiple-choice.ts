@@ -3,11 +3,8 @@ interface MultipleChoiceFieldLike {
     placeholder?: string;
 }
 
-interface FollowUpFieldLike {
+interface FollowUpParentFieldLike {
     type: string;
-    followUp?: {
-        trigger: string;
-    };
 }
 
 export function getMultipleChoiceOptions(
@@ -61,17 +58,20 @@ export function serializeMultipleChoiceValue(values: string[]): string {
 }
 
 export function matchesFollowUpTrigger(
-    field: FollowUpFieldLike,
-    value: string,
+    parentField: FollowUpParentFieldLike,
+    triggers: string[],
+    parentValue: string,
 ): boolean {
-    const trigger = field.followUp?.trigger;
-    if (!trigger) {
-        return false;
+    if (triggers.length === 0) return false;
+
+    if (triggers.includes("__any__")) {
+        return parentValue.trim().length > 0;
     }
 
-    if (field.type === "multiSelect") {
-        return parseMultipleChoiceValue(value).includes(trigger);
+    if (parentField.type === "multiSelect") {
+        const selected = parseMultipleChoiceValue(parentValue);
+        return triggers.some((t) => selected.includes(t));
     }
 
-    return value === trigger;
+    return triggers.includes(parentValue);
 }

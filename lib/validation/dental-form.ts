@@ -17,6 +17,7 @@ export const fieldTypeSchema = z.enum([
     "number",
     "signature",
     "address",
+    "paragraph",
 ]);
 
 export const fieldValidationSchema = z.object({
@@ -26,11 +27,30 @@ export const fieldValidationSchema = z.object({
     message: z.string().optional(),
 });
 
-export const followUpSchema = z.object({
-    enabled: z.boolean(),
-    trigger: z.string(),
+export const paragraphStyleSchema = z.object({
+    fontSize: z.enum(["sm", "base", "lg", "xl"]).optional(),
+    bold: z.boolean().optional(),
+});
+
+export const followUpFieldSchema = z.object({
+    id: z.string(),
+    type: z.enum([
+        "text",
+        "textarea",
+        "date",
+        "number",
+        "select",
+        "radio",
+        "multiSelect",
+        "paragraph",
+    ]),
     label: z.string(),
+    placeholder: z.string().optional(),
     required: z.boolean(),
+    options: z.array(z.string()).optional(),
+    triggers: z.array(z.string()).min(1),
+    width: z.enum(["third", "half", "full"]).optional(),
+    paragraphStyle: paragraphStyleSchema.optional(),
 });
 
 export const templateFieldSchema = z.object({
@@ -41,8 +61,9 @@ export const templateFieldSchema = z.object({
     required: z.boolean(),
     options: z.array(z.string()).optional(),
     validation: fieldValidationSchema.optional(),
-    followUp: followUpSchema.optional(),
+    followUps: z.array(followUpFieldSchema).max(5).optional(),
     width: z.enum(["third", "half", "full"]).optional(),
+    paragraphStyle: paragraphStyleSchema.optional(),
 });
 
 export const templateSectionSchema = z.object({
@@ -86,7 +107,22 @@ export const deliveryChannelSchema = z.enum([
 export const formLanguageSchema = z.enum(FORM_LANGUAGES);
 
 export const MAX_SUBMISSION_SIZE_BYTES = 256 * 1024;
-export const FOLLOW_UP_SUFFIX = "__followUp";
+export const FOLLOW_UP_INFIX = "__fu__";
+
+export function makeFollowUpKey(parentId: string, fuId: string): string {
+    return `${parentId}${FOLLOW_UP_INFIX}${fuId}`;
+}
+
+export function parseFollowUpKey(
+    key: string,
+): { parentId: string; followUpId: string } | null {
+    const idx = key.indexOf(FOLLOW_UP_INFIX);
+    if (idx === -1) return null;
+    return {
+        parentId: key.slice(0, idx),
+        followUpId: key.slice(idx + FOLLOW_UP_INFIX.length),
+    };
+}
 
 export type SubmissionFieldMap = Record<string, string>;
 
@@ -111,6 +147,7 @@ export function validateSubmissionData(
     for (const section of sections) {
         if (!section.enabled) continue;
         for (const field of section.fields) {
+            if (field.type === "paragraph") continue;
             allowedFields.set(field.id, field);
         }
     }
@@ -122,14 +159,20 @@ export function validateSubmissionData(
             throw new Error(`Invalid value for field: ${key}`);
         }
 
-        // Handle follow-up keys (e.g. "f-123__followUp")
-        if (key.endsWith(FOLLOW_UP_SUFFIX)) {
-            const parentId = key.slice(0, -FOLLOW_UP_SUFFIX.length);
-            if (!allowedFields.has(parentId)) {
+        // Handle follow-up keys (e.g. "f-123__fu__fu-456")
+        const parsed = parseFollowUpKey(key);
+        if (parsed) {
+            const parent = allowedFields.get(parsed.parentId);
+            if (!parent) {
                 throw new Error(`Unexpected field: ${key}`);
             }
-            const parent = allowedFields.get(parentId)!;
-            if (!parent.followUp?.enabled) {
+            const fu = parent.followUps?.find(
+                (f) => f.id === parsed.followUpId,
+            );
+            if (!fu) {
+                throw new Error(`Unexpected field: ${key}`);
+            }
+            if (fu.type === "paragraph") {
                 throw new Error(`Unexpected field: ${key}`);
             }
             normalized[key] = value;
@@ -211,14 +254,21 @@ export function validateSubmissionData(
             }
         }
 
-        // Validate follow-up required when parent matches trigger
-        if (field.followUp?.enabled && field.followUp.required) {
-            const followUpKey = `${field.id}${FOLLOW_UP_SUFFIX}`;
-            const followUpValue = normalized[followUpKey] ?? "";
-            const parentMatchesTrigger = matchesFollowUpTrigger(field, value);
-
-            if (parentMatchesTrigger && followUpValue.trim().length === 0) {
-                throw new Error(`${field.followUp.label} is required`);
+        // Validate follow-ups: required enforcement when parent matches triggers
+        if (field.followUps) {
+            for (const fu of field.followUps) {
+                if (fu.type === "paragraph") continue;
+                if (!fu.required) continue;
+                const fuKey = makeFollowUpKey(field.id, fu.id);
+                const fuValue = normalized[fuKey] ?? "";
+                const parentMatchesTrigger = matchesFollowUpTrigger(
+                    field,
+                    fu.triggers,
+                    value,
+                );
+                if (parentMatchesTrigger && fuValue.trim().length === 0) {
+                    throw new Error(`${fu.label} is required`);
+                }
             }
         }
     }
@@ -226,9 +276,10 @@ export function validateSubmissionData(
     return normalized;
 }
 
-export type FollowUp = z.infer<typeof followUpSchema>;
+export type FollowUpField = z.infer<typeof followUpFieldSchema>;
 export type TemplateField = z.infer<typeof templateFieldSchema>;
 export type TemplateSection = z.infer<typeof templateSectionSchema>;
+export type ParagraphStyle = z.infer<typeof paragraphStyleSchema>;
 export type CreateTemplateInput = z.infer<typeof createTemplateSchema>;
 export type FieldType = z.infer<typeof fieldTypeSchema>;
 export type SubmissionStatus = z.infer<typeof submissionStatusSchema>;

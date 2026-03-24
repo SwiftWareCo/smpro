@@ -15,6 +15,7 @@ import {
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -35,6 +36,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import {
     ArrowLeft,
+    Eye,
     Copy,
     GripVertical,
     Loader2,
@@ -67,6 +69,10 @@ import {
     DEFAULT_PIPA_CONSENT_TEXT,
 } from "@/lib/validation/consent";
 import { buildTenantThemeStyle } from "@/lib/tenant-theme";
+import { FormRenderer } from "@/components/patient-form/form-renderer";
+import { FieldEditorDialog } from "@/components/dental-forms/template-editor/field-editor-dialog";
+import { TemplateSectionCard } from "@/components/dental-forms/template-editor/template-section-card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface TemplateEditorProps {
     clientId: Id<"clients">;
@@ -89,6 +95,7 @@ const FIELD_TYPES: { value: FieldType; label: string }[] = [
     { value: "multiSelect", label: "Multiple Choice" },
     { value: "signature", label: "Signature" },
     { value: "address", label: "Address" },
+    { value: "paragraph", label: "Paragraph" },
 ];
 
 const FIELD_TYPE_LABELS: Record<FieldType, string> = FIELD_TYPES.reduce(
@@ -166,7 +173,7 @@ function getDefaultOptions(fieldType: FieldType): string[] | undefined {
 
 function getDefaultFieldLabel(fieldType: FieldType): string {
     if (fieldType === "radio") {
-        return "New radio group";
+        return "New single choice";
     }
 
     if (fieldType === "select") {
@@ -188,6 +195,14 @@ function createField(fieldType: FieldType = "text"): TemplateField {
         required: false,
         placeholder: supportsPlaceholder(fieldType) ? "" : undefined,
         options: getDefaultOptions(fieldType),
+        width: fieldType === "address" ? "full" : undefined,
+        paragraphStyle:
+            fieldType === "paragraph"
+                ? {
+                      fontSize: "base",
+                      bold: false,
+                  }
+                : undefined,
     };
 }
 
@@ -199,6 +214,7 @@ function supportsPlaceholder(fieldType: FieldType): boolean {
         "multiSelect",
         "signature",
         "address",
+        "paragraph",
     ].includes(fieldType);
 }
 
@@ -219,1073 +235,14 @@ function supportsPattern(fieldType: FieldType): boolean {
 }
 
 function supportsFollowUp(fieldType: FieldType): boolean {
-    return (
-        fieldType === "radio" ||
-        fieldType === "select" ||
-        fieldType === "multiSelect"
-    );
+    return fieldType !== "paragraph";
 }
 
 function supportsRequired(fieldType: FieldType): boolean {
-    return true;
+    return fieldType !== "paragraph";
 }
 
 // --- Field Editor Dialog ---
-
-interface FieldEditorDialogProps {
-    field: TemplateField | null;
-    open: boolean;
-    sectionId: string;
-    dialogClassName?: string;
-    dialogStyle?: React.CSSProperties;
-    onClose: () => void;
-    onSetFieldType: (
-        sectionId: string,
-        fieldId: string,
-        nextType: FieldType,
-    ) => void;
-    onUpdateField: (
-        sectionId: string,
-        fieldId: string,
-        updates: Partial<TemplateField>,
-    ) => void;
-    onUpdateFieldOption: (
-        sectionId: string,
-        fieldId: string,
-        optionIndex: number,
-        value: string,
-    ) => void;
-    onRemoveFieldOption: (
-        sectionId: string,
-        fieldId: string,
-        optionIndex: number,
-    ) => void;
-    onAddFieldOption: (sectionId: string, fieldId: string) => void;
-    onApplyOptionPreset: (
-        sectionId: string,
-        fieldId: string,
-        options: readonly string[],
-    ) => void;
-}
-
-function FieldEditorDialog({
-    field,
-    open,
-    sectionId,
-    dialogClassName,
-    dialogStyle,
-    onClose,
-    onSetFieldType,
-    onUpdateField,
-    onUpdateFieldOption,
-    onRemoveFieldOption,
-    onAddFieldOption,
-    onApplyOptionPreset,
-}: FieldEditorDialogProps) {
-    const [showPlaceholder, setShowPlaceholder] = useState(
-        () => !!field?.placeholder,
-    );
-
-    return (
-        <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-            <DialogContent
-                className={`sm:max-w-lg${dialogClassName ? ` ${dialogClassName}` : ""}`}
-                style={dialogStyle}
-            >
-                {!field ? null : (
-                    <>
-                        <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2">
-                                Edit Field
-                                <Badge
-                                    variant="outline"
-                                    className="rounded-full px-2.5 py-0.5"
-                                >
-                                    {FIELD_TYPE_LABELS[field.type]}
-                                </Badge>
-                            </DialogTitle>
-                        </DialogHeader>
-
-                        <div className="grid gap-4">
-                            <div className="space-y-2">
-                                <Label
-                                    htmlFor={`dialog-field-label-${field.id}`}
-                                >
-                                    Label or content
-                                </Label>
-                                <Input
-                                    id={`dialog-field-label-${field.id}`}
-                                    value={field.label}
-                                    onChange={(event) =>
-                                        onUpdateField(sectionId, field.id, {
-                                            label: event.target.value,
-                                        })
-                                    }
-                                    placeholder={getDefaultFieldLabel(
-                                        field.type,
-                                    )}
-                                    autoFocus
-                                />
-                            </div>
-
-                            <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_160px]">
-                                <div className="space-y-2">
-                                    <Label>Field type</Label>
-                                    <Select
-                                        value={field.type}
-                                        onValueChange={(value) =>
-                                            onSetFieldType(
-                                                sectionId,
-                                                field.id,
-                                                value as FieldType,
-                                            )
-                                        }
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent
-                                            className={dialogClassName}
-                                        >
-                                            {FIELD_TYPES.map((fieldType) => (
-                                                <SelectItem
-                                                    key={fieldType.value}
-                                                    value={fieldType.value}
-                                                >
-                                                    {fieldType.label}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label>Required</Label>
-                                    <div className="flex h-10 items-center rounded-xl border border-border/70 bg-background px-3">
-                                        <Switch
-                                            checked={field.required}
-                                            disabled={
-                                                !supportsRequired(field.type)
-                                            }
-                                            onCheckedChange={(checked) =>
-                                                onUpdateField(
-                                                    sectionId,
-                                                    field.id,
-                                                    {
-                                                        required: checked,
-                                                    },
-                                                )
-                                            }
-                                        />
-                                        <span className="ml-3 text-sm text-muted-foreground">
-                                            {supportsRequired(field.type)
-                                                ? field.required
-                                                    ? "Required"
-                                                    : "Optional"
-                                                : "Display only"}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {supportsPlaceholder(field.type) &&
-                                (showPlaceholder ? (
-                                    <div className="space-y-2">
-                                        <Label
-                                            htmlFor={`dialog-field-placeholder-${field.id}`}
-                                        >
-                                            Placeholder
-                                        </Label>
-                                        <Input
-                                            id={`dialog-field-placeholder-${field.id}`}
-                                            value={field.placeholder ?? ""}
-                                            onChange={(event) =>
-                                                onUpdateField(
-                                                    sectionId,
-                                                    field.id,
-                                                    {
-                                                        placeholder:
-                                                            event.target.value,
-                                                    },
-                                                )
-                                            }
-                                            placeholder="Optional helper text"
-                                        />
-                                    </div>
-                                ) : (
-                                    <button
-                                        type="button"
-                                        className="self-start text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
-                                        onClick={() => setShowPlaceholder(true)}
-                                    >
-                                        + Add placeholder
-                                    </button>
-                                ))}
-
-                            {supportsValidation(field.type) && (
-                                <div className="space-y-3 rounded-xl border border-border/70 bg-muted/10 p-3">
-                                    <div className="flex items-center justify-between">
-                                        <Label className="text-sm">
-                                            Validation rules
-                                        </Label>
-                                        <Switch
-                                            checked={!!field.validation}
-                                            onCheckedChange={(checked) =>
-                                                onUpdateField(
-                                                    sectionId,
-                                                    field.id,
-                                                    {
-                                                        validation: checked
-                                                            ? {
-                                                                  min: undefined,
-                                                                  max: undefined,
-                                                                  pattern:
-                                                                      undefined,
-                                                                  message:
-                                                                      undefined,
-                                                              }
-                                                            : undefined,
-                                                    },
-                                                )
-                                            }
-                                        />
-                                    </div>
-                                    {field.validation && (
-                                        <div className="space-y-3">
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div className="space-y-1.5">
-                                                    <Label className="text-xs text-muted-foreground">
-                                                        {field.type === "number"
-                                                            ? "Min value"
-                                                            : "Min length"}
-                                                    </Label>
-                                                    <Input
-                                                        type="number"
-                                                        value={
-                                                            field.validation
-                                                                .min ?? ""
-                                                        }
-                                                        onChange={(e) =>
-                                                            onUpdateField(
-                                                                sectionId,
-                                                                field.id,
-                                                                {
-                                                                    validation:
-                                                                        {
-                                                                            ...field.validation!,
-                                                                            min: e
-                                                                                .target
-                                                                                .value
-                                                                                ? Number(
-                                                                                      e
-                                                                                          .target
-                                                                                          .value,
-                                                                                  )
-                                                                                : undefined,
-                                                                        },
-                                                                },
-                                                            )
-                                                        }
-                                                        placeholder="—"
-                                                        className="h-9"
-                                                    />
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    <Label className="text-xs text-muted-foreground">
-                                                        {field.type === "number"
-                                                            ? "Max value"
-                                                            : "Max length"}
-                                                    </Label>
-                                                    <Input
-                                                        type="number"
-                                                        value={
-                                                            field.validation
-                                                                .max ?? ""
-                                                        }
-                                                        onChange={(e) =>
-                                                            onUpdateField(
-                                                                sectionId,
-                                                                field.id,
-                                                                {
-                                                                    validation:
-                                                                        {
-                                                                            ...field.validation!,
-                                                                            max: e
-                                                                                .target
-                                                                                .value
-                                                                                ? Number(
-                                                                                      e
-                                                                                          .target
-                                                                                          .value,
-                                                                                  )
-                                                                                : undefined,
-                                                                        },
-                                                                },
-                                                            )
-                                                        }
-                                                        placeholder="—"
-                                                        className="h-9"
-                                                    />
-                                                </div>
-                                            </div>
-                                            {supportsPattern(field.type) && (
-                                                <div className="space-y-1.5">
-                                                    <Label className="text-xs text-muted-foreground">
-                                                        Format
-                                                    </Label>
-                                                    <Select
-                                                        value={
-                                                            field.validation
-                                                                .pattern ??
-                                                            "__none"
-                                                        }
-                                                        onValueChange={(
-                                                            value,
-                                                        ) => {
-                                                            const preset =
-                                                                FORMAT_PRESETS.find(
-                                                                    (p) =>
-                                                                        p.pattern ===
-                                                                        value,
-                                                                );
-                                                            onUpdateField(
-                                                                sectionId,
-                                                                field.id,
-                                                                {
-                                                                    validation:
-                                                                        {
-                                                                            ...field.validation!,
-                                                                            pattern:
-                                                                                value ===
-                                                                                "__none"
-                                                                                    ? undefined
-                                                                                    : value,
-                                                                            message:
-                                                                                value ===
-                                                                                "__none"
-                                                                                    ? field
-                                                                                          .validation!
-                                                                                          .message
-                                                                                    : field
-                                                                                          .validation!
-                                                                                          .message ||
-                                                                                      preset?.message,
-                                                                        },
-                                                                },
-                                                            );
-                                                        }}
-                                                    >
-                                                        <SelectTrigger className="h-9">
-                                                            <SelectValue placeholder="No format restriction" />
-                                                        </SelectTrigger>
-                                                        <SelectContent
-                                                            className={
-                                                                dialogClassName
-                                                            }
-                                                        >
-                                                            <SelectItem value="__none">
-                                                                No format
-                                                                restriction
-                                                            </SelectItem>
-                                                            {FORMAT_PRESETS.map(
-                                                                (preset) => (
-                                                                    <SelectItem
-                                                                        key={
-                                                                            preset.pattern
-                                                                        }
-                                                                        value={
-                                                                            preset.pattern
-                                                                        }
-                                                                    >
-                                                                        {
-                                                                            preset.label
-                                                                        }
-                                                                    </SelectItem>
-                                                                ),
-                                                            )}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                            )}
-                                            <div className="space-y-1.5">
-                                                <Label className="text-xs text-muted-foreground">
-                                                    Error message
-                                                </Label>
-                                                <Input
-                                                    value={
-                                                        field.validation
-                                                            .message ?? ""
-                                                    }
-                                                    onChange={(e) =>
-                                                        onUpdateField(
-                                                            sectionId,
-                                                            field.id,
-                                                            {
-                                                                validation: {
-                                                                    ...field.validation!,
-                                                                    message:
-                                                                        e.target
-                                                                            .value ||
-                                                                        undefined,
-                                                                },
-                                                            },
-                                                        )
-                                                    }
-                                                    placeholder="e.g. Must be a 10-digit Care Card number"
-                                                    className="h-9"
-                                                />
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {supportsOptions(field.type) && (
-                                <div className="space-y-3">
-                                    <div className="flex flex-wrap items-center justify-between gap-3">
-                                        <Label>Choices</Label>
-                                        <div className="flex flex-wrap gap-2">
-                                            {OPTION_PRESETS.map((preset) => (
-                                                <Button
-                                                    key={preset.label}
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="h-8 rounded-full px-3 text-xs"
-                                                    onClick={() =>
-                                                        onApplyOptionPreset(
-                                                            sectionId,
-                                                            field.id,
-                                                            preset.options,
-                                                        )
-                                                    }
-                                                >
-                                                    {preset.label}
-                                                </Button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        {(field.options ?? []).map(
-                                            (option, optionIndex) => (
-                                                <div
-                                                    key={`${field.id}-opt-${optionIndex}`}
-                                                    className="flex items-center gap-2"
-                                                >
-                                                    <Input
-                                                        value={option}
-                                                        onChange={(event) =>
-                                                            onUpdateFieldOption(
-                                                                sectionId,
-                                                                field.id,
-                                                                optionIndex,
-                                                                event.target
-                                                                    .value,
-                                                            )
-                                                        }
-                                                        placeholder={`Option ${optionIndex + 1}`}
-                                                    />
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="shrink-0 text-muted-foreground hover:text-destructive"
-                                                        onClick={() =>
-                                                            onRemoveFieldOption(
-                                                                sectionId,
-                                                                field.id,
-                                                                optionIndex,
-                                                            )
-                                                        }
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
-                                            ),
-                                        )}
-                                    </div>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() =>
-                                            onAddFieldOption(
-                                                sectionId,
-                                                field.id,
-                                            )
-                                        }
-                                    >
-                                        <Plus className="mr-2 h-4 w-4" />
-                                        Add option
-                                    </Button>
-                                </div>
-                            )}
-
-                            {supportsFollowUp(field.type) && (
-                                <div className="space-y-3 rounded-xl border border-border/70 bg-muted/10 p-3">
-                                    <div className="flex items-center justify-between">
-                                        <Label className="text-sm">
-                                            Follow-up question
-                                        </Label>
-                                        <Switch
-                                            checked={
-                                                field.followUp?.enabled ?? false
-                                            }
-                                            onCheckedChange={(checked) =>
-                                                onUpdateField(
-                                                    sectionId,
-                                                    field.id,
-                                                    {
-                                                        followUp: checked
-                                                            ? {
-                                                                  enabled: true,
-                                                                  trigger:
-                                                                      field
-                                                                          .options?.[0] ??
-                                                                      "",
-                                                                  label: "Please provide details",
-                                                                  required: false,
-                                                              }
-                                                            : undefined,
-                                                    },
-                                                )
-                                            }
-                                        />
-                                    </div>
-                                    {field.followUp?.enabled && (
-                                        <div className="space-y-3">
-                                            <div className="space-y-2">
-                                                <Label className="text-xs text-muted-foreground">
-                                                    {field.type ===
-                                                    "multiSelect"
-                                                        ? "Show when answer includes"
-                                                        : "Show when answer is"}
-                                                </Label>
-                                                <Select
-                                                    value={
-                                                        field.followUp.trigger
-                                                    }
-                                                    onValueChange={(value) =>
-                                                        onUpdateField(
-                                                            sectionId,
-                                                            field.id,
-                                                            {
-                                                                followUp: {
-                                                                    ...field.followUp!,
-                                                                    trigger:
-                                                                        value,
-                                                                },
-                                                            },
-                                                        )
-                                                    }
-                                                >
-                                                    <SelectTrigger className="h-9">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent
-                                                        className={
-                                                            dialogClassName
-                                                        }
-                                                    >
-                                                        {(
-                                                            field.options ?? []
-                                                        ).map((option) => (
-                                                            <SelectItem
-                                                                key={option}
-                                                                value={option}
-                                                            >
-                                                                {option}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label className="text-xs text-muted-foreground">
-                                                    Follow-up label
-                                                </Label>
-                                                <Input
-                                                    value={field.followUp.label}
-                                                    onChange={(event) =>
-                                                        onUpdateField(
-                                                            sectionId,
-                                                            field.id,
-                                                            {
-                                                                followUp: {
-                                                                    ...field.followUp!,
-                                                                    label: event
-                                                                        .target
-                                                                        .value,
-                                                                },
-                                                            },
-                                                        )
-                                                    }
-                                                    placeholder="If yes, please explain"
-                                                    className="h-9"
-                                                />
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <Switch
-                                                    checked={
-                                                        field.followUp.required
-                                                    }
-                                                    onCheckedChange={(
-                                                        checked,
-                                                    ) =>
-                                                        onUpdateField(
-                                                            sectionId,
-                                                            field.id,
-                                                            {
-                                                                followUp: {
-                                                                    ...field.followUp!,
-                                                                    required:
-                                                                        checked,
-                                                                },
-                                                            },
-                                                        )
-                                                    }
-                                                />
-                                                <span className="text-xs text-muted-foreground">
-                                                    {field.followUp.required
-                                                        ? "Required when visible"
-                                                        : "Optional"}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
-                        <DialogFooter>
-                            <Button onClick={onClose}>Done</Button>
-                        </DialogFooter>
-                    </>
-                )}
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-// --- Sortable Field Item ---
-
-interface SortableFieldItemProps {
-    field: TemplateField;
-    fieldIndex: number;
-    sectionId: string;
-    onEditField: (sectionId: string, fieldId: string) => void;
-    onDuplicateField: (sectionId: string, fieldId: string) => void;
-    onRemoveField: (sectionId: string, fieldId: string) => void;
-    onUpdateField: (
-        sectionId: string,
-        fieldId: string,
-        updates: Partial<TemplateField>,
-    ) => void;
-}
-
-function getWidthColSpan(width?: string): string {
-    if (width === "third") return "sm:col-span-2";
-    if (width === "full") return "sm:col-span-6";
-    return "sm:col-span-3";
-}
-
-function SortableFieldItem({
-    field,
-    fieldIndex,
-    sectionId,
-    onEditField,
-    onDuplicateField,
-    onRemoveField,
-    onUpdateField,
-}: SortableFieldItemProps) {
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        transform,
-        transition,
-        isDragging,
-    } = useSortable({ id: field.id });
-
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-    };
-
-    return (
-        <div
-            ref={setNodeRef}
-            style={style}
-            className={`flex h-full items-center gap-2 rounded-xl border border-border/70 bg-muted/10 px-3 py-2.5 text-left transition-colors hover:border-primary/30 hover:bg-primary/5 ${
-                isDragging
-                    ? "z-50 opacity-80 shadow-lg ring-2 ring-primary/30"
-                    : ""
-            }`}
-        >
-            <span
-                {...attributes}
-                {...listeners}
-                className="shrink-0 cursor-grab touch-none rounded p-0.5 text-muted-foreground hover:text-foreground active:cursor-grabbing"
-            >
-                <GripVertical className="h-4 w-4" />
-            </span>
-            <button
-                type="button"
-                onClick={() => onEditField(sectionId, field.id)}
-                className="flex min-w-0 flex-1 items-center gap-2"
-            >
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-background text-[10px] font-semibold">
-                    {fieldIndex + 1}
-                </span>
-                <Badge
-                    variant="outline"
-                    className="shrink-0 rounded-full px-2 py-0 text-[10px]"
-                >
-                    {FIELD_TYPE_LABELS[field.type]}
-                </Badge>
-                <span className="min-w-0 flex-1 truncate text-sm">
-                    {field.label || "Untitled"}
-                </span>
-                {field.required && (
-                    <span className="shrink-0 text-xs font-medium text-destructive">
-                        *
-                    </span>
-                )}
-                {supportsOptions(field.type) &&
-                    field.options &&
-                    field.options.length > 0 && (
-                        <span className="shrink-0 text-[10px] text-muted-foreground">
-                            {field.options.length} opts
-                        </span>
-                    )}
-                {field.followUp?.enabled && (
-                    <Badge
-                        variant="outline"
-                        className="shrink-0 rounded-full px-1.5 py-0 text-[9px] text-muted-foreground"
-                    >
-                        +follow-up
-                    </Badge>
-                )}
-            </button>
-            <div className="flex shrink-0 items-center rounded-lg border border-border/60 bg-background">
-                {(["third", "half", "full"] as const).map((w) => {
-                    const active = (field.width ?? "half") === w;
-                    const label =
-                        w === "third" ? "1/3" : w === "half" ? "1/2" : "Full";
-                    return (
-                        <button
-                            key={w}
-                            type="button"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onUpdateField(sectionId, field.id, {
-                                    width: w,
-                                });
-                            }}
-                            className={`px-2 py-1 text-xs font-medium transition-colors first:rounded-l-md last:rounded-r-md ${
-                                active
-                                    ? "bg-primary/15 text-primary"
-                                    : "text-muted-foreground hover:text-foreground"
-                            }`}
-                        >
-                            {label}
-                        </button>
-                    );
-                })}
-            </div>
-            <span
-                role="button"
-                tabIndex={-1}
-                className="shrink-0 rounded-md p-1 text-muted-foreground hover:text-primary"
-                onClick={(e) => {
-                    e.stopPropagation();
-                    onDuplicateField(sectionId, field.id);
-                }}
-                onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        onDuplicateField(sectionId, field.id);
-                    }
-                }}
-            >
-                <Copy className="h-3.5 w-3.5" />
-            </span>
-            <span
-                role="button"
-                tabIndex={-1}
-                className="shrink-0 rounded-md p-1 text-muted-foreground hover:text-destructive"
-                onClick={(e) => {
-                    e.stopPropagation();
-                    onRemoveField(sectionId, field.id);
-                }}
-                onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        onRemoveField(sectionId, field.id);
-                    }
-                }}
-            >
-                <Trash2 className="h-3.5 w-3.5" />
-            </span>
-        </div>
-    );
-}
-
-// --- Section Card ---
-
-interface TemplateSectionCardProps {
-    section: TemplateSection;
-    sectionIndex: number;
-    active: boolean;
-    setSectionRef: (sectionId: string, node: HTMLDivElement | null) => void;
-    onSetActiveSection: (sectionId: string) => void;
-    onUpdateSection: (
-        sectionId: string,
-        updates: Partial<Omit<TemplateSection, "fields">>,
-    ) => void;
-    onRemoveSection: (sectionId: string) => void;
-    onDuplicateField: (sectionId: string, fieldId: string) => void;
-    onRemoveField: (sectionId: string, fieldId: string) => void;
-    onEditField: (sectionId: string, fieldId: string) => void;
-    onAddField: (sectionId: string, fieldType?: FieldType) => void;
-    onReorderFields: (
-        sectionId: string,
-        oldIndex: number,
-        newIndex: number,
-    ) => void;
-    onUpdateField: (
-        sectionId: string,
-        fieldId: string,
-        updates: Partial<TemplateField>,
-    ) => void;
-}
-
-const TemplateSectionCard = memo(function TemplateSectionCard({
-    section,
-    sectionIndex,
-    active,
-    setSectionRef,
-    onSetActiveSection,
-    onUpdateSection,
-    onRemoveSection,
-    onDuplicateField,
-    onRemoveField,
-    onEditField,
-    onAddField,
-    onReorderFields,
-    onUpdateField,
-}: TemplateSectionCardProps) {
-    const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-        useSensor(KeyboardSensor),
-    );
-
-    const fieldIds = useMemo(
-        () => section.fields.map((f) => f.id),
-        [section.fields],
-    );
-
-    const handleDragEnd = useCallback(
-        (event: DragEndEvent) => {
-            const { active: dragActive, over } = event;
-            if (!over || dragActive.id === over.id) return;
-            const oldIndex = fieldIds.indexOf(dragActive.id as string);
-            const newIndex = fieldIds.indexOf(over.id as string);
-            if (oldIndex !== -1 && newIndex !== -1) {
-                onReorderFields(section.id, oldIndex, newIndex);
-            }
-        },
-        [fieldIds, onReorderFields, section.id],
-    );
-    return (
-        <div
-            ref={(node) => {
-                setSectionRef(section.id, node);
-            }}
-            onFocusCapture={() => onSetActiveSection(section.id)}
-            className={`scroll-mt-24 rounded-[28px] border bg-background p-5 shadow-sm transition-colors animate-in fade-in-0 slide-in-from-bottom-3 duration-300 ${
-                active
-                    ? "border-primary/30 ring-1 ring-primary/15"
-                    : "border-border/70"
-            }`}
-        >
-            <div className="grid gap-5 2xl:grid-cols-[120px_minmax(0,1fr)_auto] 2xl:items-start">
-                <div className="rounded-3xl border border-primary/20 bg-primary/5 p-4">
-                    <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
-                        Step
-                    </p>
-                    <p className="mt-3 text-3xl font-semibold">
-                        {sectionIndex + 1}
-                    </p>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                        {section.fields.length} items in this section
-                    </p>
-                </div>
-
-                <div className="space-y-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Badge
-                            variant={section.enabled ? "default" : "secondary"}
-                            className="rounded-full px-3 py-1"
-                        >
-                            {section.enabled ? "Visible to patients" : "Hidden"}
-                        </Badge>
-                        <Badge
-                            variant="outline"
-                            className="rounded-full px-3 py-1"
-                        >
-                            {section.fields.length} items
-                        </Badge>
-                    </div>
-                    <div className="grid gap-4 lg:grid-cols-2">
-                        <div className="space-y-2">
-                            <Label htmlFor={`section-title-${section.id}`}>
-                                Section title
-                            </Label>
-                            <Input
-                                id={`section-title-${section.id}`}
-                                value={section.title}
-                                onChange={(event) =>
-                                    onUpdateSection(section.id, {
-                                        title: event.target.value,
-                                    })
-                                }
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label
-                                htmlFor={`section-description-${section.id}`}
-                            >
-                                Section intro
-                            </Label>
-                            <Textarea
-                                id={`section-description-${section.id}`}
-                                value={section.description ?? ""}
-                                onChange={(event) =>
-                                    onUpdateSection(section.id, {
-                                        description: event.target.value,
-                                    })
-                                }
-                                placeholder="Optional context shown before these questions"
-                                rows={2}
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3 xl:justify-end">
-                    <div className="flex items-center gap-2 rounded-full border border-border/70 bg-muted/15 px-3 py-2 text-sm">
-                        <Switch
-                            checked={section.enabled}
-                            onCheckedChange={(checked) =>
-                                onUpdateSection(section.id, {
-                                    enabled: checked,
-                                })
-                            }
-                        />
-                        <span>{section.enabled ? "Enabled" : "Disabled"}</span>
-                    </div>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-destructive"
-                        onClick={() => onRemoveSection(section.id)}
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
-                </div>
-            </div>
-
-            <Separator className="my-5" />
-
-            <div className="space-y-4">
-                {section.fields.length > 0 ? (
-                    <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={handleDragEnd}
-                    >
-                        <SortableContext
-                            items={fieldIds}
-                            strategy={rectSortingStrategy}
-                        >
-                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-6">
-                                {section.fields.map((field, fieldIndex) => (
-                                    <div
-                                        key={field.id}
-                                        className={`${getWidthColSpan(field.width)} transition-all duration-200`}
-                                    >
-                                        <SortableFieldItem
-                                            field={field}
-                                            fieldIndex={fieldIndex}
-                                            sectionId={section.id}
-                                            onEditField={onEditField}
-                                            onDuplicateField={onDuplicateField}
-                                            onRemoveField={onRemoveField}
-                                            onUpdateField={onUpdateField}
-                                        />
-                                    </div>
-                                ))}
-                            </div>
-                        </SortableContext>
-                    </DndContext>
-                ) : (
-                    <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 px-4 py-6 text-sm text-muted-foreground">
-                        This section is empty. Add the first item to define what
-                        patients should complete here.
-                    </div>
-                )}
-
-                <div className="flex flex-wrap gap-2">
-                    <Button
-                        variant="outline"
-                        onClick={() => onAddField(section.id, "text")}
-                    >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Text Field
-                    </Button>
-                    <Button
-                        variant="outline"
-                        onClick={() => onAddField(section.id, "textarea")}
-                    >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Textbox
-                    </Button>
-                    <Button
-                        variant="outline"
-                        onClick={() => onAddField(section.id, "select")}
-                    >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Dropdown
-                    </Button>
-                    <Button
-                        variant="outline"
-                        onClick={() => onAddField(section.id, "radio")}
-                    >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Radio Group
-                    </Button>
-                    <Button
-                        variant="outline"
-                        onClick={() => onAddField(section.id, "signature")}
-                    >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Signature
-                    </Button>
-                    <Button
-                        variant="outline"
-                        onClick={() => onAddField(section.id, "address")}
-                    >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Address
-                    </Button>
-                </div>
-            </div>
-        </div>
-    );
-});
 
 // --- Main Editor ---
 
@@ -1327,6 +284,7 @@ export function TemplateEditor({
         sectionId: string;
         fieldId: string;
     } | null>(null);
+    const [previewOpen, setPreviewOpen] = useState(false);
     const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
     const createTemplate = useMutation(api.formTemplates.create);
@@ -1444,9 +402,22 @@ export function TemplateEditor({
                                             )
                                                 ? field.validation
                                                 : undefined,
-                                            followUp: supportsFollowUp(nextType)
-                                                ? field.followUp
+                                            followUps: supportsFollowUp(
+                                                nextType,
+                                            )
+                                                ? field.followUps
                                                 : undefined,
+                                            width:
+                                                nextType === "address"
+                                                    ? "full"
+                                                    : field.width,
+                                            paragraphStyle:
+                                                nextType === "paragraph"
+                                                    ? (field.paragraphStyle ?? {
+                                                          fontSize: "base",
+                                                          bold: false,
+                                                      })
+                                                    : undefined,
                                         }
                                       : field,
                               ),
@@ -1469,11 +440,14 @@ export function TemplateEditor({
                     section.id === sectionId
                         ? {
                               ...section,
-                              fields: section.fields.map((field) =>
-                                  field.id === fieldId
-                                      ? { ...field, ...updates }
-                                      : field,
-                              ),
+                              fields: section.fields.map((field) => {
+                                  if (field.id !== fieldId) return field;
+                                  const nextField = { ...field, ...updates };
+                                  if (nextField.type === "address") {
+                                      nextField.width = "full";
+                                  }
+                                  return nextField;
+                              }),
                           }
                         : section,
                 ),
@@ -1537,39 +511,6 @@ export function TemplateEditor({
                                   section.fields,
                                   oldIndex,
                                   newIndex,
-                              ),
-                          }
-                        : section,
-                ),
-            );
-        },
-        [],
-    );
-
-    const updateFieldOption = useCallback(
-        (
-            sectionId: string,
-            fieldId: string,
-            optionIndex: number,
-            value: string,
-        ) => {
-            setSections((prev) =>
-                prev.map((section) =>
-                    section.id === sectionId
-                        ? {
-                              ...section,
-                              fields: section.fields.map((field) =>
-                                  field.id === fieldId
-                                      ? {
-                                            ...field,
-                                            options: (field.options ?? []).map(
-                                                (option, index) =>
-                                                    index === optionIndex
-                                                        ? value
-                                                        : option,
-                                            ),
-                                        }
-                                      : field,
                               ),
                           }
                         : section,
@@ -1717,6 +658,14 @@ export function TemplateEditor({
     const visibleSections = useMemo(
         () => sections.filter((section) => section.enabled),
         [sections],
+    );
+    const previewTemplate = useMemo(
+        () => ({
+            name: name.trim() || "Untitled form",
+            description,
+            sections,
+        }),
+        [description, name, sections],
     );
 
     const setSectionRef = useCallback(
@@ -2000,6 +949,13 @@ export function TemplateEditor({
                     <div className="flex shrink-0 items-center gap-3 ml-auto">
                         <Button
                             variant="outline"
+                            onClick={() => setPreviewOpen(true)}
+                        >
+                            <Eye className="mr-1.5 h-4 w-4" />
+                            Preview
+                        </Button>
+                        <Button
+                            variant="outline"
                             size="sm"
                             onClick={addSection}
                             className={SECTION_ACTION_BUTTON_CLASS}
@@ -2038,11 +994,35 @@ export function TemplateEditor({
                 onClose={closeFieldEditor}
                 onSetFieldType={setFieldType}
                 onUpdateField={updateField}
-                onUpdateFieldOption={updateFieldOption}
                 onRemoveFieldOption={removeFieldOption}
                 onAddFieldOption={addFieldOption}
                 onApplyOptionPreset={applyOptionPreset}
             />
+
+            <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+                <DialogContent
+                    className="force-light sm:max-w-6xl p-0 gap-0 duration-300"
+                    style={portalStyle}
+                >
+                    <DialogHeader className="px-6 pt-6 pb-0">
+                        <DialogTitle>Form Preview</DialogTitle>
+                        <DialogDescription>
+                            Preview of &quot;{previewTemplate.name}&quot; as
+                            patients will see it
+                        </DialogDescription>
+                    </DialogHeader>
+                    <ScrollArea className="max-h-[70vh] px-6 pb-6 pt-4">
+                        <FormRenderer
+                            template={previewTemplate as Doc<"formTemplates">}
+                            language="en"
+                            clientName="Your Practice"
+                            preview
+                            dialogClassName="force-light"
+                            dialogStyle={portalStyle}
+                        />
+                    </ScrollArea>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

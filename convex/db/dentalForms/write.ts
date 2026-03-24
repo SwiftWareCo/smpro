@@ -11,6 +11,29 @@ interface TemplateSection {
     fields: TemplateField[];
 }
 
+interface FollowUpField {
+    id: string;
+    type:
+        | "text"
+        | "textarea"
+        | "date"
+        | "number"
+        | "select"
+        | "radio"
+        | "multiSelect"
+        | "paragraph";
+    label: string;
+    placeholder?: string;
+    required: boolean;
+    options?: string[];
+    triggers: string[];
+    width?: "third" | "half" | "full";
+    paragraphStyle?: {
+        fontSize?: "sm" | "base" | "lg" | "xl";
+        bold?: boolean;
+    };
+}
+
 interface TemplateField {
     id: string;
     type:
@@ -24,7 +47,8 @@ interface TemplateField {
         | "multiSelect"
         | "number"
         | "signature"
-        | "address";
+        | "address"
+        | "paragraph";
     label: string;
     placeholder?: string;
     required: boolean;
@@ -34,6 +58,12 @@ interface TemplateField {
         max?: number;
         pattern?: string;
         message?: string;
+    };
+    followUps?: FollowUpField[];
+    width?: "third" | "half" | "full";
+    paragraphStyle?: {
+        fontSize?: "sm" | "base" | "lg" | "xl";
+        bold?: boolean;
     };
 }
 

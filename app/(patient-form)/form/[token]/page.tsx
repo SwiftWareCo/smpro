@@ -186,16 +186,17 @@ export default function PatientFormPage({
                 consentVersion: match.consentVersion,
             };
         })();
+    const tenantThemeStyle = buildTenantThemeStyle({
+        primaryColor: formData.portalPrimaryColor,
+        secondaryColor: formData.portalSecondaryColor,
+    });
 
     return (
         <div
             className="mx-auto max-w-5xl"
             dir={isRtlLanguage(effectiveLanguage) ? "rtl" : "ltr"}
             lang={effectiveLanguage}
-            style={buildTenantThemeStyle({
-                primaryColor: formData.portalPrimaryColor,
-                secondaryColor: formData.portalSecondaryColor,
-            })}
+            style={tenantThemeStyle}
         >
             <FormRenderer
                 template={finalTemplate}
@@ -203,6 +204,8 @@ export default function PatientFormPage({
                 language={effectiveLanguage}
                 clientName={formData.clientName}
                 onSubmitStart={() => setIsSubmitted(true)}
+                dialogClassName="force-light"
+                dialogStyle={{ colorScheme: "light", ...tenantThemeStyle }}
             />
         </div>
     );
