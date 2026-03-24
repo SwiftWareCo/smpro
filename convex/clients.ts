@@ -35,11 +35,6 @@ type SetupStatus = {
 const CHECKLIST_RULES = {
     base: [
         {
-            id: "client-avatar",
-            label: "Add client avatar",
-            module: "base" as const,
-        },
-        {
             id: "client-description",
             label: "Add client description",
             module: "base" as const,
@@ -86,7 +81,6 @@ const CHECKLIST_RULES = {
 
 function evaluateChecklist(
     client: {
-        avatarUrl?: string | null;
         description?: string | null;
         enabledModules?: string[] | null;
     },
@@ -102,10 +96,6 @@ function evaluateChecklist(
 
     items.push({
         ...CHECKLIST_RULES.base[0],
-        completed: !!client.avatarUrl,
-    });
-    items.push({
-        ...CHECKLIST_RULES.base[1],
         completed: !!client.description,
     });
 
@@ -334,7 +324,6 @@ export const update = mutation({
         clientId: v.id("clients"),
         name: v.optional(v.string()),
         description: v.optional(v.union(v.string(), v.null())),
-        avatarUrl: v.optional(v.union(v.string(), v.null())),
         status: v.optional(v.string()),
         portalPrimaryColor: v.optional(v.union(v.string(), v.null())),
         portalSecondaryColor: v.optional(v.union(v.string(), v.null())),
@@ -352,7 +341,6 @@ export const update = mutation({
         if (args.name !== undefined) patch.name = args.name;
         if (args.description !== undefined)
             patch.description = args.description;
-        if (args.avatarUrl !== undefined) patch.avatarUrl = args.avatarUrl;
         if (args.status !== undefined) patch.status = args.status;
         if (args.portalPrimaryColor !== undefined)
             patch.portalPrimaryColor = args.portalPrimaryColor;

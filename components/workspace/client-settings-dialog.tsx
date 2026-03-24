@@ -75,12 +75,6 @@ const clientFormSchema = z.object({
         .max(1000, "Description is too long")
         .optional()
         .nullable(),
-    avatarUrl: z
-        .string()
-        .url("Please enter a valid URL")
-        .optional()
-        .nullable()
-        .or(z.literal("")),
     status: z.enum(clientStatusOptions),
     portalPrimaryColor: z
         .string()
@@ -125,7 +119,6 @@ export function ClientSettingsDialog({
         () => ({
             name: client.name,
             description: client.description || "",
-            avatarUrl: client.avatarUrl || "",
             status: client.status as ClientStatus,
             portalPrimaryColor:
                 client.portalPrimaryColor ?? DEFAULT_PORTAL_PRIMARY_COLOR,
@@ -157,7 +150,6 @@ export function ClientSettingsDialog({
                 clientId: client._id,
                 name: data.name,
                 description: data.description || null,
-                avatarUrl: data.avatarUrl || null,
                 status: data.status,
                 portalPrimaryColor: data.portalPrimaryColor,
                 portalSecondaryColor: data.portalSecondaryColor,
@@ -471,24 +463,6 @@ export function ClientSettingsDialog({
                                                 <Textarea
                                                     placeholder="Add a description for this client..."
                                                     rows={3}
-                                                    {...field}
-                                                    value={field.value || ""}
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-
-                                <FormField
-                                    control={form.control}
-                                    name="avatarUrl"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Avatar URL</FormLabel>
-                                            <FormControl>
-                                                <Input
-                                                    placeholder="https://example.com/avatar.jpg"
                                                     {...field}
                                                     value={field.value || ""}
                                                 />
