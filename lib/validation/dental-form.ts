@@ -254,20 +254,53 @@ export function validateSubmissionData(
             }
         }
 
-        // Validate follow-ups: required enforcement when parent matches triggers
+        // Validate follow-ups against trigger, required, and field-type rules.
         if (field.followUps) {
             for (const fu of field.followUps) {
                 if (fu.type === "paragraph") continue;
-                if (!fu.required) continue;
                 const fuKey = makeFollowUpKey(field.id, fu.id);
-                const fuValue = normalized[fuKey] ?? "";
+                const fuRawValue = normalized[fuKey] ?? "";
+                const fuValue = fuRawValue.trim();
                 const parentMatchesTrigger = matchesFollowUpTrigger(
                     field,
                     fu.triggers,
                     value,
                 );
-                if (parentMatchesTrigger && fuValue.trim().length === 0) {
+
+                if (!parentMatchesTrigger) {
+                    if (fuValue.length > 0) {
+                        throw new Error(
+                            `${fu.label} can only be answered when "${field.label}" matches its follow-up condition`,
+                        );
+                    }
+                    continue;
+                }
+
+                if (fu.required && fuValue.length === 0) {
                     throw new Error(`${fu.label} is required`);
+                }
+
+                if (fuValue.length === 0) {
+                    continue;
+                }
+
+                if (
+                    (fu.type === "select" || fu.type === "radio") &&
+                    !(fu.options ?? []).includes(fuValue)
+                ) {
+                    throw new Error(`${fu.label} has an invalid selection`);
+                }
+
+                if (fu.type === "multiSelect") {
+                    const selected = parseMultipleChoiceValue(fuRawValue);
+                    const allowed = fu.options ?? [];
+                    if (!selected.every((v) => allowed.includes(v))) {
+                        throw new Error(`${fu.label} has an invalid selection`);
+                    }
+                }
+
+                if (fu.type === "number" && Number.isNaN(Number(fuValue))) {
+                    throw new Error(`${fu.label} must be a number`);
                 }
             }
         }

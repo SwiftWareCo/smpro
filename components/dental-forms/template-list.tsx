@@ -1,6 +1,7 @@
 "use client";
 
 import {
+    useEffect,
     useMemo,
     useRef,
     useState,
@@ -50,20 +51,13 @@ import {
     CircleAlert,
 } from "lucide-react";
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-} from "@/components/ui/dialog";
-import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FormRenderer } from "@/components/patient-form/form-renderer";
 import { TemplateEditor } from "./template-editor";
 import { DeliveryDialog } from "./delivery-dialog";
@@ -91,6 +85,7 @@ const LANGUAGE_LABELS: Record<string, string> = {
     "zh-Hans": "Simplified Chinese",
     "zh-Hant": "Traditional Chinese",
 };
+const PREVIEW_FADE_DURATION_MS = 180;
 
 export function TemplateList({
     clientId,
@@ -113,9 +108,10 @@ export function TemplateList({
     const [deliveryOpen, setDeliveryOpen] = useState(false);
     const [previewTemplate, setPreviewTemplate] =
         useState<Doc<"formTemplates"> | null>(null);
-    const previewSnapshot = useRef<Doc<"formTemplates"> | null>(null);
-    if (previewTemplate) previewSnapshot.current = previewTemplate;
-    const displayPreview = previewTemplate ?? previewSnapshot.current;
+    const [previewMounted, setPreviewMounted] = useState(false);
+    const [previewVisible, setPreviewVisible] = useState(false);
+    const previewCloseTimeoutRef = useRef<number | null>(null);
+    const displayPreview = previewTemplate;
 
     const isPortal = !!(portalPrimaryColor || portalSecondaryColor);
     const portalDialogStyle = useMemo(
@@ -136,6 +132,35 @@ export function TemplateList({
     const removeTemplate = useMutation(api.formTemplates.remove);
     const retranslateTemplate = useMutation(api.formTemplates.retranslate);
     const createTemplate = useMutation(api.formTemplates.create);
+
+    const clearPreviewCloseTimeout = () => {
+        if (!previewCloseTimeoutRef.current) return;
+        window.clearTimeout(previewCloseTimeoutRef.current);
+        previewCloseTimeoutRef.current = null;
+    };
+
+    useEffect(
+        () => () => {
+            clearPreviewCloseTimeout();
+        },
+        [],
+    );
+
+    const openPreview = (template: Doc<"formTemplates">) => {
+        clearPreviewCloseTimeout();
+        setPreviewTemplate(template);
+        setPreviewMounted(true);
+        window.requestAnimationFrame(() => setPreviewVisible(true));
+    };
+
+    const closePreview = () => {
+        setPreviewVisible(false);
+        clearPreviewCloseTimeout();
+        previewCloseTimeoutRef.current = window.setTimeout(() => {
+            setPreviewMounted(false);
+            setPreviewTemplate(null);
+        }, PREVIEW_FADE_DURATION_MS);
+    };
 
     const openTemplateEditor = (template: Doc<"formTemplates">) => {
         setEditingTemplate(template);
@@ -370,7 +395,7 @@ export function TemplateList({
                                                                 stopCardClick(
                                                                     event,
                                                                 );
-                                                                setPreviewTemplate(
+                                                                openPreview(
                                                                     template,
                                                                 );
                                                             }}
@@ -746,47 +771,96 @@ export function TemplateList({
                 dialogStyle={portalDialogStyle}
             />
 
-            <Dialog
-                open={!!previewTemplate}
-                onOpenChange={(open) => !open && setPreviewTemplate(null)}
-            >
-                <DialogContent
-                    className="force-light sm:max-w-6xl p-0 gap-0 duration-300"
-                    style={{
-                        colorScheme: "light",
-                        ...buildTenantThemeStyle({
-                            primaryColor: portalPrimaryColor,
-                            secondaryColor: portalSecondaryColor,
-                        }),
-                    }}
+            {previewMounted && displayPreview && (
+                <div
+                    className={`force-light fixed inset-0 z-50 flex flex-col bg-background transition-opacity duration-200 ease-out ${
+                        previewVisible
+                            ? "opacity-100"
+                            : "pointer-events-none opacity-0"
+                    }`}
+                    style={portalDialogStyle}
                 >
-                    <DialogHeader className="px-6 pt-6 pb-0">
-                        <DialogTitle>Form Preview</DialogTitle>
-                        <DialogDescription>
-                            Preview of &quot;{displayPreview?.name}&quot; as
-                            patients will see it
-                        </DialogDescription>
-                    </DialogHeader>
-                    <ScrollArea className="max-h-[70vh] px-6 pb-6 pt-4">
-                        {displayPreview && (
-                            <FormRenderer
-                                template={displayPreview}
-                                language="en"
-                                clientName={clientName ?? "Your Practice"}
-                                preview
-                                dialogClassName="force-light"
-                                dialogStyle={{
-                                    colorScheme: "light",
-                                    ...buildTenantThemeStyle({
-                                        primaryColor: portalPrimaryColor,
-                                        secondaryColor: portalSecondaryColor,
-                                    }),
-                                }}
-                            />
-                        )}
-                    </ScrollArea>
-                </DialogContent>
-            </Dialog>
+                    <Tabs
+                        defaultValue="desktop"
+                        className="flex flex-1 flex-col overflow-hidden"
+                    >
+                        {/* Header bar */}
+                        <div className="flex items-center justify-between border-b border-border/70 px-6 py-3">
+                            <div>
+                                <h2 className="text-lg font-semibold">
+                                    Form Preview
+                                </h2>
+                                <p className="text-sm text-muted-foreground">
+                                    &quot;{displayPreview?.name}&quot; as
+                                    patients will see it
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <TabsList className="rounded-xl">
+                                    <TabsTrigger value="desktop">
+                                        Desktop
+                                    </TabsTrigger>
+                                    <TabsTrigger value="mobile">
+                                        Mobile
+                                    </TabsTrigger>
+                                </TabsList>
+                                <Button
+                                    variant="outline"
+                                    onClick={closePreview}
+                                >
+                                    Close
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Desktop content */}
+                        <TabsContent
+                            value="desktop"
+                            className="flex-1 overflow-y-auto p-6"
+                        >
+                            <div className="mx-auto max-w-4xl rounded-xl bg-background p-4 sm:p-6">
+                                {displayPreview && (
+                                    <FormRenderer
+                                        template={displayPreview}
+                                        language="en"
+                                        clientName={
+                                            clientName ?? "Your Practice"
+                                        }
+                                        preview
+                                        dialogClassName="force-light"
+                                        dialogStyle={portalDialogStyle}
+                                    />
+                                )}
+                            </div>
+                        </TabsContent>
+
+                        {/* Mobile content */}
+                        <TabsContent
+                            value="mobile"
+                            className="flex-1 overflow-x-hidden overflow-y-auto p-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                        >
+                            <div className="mx-auto w-full max-w-[420px] rounded-[28px] border border-border/70 bg-muted/20 p-3">
+                                <div className="mx-auto mb-3 h-1.5 w-16 rounded-full bg-muted-foreground/30" />
+                                <div className="max-h-[calc(100dvh-200px)] overflow-x-hidden overflow-y-auto rounded-[20px] border border-border/60 bg-background px-4 py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                                    {displayPreview && (
+                                        <FormRenderer
+                                            template={displayPreview}
+                                            language="en"
+                                            clientName={
+                                                clientName ?? "Your Practice"
+                                            }
+                                            preview
+                                            mobile
+                                            dialogClassName="force-light"
+                                            dialogStyle={portalDialogStyle}
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                        </TabsContent>
+                    </Tabs>
+                </div>
+            )}
         </>
     );
 }

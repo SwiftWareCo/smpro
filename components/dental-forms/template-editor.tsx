@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
@@ -12,53 +12,14 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import {
-    ArrowLeft,
-    Eye,
-    Copy,
-    GripVertical,
-    Loader2,
-    Plus,
-    Trash2,
-} from "lucide-react";
-import {
-    DndContext,
-    closestCenter,
-    KeyboardSensor,
-    PointerSensor,
-    useSensor,
-    useSensors,
-    type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-    SortableContext,
-    useSortable,
-    arrayMove,
-    rectSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, Eye, Loader2, Plus } from "lucide-react";
+import { arrayMove } from "@dnd-kit/sortable";
 import type {
     FieldType,
     TemplateField,
@@ -72,7 +33,16 @@ import { buildTenantThemeStyle } from "@/lib/tenant-theme";
 import { FormRenderer } from "@/components/patient-form/form-renderer";
 import { FieldEditorDialog } from "@/components/dental-forms/template-editor/field-editor-dialog";
 import { TemplateSectionCard } from "@/components/dental-forms/template-editor/template-section-card";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+    SECTION_ACTION_BUTTON_CLASS,
+    createField,
+    generateId,
+    getDefaultOptions,
+    supportsFollowUp,
+    supportsPlaceholder,
+    supportsRequired,
+    supportsValidation,
+} from "@/components/dental-forms/template-editor/utils";
 
 interface TemplateEditorProps {
     clientId: Id<"clients">;
@@ -83,164 +53,9 @@ interface TemplateEditorProps {
     portalSecondaryColor?: string | null;
 }
 
-const FIELD_TYPES: { value: FieldType; label: string }[] = [
-    { value: "text", label: "Text" },
-    { value: "textarea", label: "Textbox" },
-    { value: "email", label: "Email" },
-    { value: "phone", label: "Phone" },
-    { value: "date", label: "Date" },
-    { value: "number", label: "Number" },
-    { value: "select", label: "Dropdown" },
-    { value: "radio", label: "Single Choice" },
-    { value: "multiSelect", label: "Multiple Choice" },
-    { value: "signature", label: "Signature" },
-    { value: "address", label: "Address" },
-    { value: "paragraph", label: "Paragraph" },
-];
-
-const FIELD_TYPE_LABELS: Record<FieldType, string> = FIELD_TYPES.reduce(
-    (labels, fieldType) => {
-        labels[fieldType.value] = fieldType.label;
-        return labels;
-    },
-    {} as Record<FieldType, string>,
-);
-
 const NEW_TEMPLATE_NAME = "";
 const NEW_TEMPLATE_DESCRIPTION = "";
-
-const FORMAT_PRESETS: { label: string; pattern: string; message: string }[] = [
-    {
-        label: "Numbers only",
-        pattern: "^\\d+$",
-        message: "Only numbers are allowed",
-    },
-    {
-        label: "Letters only",
-        pattern: "^[a-zA-Z\\s]+$",
-        message: "Only letters are allowed",
-    },
-    {
-        label: "No special characters",
-        pattern: "^[a-zA-Z0-9\\s]+$",
-        message: "Special characters are not allowed",
-    },
-    {
-        label: "Phone number",
-        pattern: "^\\+?[\\d\\s\\-()]{7,15}$",
-        message: "Enter a valid phone number",
-    },
-    {
-        label: "Postal code (Canada)",
-        pattern: "^[A-Za-z]\\d[A-Za-z]\\s?\\d[A-Za-z]\\d$",
-        message: "Enter a valid Canadian postal code (e.g. V6B 1A1)",
-    },
-    {
-        label: "Zip code (US)",
-        pattern: "^\\d{5}(-\\d{4})?$",
-        message: "Enter a valid US zip code (e.g. 90210)",
-    },
-];
-
-const OPTION_PRESETS = [
-    { label: "Yes / No", options: ["Yes", "No"] },
-    { label: "Male / Female", options: ["Male", "Female"] },
-    { label: "Daily / Weekly / Never", options: ["Daily", "Weekly", "Never"] },
-] as const;
-
-const SECTION_ACTION_BUTTON_CLASS =
-    "border-2 border-blue-500 bg-white text-slate-950 shadow-sm hover:border-blue-600 hover:bg-blue-50 hover:text-slate-950 dark:border-blue-400 dark:bg-white dark:text-slate-950 dark:hover:border-blue-300 dark:hover:bg-blue-50";
-
-function generateId(): string {
-    return `f-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function getDefaultOptions(fieldType: FieldType): string[] | undefined {
-    if (fieldType === "radio") {
-        return ["Option 1", "Option 2"];
-    }
-
-    if (fieldType === "select") {
-        return ["Choice 1", "Choice 2"];
-    }
-
-    if (fieldType === "multiSelect") {
-        return ["Option 1", "Option 2", "Option 3"];
-    }
-
-    return undefined;
-}
-
-function getDefaultFieldLabel(fieldType: FieldType): string {
-    if (fieldType === "radio") {
-        return "New single choice";
-    }
-
-    if (fieldType === "select") {
-        return "New dropdown";
-    }
-
-    if (fieldType === "multiSelect") {
-        return "New multiple choice";
-    }
-
-    return "New field";
-}
-
-function createField(fieldType: FieldType = "text"): TemplateField {
-    return {
-        id: generateId(),
-        type: fieldType,
-        label: "",
-        required: false,
-        placeholder: supportsPlaceholder(fieldType) ? "" : undefined,
-        options: getDefaultOptions(fieldType),
-        width: fieldType === "address" ? "full" : undefined,
-        paragraphStyle:
-            fieldType === "paragraph"
-                ? {
-                      fontSize: "base",
-                      bold: false,
-                  }
-                : undefined,
-    };
-}
-
-function supportsPlaceholder(fieldType: FieldType): boolean {
-    return ![
-        "date",
-        "select",
-        "radio",
-        "multiSelect",
-        "signature",
-        "address",
-        "paragraph",
-    ].includes(fieldType);
-}
-
-function supportsOptions(fieldType: FieldType): boolean {
-    return (
-        fieldType === "select" ||
-        fieldType === "radio" ||
-        fieldType === "multiSelect"
-    );
-}
-
-function supportsValidation(fieldType: FieldType): boolean {
-    return ["text", "textarea", "email", "phone", "number"].includes(fieldType);
-}
-
-function supportsPattern(fieldType: FieldType): boolean {
-    return ["text", "textarea", "email", "phone"].includes(fieldType);
-}
-
-function supportsFollowUp(fieldType: FieldType): boolean {
-    return fieldType !== "paragraph";
-}
-
-function supportsRequired(fieldType: FieldType): boolean {
-    return fieldType !== "paragraph";
-}
+const PREVIEW_FADE_DURATION_MS = 180;
 
 // --- Field Editor Dialog ---
 
@@ -284,7 +99,9 @@ export function TemplateEditor({
         sectionId: string;
         fieldId: string;
     } | null>(null);
-    const [previewOpen, setPreviewOpen] = useState(false);
+    const [previewMounted, setPreviewMounted] = useState(false);
+    const [previewVisible, setPreviewVisible] = useState(false);
+    const previewCloseTimeoutRef = useRef<number | null>(null);
     const [showValidationErrors, setShowValidationErrors] = useState(false);
     const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -394,6 +211,10 @@ export function TemplateEditor({
                                                 field.label === "New field" ||
                                                 field.label ===
                                                     "New dropdown" ||
+                                                field.label ===
+                                                    "New single choice" ||
+                                                field.label ===
+                                                    "New multiple choice" ||
                                                 field.label ===
                                                     "New radio group"
                                                     ? ""
@@ -635,8 +456,8 @@ export function TemplateEditor({
                     name,
                     description,
                     sections,
-                    consentText: DEFAULT_PIPA_CONSENT_TEXT,
-                    consentVersion: DEFAULT_CONSENT_VERSION,
+                    consentText: template.consentText,
+                    consentVersion: template.consentVersion,
                 });
                 toast.success(
                     `${copyVariant === "form" ? "Form" : "Template"} updated`,
@@ -697,6 +518,33 @@ export function TemplateEditor({
             template?.consentVersion,
         ],
     );
+
+    const clearPreviewCloseTimeout = useCallback(() => {
+        if (!previewCloseTimeoutRef.current) return;
+        window.clearTimeout(previewCloseTimeoutRef.current);
+        previewCloseTimeoutRef.current = null;
+    }, []);
+
+    useEffect(
+        () => () => {
+            clearPreviewCloseTimeout();
+        },
+        [clearPreviewCloseTimeout],
+    );
+
+    const openPreview = useCallback(() => {
+        clearPreviewCloseTimeout();
+        setPreviewMounted(true);
+        window.requestAnimationFrame(() => setPreviewVisible(true));
+    }, [clearPreviewCloseTimeout]);
+
+    const closePreview = useCallback(() => {
+        setPreviewVisible(false);
+        clearPreviewCloseTimeout();
+        previewCloseTimeoutRef.current = window.setTimeout(() => {
+            setPreviewMounted(false);
+        }, PREVIEW_FADE_DURATION_MS);
+    }, [clearPreviewCloseTimeout]);
 
     const setSectionRef = useCallback(
         (sectionId: string, node: HTMLDivElement | null) => {
@@ -986,10 +834,7 @@ export function TemplateEditor({
                         ))}
                     </div>
                     <div className="flex shrink-0 items-center gap-3 ml-auto">
-                        <Button
-                            variant="outline"
-                            onClick={() => setPreviewOpen(true)}
-                        >
+                        <Button variant="outline" onClick={openPreview}>
                             <Eye className="mr-1.5 h-4 w-4" />
                             Preview
                         </Button>
@@ -1038,30 +883,92 @@ export function TemplateEditor({
                 onApplyOptionPreset={applyOptionPreset}
             />
 
-            <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-                <DialogContent
-                    className="force-light sm:max-w-6xl p-0 gap-0 duration-300"
+            {previewMounted && (
+                <div
+                    className={`force-light fixed inset-0 z-50 flex flex-col bg-background transition-opacity duration-200 ease-out ${
+                        previewVisible
+                            ? "opacity-100"
+                            : "pointer-events-none opacity-0"
+                    }`}
                     style={portalStyle}
                 >
-                    <DialogHeader className="px-6 pt-6 pb-0">
-                        <DialogTitle>Form Preview</DialogTitle>
-                        <DialogDescription>
-                            Preview of &quot;{previewTemplate.name}&quot; as
-                            patients will see it
-                        </DialogDescription>
-                    </DialogHeader>
-                    <ScrollArea className="max-h-[70vh] px-6 pb-6 pt-4">
-                        <FormRenderer
-                            template={previewTemplate as Doc<"formTemplates">}
-                            language="en"
-                            clientName="Your Practice"
-                            preview
-                            dialogClassName="force-light"
-                            dialogStyle={portalStyle}
-                        />
-                    </ScrollArea>
-                </DialogContent>
-            </Dialog>
+                    <Tabs
+                        defaultValue="desktop"
+                        className="flex flex-1 flex-col overflow-hidden"
+                    >
+                        {/* Header bar */}
+                        <div className="flex items-center justify-between border-b border-border/70 px-6 py-3">
+                            <div>
+                                <h2 className="text-lg font-semibold">
+                                    Form Preview
+                                </h2>
+                                <p className="text-sm text-muted-foreground">
+                                    &quot;{previewTemplate.name}&quot; as
+                                    patients will see it
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <TabsList className="rounded-xl">
+                                    <TabsTrigger value="desktop">
+                                        Desktop
+                                    </TabsTrigger>
+                                    <TabsTrigger value="mobile">
+                                        Mobile
+                                    </TabsTrigger>
+                                </TabsList>
+                                <Button
+                                    variant="outline"
+                                    onClick={closePreview}
+                                >
+                                    Close
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Desktop content */}
+                        <TabsContent
+                            value="desktop"
+                            className="flex-1 overflow-y-auto p-6"
+                        >
+                            <div className="mx-auto max-w-4xl rounded-xl bg-background p-4 sm:p-6">
+                                <FormRenderer
+                                    template={
+                                        previewTemplate as Doc<"formTemplates">
+                                    }
+                                    language="en"
+                                    clientName="Your Practice"
+                                    preview
+                                    dialogClassName="force-light"
+                                    dialogStyle={portalStyle}
+                                />
+                            </div>
+                        </TabsContent>
+
+                        {/* Mobile content */}
+                        <TabsContent
+                            value="mobile"
+                            className="flex-1 overflow-x-hidden overflow-y-auto p-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                        >
+                            <div className="mx-auto w-full max-w-[420px] rounded-[28px] border border-border/70 bg-muted/20 p-3">
+                                <div className="mx-auto mb-3 h-1.5 w-16 rounded-full bg-muted-foreground/30" />
+                                <div className="max-h-[calc(100dvh-200px)] overflow-x-hidden overflow-y-auto rounded-[20px] border border-border/60 bg-background px-4 py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                                    <FormRenderer
+                                        template={
+                                            previewTemplate as Doc<"formTemplates">
+                                        }
+                                        language="en"
+                                        clientName="Your Practice"
+                                        preview
+                                        mobile
+                                        dialogClassName="force-light"
+                                        dialogStyle={portalStyle}
+                                    />
+                                </div>
+                            </div>
+                        </TabsContent>
+                    </Tabs>
+                </div>
+            )}
         </div>
     );
 }

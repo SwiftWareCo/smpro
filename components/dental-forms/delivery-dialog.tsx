@@ -283,6 +283,14 @@ h2{margin-bottom:16px;color:#333;}p{color:#666;font-size:14px;margin-top:12px;}<
         printWindow.document.close();
     }, [template?.name]);
 
+    const handleOpenQrFromHistory = useCallback((formUrl: string) => {
+        setChannel("qr");
+        setGeneratedUrl(formUrl);
+        setEmailSending(false);
+        setEmailSent(false);
+        setEmailError(false);
+    }, []);
+
     const handleReset = () => {
         setGeneratedUrl("");
         setRecipientEmail("");
@@ -295,7 +303,10 @@ h2{margin-bottom:16px;color:#333;}p{color:#666;font-size:14px;margin-top:12px;}<
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className={`sm:max-w-md ${dialogClassName ?? ""}`} style={dialogStyle}>
+            <DialogContent
+                className={`sm:max-w-md ${dialogClassName ?? ""}`}
+                style={dialogStyle}
+            >
                 <DialogHeader>
                     <DialogTitle>Send Form to Patient</DialogTitle>
                     <DialogDescription>
@@ -504,96 +515,122 @@ h2{margin-bottom:16px;color:#333;}p{color:#666;font-size:14px;margin-top:12px;}<
                                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">
                                         Delivery History
                                     </Label>
-                                    <ScrollArea className="max-h-48">
-                                        <div className="space-y-2 pr-3">
-                                            {deliveryHistory.map((d) => {
-                                                const now = Date.now();
-                                                const isExpired =
-                                                    d.tokenExpiresAt < now;
-                                                const isTerminal =
-                                                    d.status === "completed" ||
-                                                    d.status === "expired" ||
-                                                    d.status === "failed";
+                                    <div className="overflow-hidden rounded-xl border border-border/70 bg-muted/5">
+                                        <ScrollArea className="max-h-[220px] overflow-y-scroll">
+                                            <div className="space-y-2 p-3">
+                                                {deliveryHistory.map((d) => {
+                                                    const now = Date.now();
+                                                    const isExpired =
+                                                        d.tokenExpiresAt < now;
+                                                    const isTerminal =
+                                                        d.status ===
+                                                            "completed" ||
+                                                        d.status ===
+                                                            "expired" ||
+                                                        d.status === "failed";
+                                                    const canOpenQr =
+                                                        d.channel === "qr" &&
+                                                        !isExpired &&
+                                                        d.status !== "failed";
 
-                                                return (
-                                                    <div
-                                                        key={d.deliveryId}
-                                                        className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-xs"
-                                                    >
-                                                        <span className="text-muted-foreground">
-                                                            {
-                                                                channelIcons[
-                                                                    d.channel
-                                                                ]
-                                                            }
-                                                        </span>
-                                                        <span className="min-w-0 flex-1 truncate">
-                                                            {d.patientName ||
-                                                                "—"}
-                                                        </span>
-                                                        <Badge
-                                                            variant="secondary"
-                                                            className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] ${statusColors[d.status] ?? ""}`}
+                                                    return (
+                                                        <div
+                                                            key={d.deliveryId}
+                                                            className="flex min-w-0 flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-background/80 px-3 py-2 text-xs"
                                                         >
-                                                            {d.status}
-                                                        </Badge>
-                                                        <span className="shrink-0 text-muted-foreground">
-                                                            {formatProjectDate(
-                                                                d.createdAt,
-                                                            )}
-                                                        </span>
-                                                        {isExpired &&
-                                                            !isTerminal && (
-                                                                <span className="shrink-0 text-[10px] text-destructive">
-                                                                    Expired
+                                                            <span className="text-muted-foreground">
+                                                                {
+                                                                    channelIcons[
+                                                                        d
+                                                                            .channel
+                                                                    ]
+                                                                }
+                                                            </span>
+                                                            <span className="min-w-0 flex-1 truncate">
+                                                                {d.patientName ||
+                                                                    "—"}
+                                                            </span>
+                                                            <Badge
+                                                                variant="secondary"
+                                                                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] ${statusColors[d.status] ?? ""}`}
+                                                            >
+                                                                {d.status}
+                                                            </Badge>
+                                                            <div className="ml-auto flex shrink-0 items-center gap-1">
+                                                                <span className="text-muted-foreground">
+                                                                    {formatProjectDate(
+                                                                        d.createdAt,
+                                                                    )}
                                                                 </span>
-                                                            )}
-                                                        {!isExpired &&
-                                                            !isTerminal && (
-                                                                <>
+                                                                {isExpired &&
+                                                                    !isTerminal && (
+                                                                        <span className="text-[10px] text-destructive">
+                                                                            Expired
+                                                                        </span>
+                                                                    )}
+                                                                {canOpenQr && (
                                                                     <Button
                                                                         variant="ghost"
                                                                         size="icon"
                                                                         className="h-6 w-6 shrink-0"
                                                                         onClick={() =>
-                                                                            void handleCopyUrl(
+                                                                            handleOpenQrFromHistory(
                                                                                 d.formUrl,
                                                                             )
                                                                         }
+                                                                        title="Open QR code"
                                                                     >
-                                                                        <Copy className="h-3 w-3" />
+                                                                        <QrCode className="h-3 w-3" />
                                                                     </Button>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="h-6 w-6 shrink-0 text-destructive hover:text-destructive"
-                                                                        onClick={async () => {
-                                                                            try {
-                                                                                await revokeDelivery(
-                                                                                    {
-                                                                                        deliveryId:
-                                                                                            d.deliveryId,
-                                                                                    },
-                                                                                );
-                                                                                toast.success(
-                                                                                    "Link revoked",
-                                                                                );
-                                                                            } catch {
-                                                                                toast.error(
-                                                                                    "Failed to revoke link",
-                                                                                );
-                                                                            }
-                                                                        }}
-                                                                    >
-                                                                        <Trash2 className="h-3 w-3" />
-                                                                    </Button>
-                                                                </>
-                                                            )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </ScrollArea>
+                                                                )}
+                                                                {!isExpired &&
+                                                                    !isTerminal && (
+                                                                        <>
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                className="h-6 w-6 shrink-0"
+                                                                                onClick={() =>
+                                                                                    void handleCopyUrl(
+                                                                                        d.formUrl,
+                                                                                    )
+                                                                                }
+                                                                            >
+                                                                                <Copy className="h-3 w-3" />
+                                                                            </Button>
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                className="h-6 w-6 shrink-0 text-destructive hover:text-destructive"
+                                                                                onClick={async () => {
+                                                                                    try {
+                                                                                        await revokeDelivery(
+                                                                                            {
+                                                                                                deliveryId:
+                                                                                                    d.deliveryId,
+                                                                                            },
+                                                                                        );
+                                                                                        toast.success(
+                                                                                            "Link revoked",
+                                                                                        );
+                                                                                    } catch {
+                                                                                        toast.error(
+                                                                                            "Failed to revoke link",
+                                                                                        );
+                                                                                    }
+                                                                                }}
+                                                                            >
+                                                                                <Trash2 className="h-3 w-3" />
+                                                                            </Button>
+                                                                        </>
+                                                                    )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </ScrollArea>
+                                    </div>
                                 </div>
                             </>
                         )}

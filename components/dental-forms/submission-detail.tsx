@@ -70,10 +70,8 @@ function isPresent(value: unknown): value is string | number | boolean {
 }
 
 function humanizeKey(key: string): string {
-    // Strip follow-up infix and IDs for display
-    const normalized = key
-        .replace(/__fu__.*$/, "")
-        .replace(/[-_]/g, " ");
+    // Strip follow-up identifiers for display.
+    const normalized = key.replace(/__fu__.*$/, "").replace(/[-_]/g, " ");
     return normalized.replace(/\b\w/g, (char) => char.toUpperCase()).trim();
 }
 
@@ -85,10 +83,19 @@ function isSignatureValue(value: string): boolean {
     return /^data:image\/[a-zA-Z+.-]+;base64,/.test(value);
 }
 
+function isLikelySignatureKey(key: string): boolean {
+    return /signature/i.test(key);
+}
+
 function isDateLikeValue(value: string): boolean {
     return (
         /^\d{4}-\d{2}-\d{2}$/.test(value) || /^\d{4}-\d{2}-\d{2}T/.test(value)
     );
+}
+
+function isSerializedStringArray(value: string): boolean {
+    const normalized = value.trim();
+    return normalized.startsWith("[") && normalized.endsWith("]");
 }
 
 function formatAddressValue(value: string): { display: string; copy: string } {
@@ -142,6 +149,14 @@ function formatAnswerValue(field: TemplateFieldDoc | null, value: string) {
         const selected = parseMultipleChoiceValue(value);
         const display = selected.join(", ") || "None";
         return { display, copy: display };
+    }
+
+    if (!field && isSerializedStringArray(value)) {
+        const selected = parseMultipleChoiceValue(value);
+        if (selected.length > 0) {
+            const display = selected.join(", ");
+            return { display, copy: display };
+        }
     }
 
     return {
@@ -218,10 +233,7 @@ export function SubmissionDetail({
                 value: formatted.display,
                 copyValue: formatted.copy,
                 wide: isWideAnswer(field, formatted.display),
-                kind:
-                    field?.type === "signature"
-                        ? "signature"
-                        : "text",
+                kind: field?.type === "signature" ? "signature" : "text",
             });
             consumedKeys.add(key);
         };
@@ -247,18 +259,12 @@ export function SubmissionDetail({
                     for (const fu of field.followUps) {
                         if (fu.type === "paragraph") continue;
                         const fuKey = `${field.id}${FOLLOW_UP_INFIX}${fu.id}`;
-                        addAnswer(
-                            answers,
-                            fuKey,
-                            fu.label,
-                            formData[fuKey],
-                            {
-                                ...field,
-                                label: fu.label,
-                                type: fu.type as TemplateFieldDoc["type"],
-                                options: fu.options,
-                            },
-                        );
+                        addAnswer(answers, fuKey, fu.label, formData[fuKey], {
+                            ...field,
+                            label: fu.label,
+                            type: fu.type as TemplateFieldDoc["type"],
+                            options: fu.options,
+                        });
                     }
                 }
             }
@@ -279,16 +285,20 @@ export function SubmissionDetail({
             )
             .map(([key, value], index) => {
                 const rawValue = String(value).trim();
+                const formatted = formatAnswerValue(null, rawValue);
                 return {
                     key,
                     label: isLikelyGeneratedFieldId(key)
                         ? `Additional Response ${index + 1}`
                         : humanizeKey(key) ||
                           `Additional Response ${index + 1}`,
-                    value: formatAnswerValue(null, rawValue).display,
-                    copyValue: formatAnswerValue(null, rawValue).copy,
+                    value: formatted.display,
+                    copyValue: formatted.copy,
                     wide: rawValue.includes("\n") || rawValue.length > 80,
-                    kind: isSignatureValue(rawValue) ? "signature" : "text",
+                    kind:
+                        isSignatureValue(rawValue) || isLikelySignatureKey(key)
+                            ? "signature"
+                            : "text",
                 } satisfies DisplayAnswer;
             });
 

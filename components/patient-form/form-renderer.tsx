@@ -60,6 +60,7 @@ interface FormRendererProps {
     clientName: string;
     onSubmitStart?: () => void;
     preview?: boolean;
+    mobile?: boolean;
     dialogClassName?: string;
     dialogStyle?: React.CSSProperties;
 }
@@ -85,10 +86,11 @@ function isInteractiveField(field: TemplateFieldDoc): boolean {
     return field.type !== "paragraph";
 }
 
-function getChoiceGridClass(width?: string): string {
-    if (width === "third") return "grid grid-cols-1 gap-2";
-    if (width === "full") return "grid grid-cols-2 sm:grid-cols-3 gap-2";
-    return "grid grid-cols-2 gap-2";
+function getChoiceGridClass(width?: string, mobile?: boolean): string {
+    if (mobile || width === "third") return "grid grid-cols-1 gap-2 min-w-0";
+    if (width === "full")
+        return "grid grid-cols-2 sm:grid-cols-3 gap-2 min-w-0";
+    return "grid grid-cols-2 gap-2 min-w-0";
 }
 
 function getFieldRules(
@@ -202,11 +204,16 @@ function getErrorMessage(error: unknown): string | undefined {
     return typeof error.message === "string" ? error.message : undefined;
 }
 
-function getFieldSpanClass(field: {
-    width?: string;
-    type: string;
-    options?: string[];
-}): string {
+function getFieldSpanClass(
+    field: {
+        width?: string;
+        type: string;
+        options?: string[];
+    },
+    mobile?: boolean,
+): string {
+    if (mobile) return "col-span-1";
+
     if (field.type === "address") return "sm:col-span-6";
 
     const w = field.width;
@@ -244,6 +251,7 @@ export function FormRenderer({
     clientName,
     onSubmitStart,
     preview,
+    mobile,
     dialogClassName,
     dialogStyle,
 }: FormRendererProps) {
@@ -506,9 +514,18 @@ export function FormRenderer({
             if (isValid) {
                 await onSubmit(getValues());
             } else {
-                const errorStepIndex = steps.findIndex((step) =>
-                    step.fieldIds.some((id) => errors[id]),
-                );
+                let errorStepIndex = -1;
+                for (let index = 0; index < steps.length; index += 1) {
+                    const stepFieldIds = steps[index]?.fieldIds ?? [];
+                    if (stepFieldIds.length === 0) continue;
+                    // Re-run validation per step so we reliably identify
+                    // the first invalid step even before form state settles.
+                    const stepValid = await trigger(stepFieldIds);
+                    if (!stepValid) {
+                        errorStepIndex = index;
+                        break;
+                    }
+                }
                 if (errorStepIndex !== -1) setCurrentStepIndex(errorStepIndex);
                 toast.error(copy.fixErrors);
             }
@@ -660,7 +677,10 @@ export function FormRenderer({
                     )}
                     render={({ field: controllerField }) => {
                         const options = fieldConfig.options ?? [];
-                        const gridClass = getChoiceGridClass(fieldConfig.width);
+                        const gridClass = getChoiceGridClass(
+                            fieldConfig.width,
+                            mobile,
+                        );
                         return (
                             <RadioGroup
                                 value={controllerField.value ?? ""}
@@ -670,7 +690,7 @@ export function FormRenderer({
                                 {options.map((option) => (
                                     <div
                                         key={option}
-                                        className="flex min-w-0 items-start gap-2 rounded-lg border border-slate-300 bg-background px-3 py-2"
+                                        className="flex w-full min-w-0 overflow-hidden items-start gap-2 rounded-lg border border-slate-300 bg-background px-3 py-2"
                                     >
                                         <RadioGroupItem
                                             value={option}
@@ -680,7 +700,7 @@ export function FormRenderer({
                                         <Label
                                             htmlFor={`${fieldKey}-${option}`}
                                             title={option}
-                                            className="min-w-0 flex-1 truncate text-sm font-normal"
+                                            className="block min-w-0 flex-1 whitespace-normal break-words [overflow-wrap:anywhere] text-sm font-normal leading-snug"
                                         >
                                             {option}
                                         </Label>
@@ -707,7 +727,10 @@ export function FormRenderer({
                         const selected = parseMultipleChoiceValue(
                             controllerField.value ?? "",
                         );
-                        const gridClass = getChoiceGridClass(fieldConfig.width);
+                        const gridClass = getChoiceGridClass(
+                            fieldConfig.width,
+                            mobile,
+                        );
                         return (
                             <div className={gridClass}>
                                 {options.map((option) => {
@@ -715,7 +738,7 @@ export function FormRenderer({
                                     return (
                                         <div
                                             key={option}
-                                            className="flex min-w-0 items-start gap-2 rounded-lg border border-slate-300 bg-background px-3 py-2"
+                                            className="flex w-full min-w-0 overflow-hidden items-start gap-2 rounded-lg border border-slate-300 bg-background px-3 py-2"
                                         >
                                             <Checkbox
                                                 id={`${fieldKey}-${option}`}
@@ -743,7 +766,7 @@ export function FormRenderer({
                                             <Label
                                                 htmlFor={`${fieldKey}-${option}`}
                                                 title={option}
-                                                className="min-w-0 flex-1 truncate text-sm font-normal"
+                                                className="block min-w-0 flex-1 whitespace-normal break-words [overflow-wrap:anywhere] text-sm font-normal leading-snug"
                                             >
                                                 {option}
                                             </Label>
@@ -771,7 +794,7 @@ export function FormRenderer({
             )
             .map((fu) => {
                 const fuKey = makeFollowUpKey(field.id, fu.id);
-                const spanClass = getFieldSpanClass(fu);
+                const spanClass = getFieldSpanClass(fu, mobile);
 
                 if (fu.type === "paragraph") {
                     return (
@@ -789,7 +812,11 @@ export function FormRenderer({
 
                 const fuError = getErrorMessage(errors[fuKey]);
                 return (
-                    <div key={fuKey} className={`space-y-1.5 ${spanClass}`}>
+                    <div
+                        key={fuKey}
+                        id={`field-${fuKey}`}
+                        className={`space-y-1.5 ${spanClass}`}
+                    >
                         <Label htmlFor={fuKey} className="text-sm">
                             {fu.label}
                             {fu.required && (
@@ -817,7 +844,10 @@ export function FormRenderer({
     const renderField = (field: TemplateFieldDoc) => {
         if (field.type === "paragraph") {
             return (
-                <div key={field.id} className="sm:col-span-6">
+                <div
+                    key={field.id}
+                    className={mobile ? "col-span-1" : "sm:col-span-6"}
+                >
                     <p className={getParagraphTextClass(field.paragraphStyle)}>
                         {field.label}
                     </p>
@@ -826,11 +856,15 @@ export function FormRenderer({
         }
 
         const errorMessage = getErrorMessage(errors[field.id]);
-        const spanClass = getFieldSpanClass(field);
+        const spanClass = getFieldSpanClass(field, mobile);
 
         if (field.type === "signature") {
             return (
-                <div key={field.id} className={`space-y-1.5 ${spanClass}`}>
+                <div
+                    key={field.id}
+                    id={`field-${field.id}`}
+                    className={`space-y-1.5 ${spanClass}`}
+                >
                     <Controller
                         name={field.id}
                         control={control}
@@ -862,7 +896,11 @@ export function FormRenderer({
 
         if (field.type === "address") {
             return (
-                <div key={field.id} className={`space-y-1.5 ${spanClass}`}>
+                <div
+                    key={field.id}
+                    id={`field-${field.id}`}
+                    className={`space-y-1.5 ${spanClass}`}
+                >
                     <Label htmlFor={field.id} className="text-sm">
                         {field.label}
                         {field.required && (
@@ -893,7 +931,11 @@ export function FormRenderer({
 
         if (field.type === "email") {
             return (
-                <div key={field.id} className={`space-y-1.5 ${spanClass}`}>
+                <div
+                    key={field.id}
+                    id={`field-${field.id}`}
+                    className={`space-y-1.5 ${spanClass}`}
+                >
                     <Label htmlFor={field.id} className="text-sm">
                         {field.label}
                         {field.required && (
@@ -917,7 +959,11 @@ export function FormRenderer({
 
         if (field.type === "phone") {
             return (
-                <div key={field.id} className={`space-y-1.5 ${spanClass}`}>
+                <div
+                    key={field.id}
+                    id={`field-${field.id}`}
+                    className={`space-y-1.5 ${spanClass}`}
+                >
                     <Label htmlFor={field.id} className="text-sm">
                         {field.label}
                         {field.required && (
@@ -941,7 +987,11 @@ export function FormRenderer({
 
         // All remaining types: text, textarea, number, date, select, radio, multiSelect
         return (
-            <div key={field.id} className={`space-y-1.5 ${spanClass}`}>
+            <div
+                key={field.id}
+                id={`field-${field.id}`}
+                className={`space-y-1.5 ${spanClass}`}
+            >
                 <Label htmlFor={field.id} className="text-sm">
                     {field.label}
                     {field.required && (
@@ -967,7 +1017,11 @@ export function FormRenderer({
     const renderSectionCard = (section: TemplateSectionDoc) => (
         <Card
             key={section.id}
-            className="rounded-2xl sm:rounded-3xl border-border/70 shadow-sm"
+            className={
+                mobile
+                    ? "rounded-2xl border-border/70 shadow-sm"
+                    : "rounded-2xl sm:rounded-3xl border-border/70 shadow-sm"
+            }
         >
             <CardHeader className="pb-3">
                 <div className="flex items-center gap-3">
@@ -988,7 +1042,13 @@ export function FormRenderer({
                     </div>
                 </div>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-6">
+            <CardContent
+                className={
+                    mobile
+                        ? "grid grid-cols-1 gap-x-4 gap-y-3"
+                        : "grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-6"
+                }
+            >
                 {section.fields.flatMap((field) => {
                     const rendered = [renderField(field)];
                     const followUps = renderFollowUps(field);
@@ -1019,9 +1079,21 @@ export function FormRenderer({
                 </div>
             )}
             <div className="space-y-3">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div
+                    className={
+                        mobile
+                            ? "flex flex-col gap-2"
+                            : "flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+                    }
+                >
                     <div className="min-w-0">
-                        <h1 className="truncate text-lg font-semibold tracking-tight sm:text-xl">
+                        <h1
+                            className={
+                                mobile
+                                    ? "truncate text-lg font-semibold tracking-tight"
+                                    : "truncate text-lg font-semibold tracking-tight sm:text-xl"
+                            }
+                        >
                             {clientName}
                         </h1>
                         <p className="text-sm text-muted-foreground">
@@ -1055,9 +1127,21 @@ export function FormRenderer({
             </div>
 
             {wizardMode && currentStep ? (
-                <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
+                <div
+                    className={
+                        mobile
+                            ? "grid gap-6"
+                            : "grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start"
+                    }
+                >
                     {/* Mobile step indicator */}
-                    <div className="flex gap-2 overflow-x-auto pb-2 lg:hidden">
+                    <div
+                        className={
+                            mobile
+                                ? "flex gap-2 overflow-x-auto pb-2"
+                                : "flex gap-2 overflow-x-auto pb-2 lg:hidden"
+                        }
+                    >
                         {steps.map((step, index) => {
                             const isComplete = index < currentStepIndex;
                             const isCurrent = index === currentStepIndex;
@@ -1101,7 +1185,13 @@ export function FormRenderer({
                     </div>
 
                     {/* Desktop sidebar */}
-                    <Card className="hidden lg:block rounded-2xl sm:rounded-3xl border-border/70 shadow-sm lg:sticky lg:top-6">
+                    <Card
+                        className={
+                            mobile
+                                ? "hidden"
+                                : "hidden lg:block rounded-2xl sm:rounded-3xl border-border/70 shadow-sm lg:sticky lg:top-6"
+                        }
+                    >
                         <CardHeader>
                             <CardTitle className="text-base">
                                 {copy.wizardTitle}
@@ -1169,7 +1259,13 @@ export function FormRenderer({
                         {currentStep.kind === "section" ? (
                             currentStep.sections.map(renderSectionCard)
                         ) : (
-                            <Card className="rounded-2xl sm:rounded-3xl border-border/70 shadow-sm">
+                            <Card
+                                className={
+                                    mobile
+                                        ? "rounded-2xl border-border/70 shadow-sm"
+                                        : "rounded-2xl sm:rounded-3xl border-border/70 shadow-sm"
+                                }
+                            >
                                 <CardHeader>
                                     <CardTitle>{copy.reviewTitle}</CardTitle>
                                     <CardDescription>
@@ -1177,18 +1273,20 @@ export function FormRenderer({
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-5">
-                                    <ConsentNotice
-                                        consentText={consentText}
-                                        language={language}
-                                        agreed={consentAgreed}
-                                        onAgreeChange={(agreed) =>
-                                            setValue(
-                                                CONSENT_FIELD_ID,
-                                                agreed ? "true" : "",
-                                                { shouldValidate: true },
-                                            )
-                                        }
-                                    />
+                                    <div id={`field-${CONSENT_FIELD_ID}`}>
+                                        <ConsentNotice
+                                            consentText={consentText}
+                                            language={language}
+                                            agreed={consentAgreed}
+                                            onAgreeChange={(agreed) =>
+                                                setValue(
+                                                    CONSENT_FIELD_ID,
+                                                    agreed ? "true" : "",
+                                                    { shouldValidate: true },
+                                                )
+                                            }
+                                        />
+                                    </div>
                                     {getErrorMessage(
                                         errors[CONSENT_FIELD_ID],
                                     ) && (
@@ -1202,7 +1300,13 @@ export function FormRenderer({
                             </Card>
                         )}
 
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div
+                            className={
+                                mobile
+                                    ? "flex flex-col gap-3"
+                                    : "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+                            }
+                        >
                             <Button
                                 type="button"
                                 variant="outline"
@@ -1221,7 +1325,7 @@ export function FormRenderer({
                                 <Button
                                     type="submit"
                                     disabled={submitting || !consentAgreed}
-                                    className="sm:min-w-44"
+                                    className={mobile ? "" : "sm:min-w-44"}
                                 >
                                     {submitting ? (
                                         <>
@@ -1236,7 +1340,7 @@ export function FormRenderer({
                                 <Button
                                     type="button"
                                     onClick={goToNextStep}
-                                    className="sm:min-w-44"
+                                    className={mobile ? "" : "sm:min-w-44"}
                                 >
                                     {copy.next}
                                     <ChevronRight
@@ -1251,16 +1355,22 @@ export function FormRenderer({
                 <>
                     {enabledSections.map(renderSectionCard)}
 
-                    <ConsentNotice
-                        consentText={consentText}
-                        language={language}
-                        agreed={consentAgreed}
-                        onAgreeChange={(agreed) =>
-                            setValue(CONSENT_FIELD_ID, agreed ? "true" : "", {
-                                shouldValidate: true,
-                            })
-                        }
-                    />
+                    <div id={`field-${CONSENT_FIELD_ID}`}>
+                        <ConsentNotice
+                            consentText={consentText}
+                            language={language}
+                            agreed={consentAgreed}
+                            onAgreeChange={(agreed) =>
+                                setValue(
+                                    CONSENT_FIELD_ID,
+                                    agreed ? "true" : "",
+                                    {
+                                        shouldValidate: true,
+                                    },
+                                )
+                            }
+                        />
+                    </div>
 
                     {getErrorMessage(errors[CONSENT_FIELD_ID]) && (
                         <p className="text-center text-sm text-destructive">
