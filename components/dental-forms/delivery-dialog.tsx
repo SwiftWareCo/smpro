@@ -455,7 +455,7 @@ h2{margin-bottom:16px;color:#333;}p{color:#666;font-size:14px;margin-top:12px;}<
                                         setChannel(v as DeliveryChannel)
                                     }
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger className="w-full">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent className={dialogClassName}>

@@ -39,6 +39,16 @@ interface DisplaySection {
     answers: DisplayAnswer[];
 }
 
+interface SubmissionPrintViewProps {
+    patientName: string;
+    submittedAt: number;
+    statusLabel: string;
+    submissionId: string;
+    templateName: string;
+    templateVersion: number;
+    sections: DisplaySection[];
+}
+
 const FOLLOW_UP_INFIX = "__fu__";
 
 const statusLabels: Record<string, string> = {
@@ -165,6 +175,120 @@ function formatAnswerValue(field: TemplateFieldDoc | null, value: string) {
     };
 }
 
+function SubmissionPrintView({
+    patientName,
+    submittedAt,
+    statusLabel,
+    submissionId,
+    templateName,
+    templateVersion,
+    sections,
+}: SubmissionPrintViewProps) {
+    return (
+        <div className="hidden print:block print:text-black">
+            <header className="border-b border-slate-300 pb-4">
+                <h1 className="text-[22px] font-semibold tracking-tight">
+                    Patient Form Submission
+                </h1>
+                <p className="mt-1 text-sm text-slate-600">
+                    Standardized submission export
+                </p>
+            </header>
+
+            <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-2 text-[12px] leading-5">
+                <div>
+                    <dt className="text-slate-500">Patient</dt>
+                    <dd className="font-medium text-slate-900">
+                        {patientName}
+                    </dd>
+                </div>
+                <div>
+                    <dt className="text-slate-500">Submitted</dt>
+                    <dd className="font-medium text-slate-900">
+                        {formatProjectDateTime(submittedAt)}
+                    </dd>
+                </div>
+                <div>
+                    <dt className="text-slate-500">Form</dt>
+                    <dd className="font-medium text-slate-900">
+                        {templateName} (v{templateVersion})
+                    </dd>
+                </div>
+                <div>
+                    <dt className="text-slate-500">Status</dt>
+                    <dd className="font-medium text-slate-900">
+                        {statusLabel}
+                    </dd>
+                </div>
+                <div className="col-span-2">
+                    <dt className="text-slate-500">Submission ID</dt>
+                    <dd className="font-mono text-[11px] text-slate-800">
+                        {submissionId}
+                    </dd>
+                </div>
+            </dl>
+
+            <div className="mt-6 space-y-4">
+                {sections.length === 0 ? (
+                    <section className="rounded-lg border border-slate-300 p-3 text-sm text-slate-700">
+                        No submitted answers are available for this form.
+                    </section>
+                ) : (
+                    sections.map((section, sectionIndex) => (
+                        <section
+                            key={section.id}
+                            className="break-inside-avoid rounded-lg border border-slate-300 p-3"
+                        >
+                            <h2 className="text-base font-semibold text-slate-900">
+                                {sectionIndex + 1}. {section.title}
+                            </h2>
+                            {section.description && (
+                                <p className="mt-1 text-xs text-slate-600">
+                                    {section.description}
+                                </p>
+                            )}
+
+                            <div className="mt-3 space-y-2">
+                                {section.answers.map((answer) => (
+                                    <div
+                                        key={answer.key}
+                                        className="grid break-inside-avoid grid-cols-[200px_minmax(0,1fr)] gap-3 border-t border-slate-200 pt-2 first:border-t-0 first:pt-0"
+                                    >
+                                        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-slate-500">
+                                            {answer.label}
+                                        </p>
+                                        <div className="text-sm text-slate-900">
+                                            {answer.kind === "signature" &&
+                                            isSignatureValue(
+                                                answer.copyValue,
+                                            ) ? (
+                                                <div className="overflow-hidden rounded border border-slate-300 bg-white p-2">
+                                                    <Image
+                                                        src={answer.copyValue}
+                                                        alt={`${answer.label} signature`}
+                                                        width={640}
+                                                        height={220}
+                                                        className="max-h-28 w-full object-contain"
+                                                        unoptimized
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <p className="whitespace-pre-wrap break-words leading-5">
+                                                    {answer.value}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    ))
+                )}
+            </div>
+        </div>
+    );
+}
+
 export function SubmissionDetail({
     submission,
     onBack,
@@ -205,6 +329,9 @@ export function SubmissionDetail({
     const firstName = formData["first-name"] ?? "";
     const lastName = formData["last-name"] ?? "";
     const patientName = `${firstName} ${lastName}`.trim() || "Submission";
+    const statusLabel = statusLabels[submission.status] ?? submission.status;
+    const templateName = template?.name ?? "Unknown form";
+    const templateVersion = template?.version ?? 1;
 
     const displaySections = useMemo<DisplaySection[]>(() => {
         if (template === undefined) {
@@ -316,8 +443,15 @@ export function SubmissionDetail({
     }, [formData, template]);
 
     return (
-        <div className="w-full animate-in fade-in-0 slide-in-from-bottom-2 duration-200 space-y-6 pb-12">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="w-full animate-in fade-in-0 slide-in-from-bottom-2 duration-200 space-y-6 pb-12 print:animate-none print:space-y-0 print:bg-white print:pb-0">
+            <style jsx global>{`
+                @media print {
+                    @page {
+                        margin: 12mm;
+                    }
+                }
+            `}</style>
+            <div className="flex flex-col gap-4 print:hidden sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex items-start gap-3">
                     <Button
                         variant="ghost"
@@ -347,13 +481,14 @@ export function SubmissionDetail({
                             statusColors[submission.status],
                         )}
                     >
-                        {statusLabels[submission.status] ?? submission.status}
+                        {statusLabel}
                     </Badge>
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={handlePrint}
                         className="print:hidden"
+                        disabled={template === undefined}
                         type="button"
                     >
                         <Printer className="mr-2 h-4 w-4" />
@@ -392,7 +527,7 @@ export function SubmissionDetail({
                     ))}
                 </div>
             ) : (
-                <div className="space-y-4">
+                <div className="space-y-4 print:hidden">
                     {displaySections.length === 0 ? (
                         <Card className="rounded-[28px] border-border/70 shadow-sm">
                             <CardContent className="py-10 text-center text-sm text-muted-foreground">
@@ -494,6 +629,17 @@ export function SubmissionDetail({
                         ))
                     )}
                 </div>
+            )}
+            {template !== undefined && (
+                <SubmissionPrintView
+                    patientName={patientName}
+                    submittedAt={submission.submittedAt}
+                    statusLabel={statusLabel}
+                    submissionId={submission._id}
+                    templateName={templateName}
+                    templateVersion={templateVersion}
+                    sections={displaySections}
+                />
             )}
         </div>
     );
