@@ -251,6 +251,9 @@ export function FormRenderer({
     const [submitting, setSubmitting] = useState(false);
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
     const copy = PATIENT_FORM_COPY[language];
+    const consentText = template.consentText?.trim()
+        ? template.consentText
+        : copy.consentNoticeText;
     const isRtl = isRtlLanguage(language);
 
     const submitForm = useAction(api.formSubmissionsActions.submit);
@@ -667,15 +670,17 @@ export function FormRenderer({
                                 {options.map((option) => (
                                     <div
                                         key={option}
-                                        className="flex items-center gap-2 rounded-lg border border-slate-300 bg-background px-3 py-2"
+                                        className="flex min-w-0 items-start gap-2 rounded-lg border border-slate-300 bg-background px-3 py-2"
                                     >
                                         <RadioGroupItem
                                             value={option}
                                             id={`${fieldKey}-${option}`}
+                                            className="mt-0.5"
                                         />
                                         <Label
                                             htmlFor={`${fieldKey}-${option}`}
-                                            className="text-sm font-normal"
+                                            title={option}
+                                            className="min-w-0 flex-1 truncate text-sm font-normal"
                                         >
                                             {option}
                                         </Label>
@@ -710,11 +715,12 @@ export function FormRenderer({
                                     return (
                                         <div
                                             key={option}
-                                            className="flex items-center gap-2 rounded-lg border border-slate-300 bg-background px-3 py-2"
+                                            className="flex min-w-0 items-start gap-2 rounded-lg border border-slate-300 bg-background px-3 py-2"
                                         >
                                             <Checkbox
                                                 id={`${fieldKey}-${option}`}
                                                 checked={isChecked}
+                                                className="mt-0.5"
                                                 onCheckedChange={(checked) => {
                                                     const next =
                                                         checked === true
@@ -736,7 +742,8 @@ export function FormRenderer({
                                             />
                                             <Label
                                                 htmlFor={`${fieldKey}-${option}`}
-                                                className="text-sm font-normal"
+                                                title={option}
+                                                className="min-w-0 flex-1 truncate text-sm font-normal"
                                             >
                                                 {option}
                                             </Label>
@@ -1161,7 +1168,7 @@ export function FormRenderer({
                     <div className="space-y-6">
                         {currentStep.kind === "section" ? (
                             currentStep.sections.map(renderSectionCard)
-                        ) : preview ? null : (
+                        ) : (
                             <Card className="rounded-2xl sm:rounded-3xl border-border/70 shadow-sm">
                                 <CardHeader>
                                     <CardTitle>{copy.reviewTitle}</CardTitle>
@@ -1171,8 +1178,7 @@ export function FormRenderer({
                                 </CardHeader>
                                 <CardContent className="space-y-5">
                                     <ConsentNotice
-                                        consentText={copy.consentNoticeText}
-                                        consentVersion="1.0"
+                                        consentText={consentText}
                                         language={language}
                                         agreed={consentAgreed}
                                         onAgreeChange={(agreed) =>
@@ -1245,30 +1251,25 @@ export function FormRenderer({
                 <>
                     {enabledSections.map(renderSectionCard)}
 
+                    <ConsentNotice
+                        consentText={consentText}
+                        language={language}
+                        agreed={consentAgreed}
+                        onAgreeChange={(agreed) =>
+                            setValue(CONSENT_FIELD_ID, agreed ? "true" : "", {
+                                shouldValidate: true,
+                            })
+                        }
+                    />
+
+                    {getErrorMessage(errors[CONSENT_FIELD_ID]) && (
+                        <p className="text-center text-sm text-destructive">
+                            {getErrorMessage(errors[CONSENT_FIELD_ID])}
+                        </p>
+                    )}
+
                     {!preview && (
                         <>
-                            <ConsentNotice
-                                consentText={copy.consentNoticeText}
-                                consentVersion="1.0"
-                                language={language}
-                                agreed={consentAgreed}
-                                onAgreeChange={(agreed) =>
-                                    setValue(
-                                        CONSENT_FIELD_ID,
-                                        agreed ? "true" : "",
-                                        {
-                                            shouldValidate: true,
-                                        },
-                                    )
-                                }
-                            />
-
-                            {getErrorMessage(errors[CONSENT_FIELD_ID]) && (
-                                <p className="text-center text-sm text-destructive">
-                                    {getErrorMessage(errors[CONSENT_FIELD_ID])}
-                                </p>
-                            )}
-
                             <Button
                                 type="submit"
                                 disabled={submitting || !consentAgreed}

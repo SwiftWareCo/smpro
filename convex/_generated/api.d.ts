@@ -57,7 +57,6 @@ import type * as kbAgent from "../kbAgent.js";
 import type * as kbChat from "../kbChat.js";
 import type * as knowledgeBase from "../knowledgeBase.js";
 import type * as knowledgeBaseActions from "../knowledgeBaseActions.js";
-import type * as migrations from "../migrations.js";
 import type * as seo from "../seo.js";
 
 import type {
@@ -116,7 +115,6 @@ declare const fullApi: ApiFromModules<{
   kbChat: typeof kbChat;
   knowledgeBase: typeof knowledgeBase;
   knowledgeBaseActions: typeof knowledgeBaseActions;
-  migrations: typeof migrations;
   seo: typeof seo;
 }>;
 

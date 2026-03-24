@@ -10,7 +10,6 @@ import { PATIENT_FORM_COPY, type FormLanguage } from "@/lib/patient-form-i18n";
 
 interface ConsentNoticeProps {
     consentText: string;
-    consentVersion: string;
     language: FormLanguage;
     agreed: boolean;
     onAgreeChange: (agreed: boolean) => void;
@@ -18,7 +17,6 @@ interface ConsentNoticeProps {
 
 export function ConsentNotice({
     consentText,
-    consentVersion,
     language,
     agreed,
     onAgreeChange,
@@ -61,10 +59,6 @@ export function ConsentNotice({
                             {consentText}
                         </div>
                     )}
-
-                    <p className="text-xs text-muted-foreground mt-2">
-                        {copy.consentVersionLabel}: {consentVersion}
-                    </p>
                 </div>
 
                 <div className="rounded-lg border border-primary/25 bg-background/90 p-3 shadow-sm">

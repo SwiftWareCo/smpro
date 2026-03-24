@@ -37,6 +37,7 @@ interface SortableFieldItemProps {
     sectionId: string;
     isDragTarget: boolean;
     isBeingDragged: boolean;
+    labelMissing?: boolean;
     onEditField: (sectionId: string, fieldId: string) => void;
     onDuplicateField: (sectionId: string, fieldId: string) => void;
     onRemoveField: (sectionId: string, fieldId: string) => void;
@@ -237,6 +238,7 @@ function SortableFieldItem({
     sectionId,
     isDragTarget,
     isBeingDragged,
+    labelMissing,
     onEditField,
     onDuplicateField,
     onRemoveField,
@@ -252,7 +254,9 @@ function SortableFieldItem({
                     ? "opacity-0"
                     : isDragTarget
                       ? "border-dashed border-primary/50 bg-primary/5 ring-1 ring-primary/20"
-                      : "border-border/70 bg-muted/10 hover:border-primary/30 hover:bg-primary/5"
+                      : labelMissing
+                        ? "border-destructive/60 bg-destructive/5 ring-1 ring-destructive/20"
+                        : "border-border/70 bg-muted/10 hover:border-primary/30 hover:bg-primary/5"
             }`}
         >
             <FieldItemContent
@@ -275,6 +279,8 @@ interface TemplateSectionCardProps {
     section: TemplateSection;
     sectionIndex: number;
     active: boolean;
+    sectionTitleMissing?: boolean;
+    missingFieldLabelIds?: ReadonlySet<string>;
     setSectionRef: (sectionId: string, node: HTMLDivElement | null) => void;
     onSetActiveSection: (sectionId: string) => void;
     onUpdateSection: (
@@ -302,6 +308,8 @@ export const TemplateSectionCard = memo(function TemplateSectionCard({
     section,
     sectionIndex,
     active,
+    sectionTitleMissing,
+    missingFieldLabelIds,
     setSectionRef,
     onSetActiveSection,
     onUpdateSection,
@@ -419,6 +427,11 @@ export const TemplateSectionCard = memo(function TemplateSectionCard({
                             <Input
                                 id={`section-title-${section.id}`}
                                 value={section.title}
+                                className={
+                                    sectionTitleMissing
+                                        ? "border-destructive/70 ring-1 ring-destructive/20"
+                                        : undefined
+                                }
                                 onChange={(event) =>
                                     onUpdateSection(section.id, {
                                         title: event.target.value,
@@ -500,6 +513,9 @@ export const TemplateSectionCard = memo(function TemplateSectionCard({
                                             isBeingDragged={
                                                 field.id === activeId
                                             }
+                                            labelMissing={missingFieldLabelIds?.has(
+                                                field.id,
+                                            )}
                                             onEditField={onEditField}
                                             onDuplicateField={onDuplicateField}
                                             onRemoveField={onRemoveField}

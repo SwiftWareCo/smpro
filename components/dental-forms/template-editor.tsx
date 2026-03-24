@@ -285,6 +285,7 @@ export function TemplateEditor({
         fieldId: string;
     } | null>(null);
     const [previewOpen, setPreviewOpen] = useState(false);
+    const [showValidationErrors, setShowValidationErrors] = useState(false);
     const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
     const createTemplate = useMutation(api.formTemplates.create);
@@ -580,6 +581,27 @@ export function TemplateEditor({
         [updateField],
     );
 
+    const { missingSectionTitleIds, missingFieldLabelIds } = useMemo(() => {
+        const sectionIds = new Set<string>();
+        const fieldIds = new Set<string>();
+
+        for (const section of sections) {
+            if (!section.title.trim()) {
+                sectionIds.add(section.id);
+            }
+            for (const field of section.fields) {
+                if (!field.label.trim()) {
+                    fieldIds.add(field.id);
+                }
+            }
+        }
+
+        return {
+            missingSectionTitleIds: sectionIds,
+            missingFieldLabelIds: fieldIds,
+        };
+    }, [sections]);
+
     const handleSave = async () => {
         if (!name.trim()) {
             toast.error(
@@ -594,17 +616,17 @@ export function TemplateEditor({
             return;
         }
 
-        if (
-            sections.some(
-                (section) =>
-                    !section.title.trim() ||
-                    section.fields.some((field) => !field.label.trim()),
-            )
-        ) {
-            toast.error("Each section and field needs a label before saving");
+        const hasMissingLabels =
+            missingSectionTitleIds.size > 0 || missingFieldLabelIds.size > 0;
+        if (hasMissingLabels) {
+            setShowValidationErrors(true);
+            toast.error(
+                "Missing labels are highlighted in red. Add section and field labels before saving.",
+            );
             return;
         }
 
+        setShowValidationErrors(false);
         setSaving(true);
         try {
             if (isEditing && template) {
@@ -664,8 +686,16 @@ export function TemplateEditor({
             name: name.trim() || "Untitled form",
             description,
             sections,
+            consentText: template?.consentText ?? DEFAULT_PIPA_CONSENT_TEXT,
+            consentVersion: template?.consentVersion ?? DEFAULT_CONSENT_VERSION,
         }),
-        [description, name, sections],
+        [
+            description,
+            name,
+            sections,
+            template?.consentText,
+            template?.consentVersion,
+        ],
     );
 
     const setSectionRef = useCallback(
@@ -908,6 +938,15 @@ export function TemplateEditor({
                                     section={section}
                                     sectionIndex={sectionIndex}
                                     active={activeSectionId === section.id}
+                                    sectionTitleMissing={
+                                        showValidationErrors &&
+                                        missingSectionTitleIds.has(section.id)
+                                    }
+                                    missingFieldLabelIds={
+                                        showValidationErrors
+                                            ? missingFieldLabelIds
+                                            : undefined
+                                    }
                                     setSectionRef={setSectionRef}
                                     onSetActiveSection={setActiveSection}
                                     onUpdateSection={updateSection}
