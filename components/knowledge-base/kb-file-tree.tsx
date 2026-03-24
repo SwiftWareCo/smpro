@@ -90,8 +90,9 @@ function DocumentLeaf({
         <button
             onClick={onClick}
             className={cn(
-                "flex w-full items-center gap-2 rounded-sm px-2 py-1 text-sm hover:bg-muted transition-colors",
-                isSelected && "bg-primary/10 text-primary font-medium",
+                "flex w-full cursor-pointer items-center gap-2 rounded-md border border-transparent px-2 py-1.5 text-sm transition-colors hover:border-primary/35 hover:bg-primary/12",
+                isSelected &&
+                    "border-primary/45 bg-primary/20 text-primary font-medium",
             )}
             style={{ paddingLeft: depth * 16 + 8 }}
         >
@@ -126,7 +127,7 @@ function FolderNode({
         <div>
             <button
                 onClick={() => toggleFolder(node.folder._id)}
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-1 text-sm hover:bg-muted transition-colors"
+                className="flex w-full cursor-pointer items-center gap-2 rounded-md border border-transparent px-2 py-1.5 text-sm transition-colors hover:border-primary/35 hover:bg-primary/12"
                 style={{ paddingLeft: depth * 16 + 8 }}
             >
                 {isExpanded ? (
@@ -231,9 +232,7 @@ export function KBFileTree({
 
         // Sort folders by sortOrder, documents by newest first
         const sortChildren = (nodes: TreeFolder[]) => {
-            nodes.sort(
-                (a, b) => a.folder.sortOrder - b.folder.sortOrder,
-            );
+            nodes.sort((a, b) => a.folder.sortOrder - b.folder.sortOrder);
             for (const n of nodes) sortChildren(n.children);
         };
         sortChildren(roots);

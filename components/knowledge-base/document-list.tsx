@@ -135,7 +135,8 @@ function DraggableDocumentRow({
             className={cn(
                 "flex items-center justify-between rounded-lg border p-3 transition-opacity",
                 isDragging && "opacity-50",
-                onClick && "cursor-pointer hover:bg-muted/50",
+                onClick &&
+                    "cursor-pointer hover:border-primary/35 hover:bg-primary/12",
             )}
             onClick={onClick}
         >
@@ -159,9 +160,7 @@ function DraggableDocumentRow({
                         )}
                         {doc.sourceType === "manual" && <span>Manual</span>}
                         {doc.charCount != null && (
-                            <span>
-                                {doc.charCount.toLocaleString()} chars
-                            </span>
+                            <span>{doc.charCount.toLocaleString()} chars</span>
                         )}
                     </div>
                 </div>
@@ -232,7 +231,7 @@ function DroppableFolderRow({
             ref={setNodeRef}
             onClick={onClick}
             className={cn(
-                "flex cursor-pointer items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50",
+                "flex cursor-pointer items-center justify-between rounded-lg border p-3 transition-colors hover:border-primary/35 hover:bg-primary/12",
                 isOver && "ring-2 ring-primary border-primary bg-primary/5",
             )}
         >
@@ -265,7 +264,8 @@ function RootDropZone({ isVisible }: { isVisible: boolean }) {
             ref={setNodeRef}
             className={cn(
                 "flex items-center justify-center gap-2 rounded-lg border-2 border-dashed p-3 text-sm text-muted-foreground transition-colors",
-                isOver && "ring-2 ring-primary border-primary bg-primary/5 text-foreground",
+                isOver &&
+                    "ring-2 ring-primary border-primary bg-primary/5 text-foreground",
             )}
         >
             <Home className="h-4 w-4" />
@@ -424,7 +424,9 @@ export function DocumentList({
             onDragEnd={handleDragEnd}
         >
             <div className="space-y-2">
-                <RootDropZone isVisible={isDragging && folderId !== undefined} />
+                <RootDropZone
+                    isVisible={isDragging && folderId !== undefined}
+                />
 
                 {subfolders.map((folder: Doc<"kbFolders">) => (
                     <DroppableFolderRow
