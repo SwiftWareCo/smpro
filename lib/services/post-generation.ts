@@ -42,6 +42,7 @@ export interface GeneratedPost {
         model: string;
         provider: string;
         promptTokens: number | null;
+        completionTokens: number | null;
         cost: number | null;
         generatedAt: number;
     };
@@ -266,7 +267,10 @@ Include this image near the top of the article using ImageWithCaption.`;
             generation: {
                 model: "gemini-2.5-flash",
                 provider: "google",
-                promptTokens: null, // Gemini doesn't easily expose this
+                promptTokens:
+                    response.usageMetadata?.promptTokenCount ?? null,
+                completionTokens:
+                    response.usageMetadata?.candidatesTokenCount ?? null,
                 cost: null,
                 generatedAt: Date.now(),
             },

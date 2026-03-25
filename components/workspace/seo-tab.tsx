@@ -176,7 +176,7 @@ export function SeoTab({ clientId }: SeoTabProps) {
             const response = await fetch("/api/seo/analyze", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ url: fullUrl, provider }),
+                body: JSON.stringify({ url: fullUrl, provider, clientId }),
             });
 
             const data = await response.json();

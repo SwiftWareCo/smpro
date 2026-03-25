@@ -23,6 +23,8 @@ interface ManualDocumentDialogProps {
     onOpenChange: (open: boolean) => void;
     clientId: Id<"clients">;
     folderId?: Id<"kbFolders">;
+    dialogClassName?: string;
+    dialogStyle?: React.CSSProperties;
 }
 
 export function ManualDocumentDialog({
@@ -30,6 +32,8 @@ export function ManualDocumentDialog({
     onOpenChange,
     clientId,
     folderId,
+    dialogClassName,
+    dialogStyle,
 }: ManualDocumentDialogProps) {
     const [title, setTitle] = useState("");
     const [content, setContent] = useState("");
@@ -65,7 +69,7 @@ export function ManualDocumentDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className={dialogClassName ?? "sm:max-w-lg"} style={dialogStyle}>
                 <DialogHeader>
                     <DialogTitle>Create Document</DialogTitle>
                     <DialogDescription>

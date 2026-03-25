@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalMutation, mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireClientAccess } from "./_lib/auth";
 import * as KBRead from "./db/knowledgeBase/read";
@@ -404,6 +404,14 @@ export const setDocumentFailed = internalMutation({
             processingStatus: "failed",
             processingError: args.processingError,
         });
+    },
+});
+
+// Internal query for admin operations (no auth — only callable by other Convex functions)
+export const listDocumentsInternal = internalQuery({
+    args: { clientId: v.id("clients") },
+    handler: async (ctx, args) => {
+        return KBRead.listDocumentsByClient(ctx, args.clientId, 10000);
     },
 });
 

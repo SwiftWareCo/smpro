@@ -25,6 +25,10 @@ export interface TopicGenerationResult {
     topics?: GeneratedTopic[];
     error?: string;
     websiteScraped?: boolean;
+    usage?: {
+        promptTokens: number;
+        completionTokens: number;
+    };
 }
 
 const TOPIC_GENERATION_PROMPT = `You are a content strategist. Generate blog topic ideas SPECIFICALLY relevant to this business and its industry. Do NOT generate generic business advice — every topic must directly relate to what this business does.
@@ -210,6 +214,12 @@ export async function generateTopicIdeas(
             success: true,
             topics,
             websiteScraped,
+            usage: {
+                promptTokens:
+                    response.usageMetadata?.promptTokenCount ?? 0,
+                completionTokens:
+                    response.usageMetadata?.candidatesTokenCount ?? 0,
+            },
         };
     } catch (error) {
         console.error("Topic generation error:", error);

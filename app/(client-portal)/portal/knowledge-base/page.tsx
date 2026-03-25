@@ -17,10 +17,16 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
 import type { Id } from "@/convex/_generated/dataModel";
+import { buildTenantThemeStyle } from "@/lib/tenant-theme";
 
 export default function PortalKnowledgeBasePage() {
-    const { clientId } = usePortalClient();
+    const { clientId, portalPrimaryColor, portalSecondaryColor } =
+        usePortalClient();
     const { isLoading, isAuthenticated } = useConvexAuth();
+    const tenantDialogStyle = buildTenantThemeStyle({
+        primaryColor: portalPrimaryColor,
+        secondaryColor: portalSecondaryColor,
+    });
 
     const [selectedDocumentId, setSelectedDocumentId] =
         useState<Id<"kbDocuments"> | null>(null);
@@ -59,6 +65,8 @@ export default function PortalKnowledgeBasePage() {
                         setManualDocFolderId(folderId);
                         setManualDocDialogOpen(true);
                     }}
+                    dialogClassName="force-light"
+                    dialogStyle={tenantDialogStyle}
                 />
             </div>
 
@@ -72,7 +80,10 @@ export default function PortalKnowledgeBasePage() {
 
             {/* Upload dialog */}
             <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-                <DialogContent className="sm:max-w-lg">
+                <DialogContent
+                    className="force-light sm:max-w-lg"
+                    style={tenantDialogStyle}
+                >
                     <DialogHeader>
                         <DialogTitle>Upload Documents</DialogTitle>
                     </DialogHeader>
@@ -89,6 +100,8 @@ export default function PortalKnowledgeBasePage() {
                 onOpenChange={setFolderDialogOpen}
                 clientId={clientId}
                 parentId={folderParentId}
+                dialogClassName="force-light sm:max-w-md"
+                dialogStyle={tenantDialogStyle}
             />
 
             {/* Manual document dialog */}
@@ -97,6 +110,8 @@ export default function PortalKnowledgeBasePage() {
                 onOpenChange={setManualDocDialogOpen}
                 clientId={clientId}
                 folderId={manualDocFolderId}
+                dialogClassName="force-light sm:max-w-lg"
+                dialogStyle={tenantDialogStyle}
             />
         </div>
     );

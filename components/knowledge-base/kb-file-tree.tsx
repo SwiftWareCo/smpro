@@ -1,10 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useQuery } from "convex/react";
+import { useMemo, useState, type CSSProperties } from "react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id, Doc } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
 import {
     ChevronRight,
     ChevronDown,
@@ -17,8 +26,10 @@ import {
     FolderPlus,
     FilePlus,
     Loader2,
+    Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface KBFileTreeProps {
     clientId: Id<"clients">;
@@ -27,6 +38,8 @@ interface KBFileTreeProps {
     onRequestUpload: () => void;
     onRequestNewFolder: (parentId?: Id<"kbFolders">) => void;
     onRequestNewDocument: (folderId?: Id<"kbFolders">) => void;
+    dialogClassName?: string;
+    dialogStyle?: CSSProperties;
 }
 
 interface TreeFolder {
@@ -80,26 +93,83 @@ function DocumentLeaf({
     isSelected,
     onClick,
     depth,
+    dialogClassName,
+    dialogStyle,
 }: {
     doc: Doc<"kbDocuments">;
     isSelected: boolean;
     onClick: () => void;
     depth: number;
+    dialogClassName?: string;
+    dialogStyle?: CSSProperties;
 }) {
+    const removeDocument = useMutation(api.knowledgeBase.removeDocument);
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+
+    const handleDelete = async () => {
+        try {
+            await removeDocument({ documentId: doc._id });
+            toast.success(`"${doc.title}" deleted`);
+            setIsDeleteOpen(false);
+        } catch {
+            toast.error("Failed to delete document");
+        }
+    };
+
     return (
-        <button
-            onClick={onClick}
+        <div
             className={cn(
-                "flex w-full cursor-pointer items-center gap-2 rounded-md border border-transparent px-2 py-1.5 text-sm transition-colors hover:border-primary/35 hover:bg-primary/12",
+                "group flex w-full items-center gap-1 rounded-md border border-transparent px-2 py-1.5 text-sm transition-colors hover:border-primary/35 hover:bg-primary/12",
                 isSelected &&
                     "border-primary/45 bg-primary/20 text-primary font-medium",
             )}
             style={{ paddingLeft: depth * 16 + 8 }}
         >
-            {getFileIcon(doc.fileType, doc.sourceType)}
-            <span className="min-w-0 truncate">{doc.title}</span>
-            <StatusDot status={doc.processingStatus} />
-        </button>
+            <button
+                onClick={onClick}
+                className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left"
+            >
+                {getFileIcon(doc.fileType, doc.sourceType)}
+                <span className="min-w-0 truncate">{doc.title}</span>
+                <StatusDot status={doc.processingStatus} />
+            </button>
+            <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+                <DialogTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                        onClick={(e) => e.stopPropagation()}
+                        title="Delete document"
+                    >
+                        <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                </DialogTrigger>
+                <DialogContent
+                    className={dialogClassName}
+                    style={dialogStyle}
+                    showCloseButton={false}
+                >
+                    <DialogHeader>
+                        <DialogTitle>Delete document?</DialogTitle>
+                        <DialogDescription>
+                            This will permanently delete &quot;{doc.title}
+                            &quot; and remove it from the knowledge base. This
+                            cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsDeleteOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button onClick={handleDelete}>Delete</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
     );
 }
 
@@ -110,6 +180,8 @@ function FolderNode({
     toggleFolder,
     selectedDocumentId,
     onSelectDocument,
+    dialogClassName,
+    dialogStyle,
 }: {
     node: TreeFolder;
     depth: number;
@@ -117,38 +189,92 @@ function FolderNode({
     toggleFolder: (id: string) => void;
     selectedDocumentId: Id<"kbDocuments"> | null;
     onSelectDocument: (id: Id<"kbDocuments">) => void;
+    dialogClassName?: string;
+    dialogStyle?: CSSProperties;
 }) {
     const isExpanded = expandedFolders.has(node.folder._id);
+    const removeFolder = useMutation(api.knowledgeBase.removeFolder);
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const totalDocs =
         node.documents.length +
         node.children.reduce((sum, c) => sum + c.documents.length, 0);
 
+    const handleDeleteFolder = async () => {
+        try {
+            await removeFolder({ folderId: node.folder._id });
+            toast.success(`"${node.folder.name}" deleted`);
+            setIsDeleteOpen(false);
+        } catch {
+            toast.error("Failed to delete folder");
+        }
+    };
+
     return (
-        <div>
-            <button
-                onClick={() => toggleFolder(node.folder._id)}
-                className="flex w-full cursor-pointer items-center gap-2 rounded-md border border-transparent px-2 py-1.5 text-sm transition-colors hover:border-primary/35 hover:bg-primary/12"
+        <div className="space-y-1">
+            <div
+                className="group flex w-full items-center gap-1 rounded-md border border-transparent px-2 py-1.5 text-sm transition-colors hover:border-primary/35 hover:bg-primary/12"
                 style={{ paddingLeft: depth * 16 + 8 }}
             >
-                {isExpanded ? (
-                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                ) : (
-                    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                )}
-                {isExpanded ? (
-                    <FolderOpen className="h-4 w-4 shrink-0 text-amber-500" />
-                ) : (
-                    <Folder className="h-4 w-4 shrink-0 text-amber-500" />
-                )}
-                <span className="min-w-0 truncate font-medium">
-                    {node.folder.name}
-                </span>
-                <span className="ml-auto text-xs text-muted-foreground shrink-0">
+                <button
+                    onClick={() => toggleFolder(node.folder._id)}
+                    className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left"
+                >
+                    {isExpanded ? (
+                        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    ) : (
+                        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    )}
+                    {isExpanded ? (
+                        <FolderOpen className="h-4 w-4 shrink-0 text-amber-500" />
+                    ) : (
+                        <Folder className="h-4 w-4 shrink-0 text-amber-500" />
+                    )}
+                    <span className="min-w-0 truncate font-medium">
+                        {node.folder.name}
+                    </span>
+                </button>
+                <span className="text-xs text-muted-foreground shrink-0">
                     {totalDocs}
                 </span>
-            </button>
+                <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+                    <DialogTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                            onClick={(e) => e.stopPropagation()}
+                            title="Delete folder"
+                        >
+                            <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent
+                        className={dialogClassName}
+                        style={dialogStyle}
+                        showCloseButton={false}
+                    >
+                        <DialogHeader>
+                            <DialogTitle>Delete folder?</DialogTitle>
+                            <DialogDescription>
+                                This will delete the folder &quot;
+                                {node.folder.name}&quot;. Documents inside will
+                                be moved to the root level.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter>
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsDeleteOpen(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button onClick={handleDeleteFolder}>Delete</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </div>
             {isExpanded && (
-                <div>
+                <div className="space-y-1">
                     {node.children.map((child) => (
                         <FolderNode
                             key={child.folder._id}
@@ -158,6 +284,8 @@ function FolderNode({
                             toggleFolder={toggleFolder}
                             selectedDocumentId={selectedDocumentId}
                             onSelectDocument={onSelectDocument}
+                            dialogClassName={dialogClassName}
+                            dialogStyle={dialogStyle}
                         />
                     ))}
                     {node.documents.map((doc) => (
@@ -167,6 +295,8 @@ function FolderNode({
                             isSelected={selectedDocumentId === doc._id}
                             onClick={() => onSelectDocument(doc._id)}
                             depth={depth + 1}
+                            dialogClassName={dialogClassName}
+                            dialogStyle={dialogStyle}
                         />
                     ))}
                 </div>
@@ -182,6 +312,8 @@ export function KBFileTree({
     onRequestUpload,
     onRequestNewFolder,
     onRequestNewDocument,
+    dialogClassName,
+    dialogStyle,
 }: KBFileTreeProps) {
     const folders = useQuery(api.knowledgeBase.listFolders, { clientId });
     const documents = useQuery(api.knowledgeBase.listDocuments, { clientId });
@@ -287,7 +419,7 @@ export function KBFileTree({
             </div>
 
             {/* Tree */}
-            <div className="flex-1 overflow-y-auto py-1">
+            <div className="flex-1 overflow-y-auto space-y-1 py-1">
                 {tree.roots.map((node) => (
                     <FolderNode
                         key={node.folder._id}
@@ -297,6 +429,8 @@ export function KBFileTree({
                         toggleFolder={toggleFolder}
                         selectedDocumentId={selectedDocumentId}
                         onSelectDocument={onSelectDocument}
+                        dialogClassName={dialogClassName}
+                        dialogStyle={dialogStyle}
                     />
                 ))}
                 {tree.rootDocs.map((doc) => (
@@ -306,6 +440,8 @@ export function KBFileTree({
                         isSelected={selectedDocumentId === doc._id}
                         onClick={() => onSelectDocument(doc._id)}
                         depth={0}
+                        dialogClassName={dialogClassName}
+                        dialogStyle={dialogStyle}
                     />
                 ))}
                 {tree.roots.length === 0 && tree.rootDocs.length === 0 && (

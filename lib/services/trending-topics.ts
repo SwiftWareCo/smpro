@@ -11,6 +11,10 @@ export interface TrendingTopicsResult {
     success: boolean;
     topics?: TrendingTopic[];
     error?: string;
+    usage?: {
+        promptTokens: number;
+        completionTokens: number;
+    };
 }
 
 const TRENDING_TOPICS_PROMPT = `You are a content marketing expert with deep knowledge of current trends, seasonal patterns, and search behavior.
@@ -144,6 +148,12 @@ export async function getTrendingTopics(
         return {
             success: true,
             topics,
+            usage: {
+                promptTokens:
+                    response.usageMetadata?.promptTokenCount ?? 0,
+                completionTokens:
+                    response.usageMetadata?.candidatesTokenCount ?? 0,
+            },
         };
     } catch (error) {
         console.error("Trending topics error:", error);

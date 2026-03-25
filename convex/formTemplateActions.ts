@@ -4,6 +4,7 @@ import { GoogleGenAI } from "@google/genai";
 import { ConvexError, v } from "convex/values";
 import { internalAction } from "./_generated/server";
 import { api, internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import type { Doc } from "./_generated/dataModel";
 import type { FormLanguage } from "../lib/validation/dental-form";
 
@@ -185,11 +186,16 @@ function isRetryableGeminiError(error: unknown): boolean {
     );
 }
 
+interface TranslationResult {
+    snapshot: LocalizedTemplateSnapshot;
+    usage: { promptTokens: number; completionTokens: number };
+}
+
 async function localizeTemplateWithGemini(
     prompt: string,
     template: FormTemplateDoc,
     language: Exclude<FormLanguage, "en">,
-): Promise<LocalizedTemplateSnapshot> {
+): Promise<TranslationResult> {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
         throw new ConvexError({
@@ -216,18 +222,25 @@ async function localizeTemplateWithGemini(
         });
     }
 
-    return buildLocalizedTemplateSnapshot(
-        template,
-        language,
-        extractJsonObject(content),
-    );
+    return {
+        snapshot: buildLocalizedTemplateSnapshot(
+            template,
+            language,
+            extractJsonObject(content),
+        ),
+        usage: {
+            promptTokens: response.usageMetadata?.promptTokenCount ?? 0,
+            completionTokens:
+                response.usageMetadata?.candidatesTokenCount ?? 0,
+        },
+    };
 }
 
 async function localizeTemplateWithOpenRouterFallback(
     prompt: string,
     template: FormTemplateDoc,
     language: Exclude<FormLanguage, "en">,
-): Promise<LocalizedTemplateSnapshot> {
+): Promise<TranslationResult> {
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
         throw new ConvexError({
@@ -259,6 +272,7 @@ async function localizeTemplateWithOpenRouterFallback(
 
     const data = (await response.json()) as {
         choices?: Array<{ message?: { content?: string } }>;
+        usage?: { prompt_tokens?: number; completion_tokens?: number };
     };
     const content = data.choices?.[0]?.message?.content;
 
@@ -269,17 +283,23 @@ async function localizeTemplateWithOpenRouterFallback(
         });
     }
 
-    return buildLocalizedTemplateSnapshot(
-        template,
-        language,
-        extractJsonObject(content),
-    );
+    return {
+        snapshot: buildLocalizedTemplateSnapshot(
+            template,
+            language,
+            extractJsonObject(content),
+        ),
+        usage: {
+            promptTokens: data.usage?.prompt_tokens ?? 0,
+            completionTokens: data.usage?.completion_tokens ?? 0,
+        },
+    };
 }
 
 async function localizeTemplate(
     template: FormTemplateDoc,
     language: Exclude<FormLanguage, "en">,
-): Promise<LocalizedTemplateSnapshot> {
+): Promise<TranslationResult> {
     const languageName = TRANSLATABLE_LANGUAGES[language];
     const prompt = [
         `Translate this patient intake form JSON from English to ${languageName}.`,
@@ -362,8 +382,13 @@ export const translateTemplate = internalAction({
 
         try {
             const results: LocalizedTemplateSnapshot[] = [];
+            let totalPromptTokens = 0;
+            let totalCompletionTokens = 0;
             for (const lang of nonEnglishLangs) {
-                results.push(await localizeTemplate(template, lang));
+                const result = await localizeTemplate(template, lang);
+                results.push(result.snapshot);
+                totalPromptTokens += result.usage.promptTokens;
+                totalCompletionTokens += result.usage.completionTokens;
             }
 
             await ctx.runMutation(internal.formTemplates.patchTranslations, {
@@ -371,6 +396,19 @@ export const translateTemplate = internalAction({
                 translations: results,
                 translatedAt: Date.now(),
             });
+
+            // Track translation usage
+            try {
+                await ctx.runMutation(internal.usage.trackUsage, {
+                    clientId: template.clientId as Id<"clients">,
+                    service: "form_translation",
+                    callCount: nonEnglishLangs.length,
+                    promptTokens: totalPromptTokens,
+                    completionTokens: totalCompletionTokens,
+                });
+            } catch (e) {
+                console.error("Form translation usage tracking failed:", e);
+            }
         } catch (error) {
             const message =
                 error instanceof Error

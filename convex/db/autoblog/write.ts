@@ -169,6 +169,7 @@ export async function createPost(
             model: string;
             provider?: string | null;
             promptTokens?: number | null;
+            completionTokens?: number | null;
             cost?: number | null;
             generatedAt: number;
         } | null;

@@ -21,6 +21,7 @@ import { embeddings } from "./schema/embeddings.schema";
 import { savedIdeas } from "./schema/ideas.schema";
 import { kbDocuments, kbFolders, kbThreads } from "./schema/knowledge-base.schema";
 import { resources } from "./schema/resources.schema";
+import { usageCounters } from "./schema/usage.schema";
 
 export default defineSchema({
     auditLogs,
@@ -42,4 +43,5 @@ export default defineSchema({
     savedIdeas,
     resources,
     embeddings,
+    usageCounters,
 });

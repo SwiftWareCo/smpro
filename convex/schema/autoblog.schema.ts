@@ -87,6 +87,7 @@ export const autoblogPosts = defineTable({
             model: v.string(),
             provider: v.optional(v.union(v.string(), v.null())),
             promptTokens: v.optional(v.union(v.number(), v.null())),
+            completionTokens: v.optional(v.union(v.number(), v.null())),
             cost: v.optional(v.union(v.number(), v.null())),
             generatedAt: v.number(),
         }),

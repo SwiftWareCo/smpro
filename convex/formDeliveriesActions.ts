@@ -242,6 +242,17 @@ export const sendEmail = action({
                 internal.formDeliveries.updateDeliveryStatus,
                 { deliveryId: args.deliveryId, status: "sent" },
             );
+
+            // Track email delivery usage
+            try {
+                await ctx.runMutation(internal.usage.trackUsage, {
+                    clientId: args.clientId,
+                    service: "email_delivery",
+                    callCount: 1,
+                });
+            } catch (e) {
+                console.error("Email delivery usage tracking failed:", e);
+            }
         } catch (error) {
             await ctx.runMutation(
                 internal.formDeliveries.updateDeliveryStatus,

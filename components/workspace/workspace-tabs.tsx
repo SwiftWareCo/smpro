@@ -9,6 +9,7 @@ import { AutoblogTab } from "./autoblog-tab";
 import { PatientFormsTab } from "./patient-forms-tab";
 import { KnowledgeBaseTab } from "./knowledge-base-tab";
 import { PlaceholderModuleTab } from "./placeholder-module-tab";
+import { UsageTab } from "./usage-tab";
 import type { Doc } from "@/convex/_generated/dataModel";
 
 type Client = Doc<"clients">;
@@ -61,6 +62,7 @@ export function WorkspaceTabs({
     const tabs = useMemo(
         () => [
             { id: "overview", label: "Overview" },
+            { id: "usage", label: "Usage" },
             ...enabledModules.map((moduleType) => ({
                 id: moduleType,
                 label: moduleDisplayNames[moduleType] || moduleType,
@@ -92,6 +94,10 @@ export function WorkspaceTabs({
                     accountsCount={accounts.length}
                     seoConfigured={seoConfigured}
                 />
+            </TabsContent>
+
+            <TabsContent value="usage" className="mt-4">
+                <UsageTab clientId={client._id} />
             </TabsContent>
 
             {enabledModules.map((moduleType) => {

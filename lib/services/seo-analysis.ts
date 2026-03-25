@@ -27,6 +27,10 @@ export interface SeoAnalysisResult {
         metaDescription: string | null;
         pagesSummary?: PagesSummary;
     };
+    usage?: {
+        promptTokens: number;
+        completionTokens: number;
+    };
     error?: string;
 }
 
@@ -172,6 +176,12 @@ export async function analyzeWebsiteContent(
                     typeof parsed.metaDescription === "string"
                         ? parsed.metaDescription.slice(0, 160)
                         : null,
+            },
+            usage: {
+                promptTokens:
+                    response.usageMetadata?.promptTokenCount ?? 0,
+                completionTokens:
+                    response.usageMetadata?.candidatesTokenCount ?? 0,
             },
         };
 

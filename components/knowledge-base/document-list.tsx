@@ -215,16 +215,28 @@ function DraggableDocumentRow({
 function DroppableFolderRow({
     folder,
     docCount,
+    readOnly,
     onClick,
 }: {
     folder: Doc<"kbFolders">;
     docCount: number;
+    readOnly?: boolean;
     onClick: () => void;
 }) {
     const { setNodeRef, isOver } = useDroppable({
         id: folder._id,
         data: { type: "folder", folder },
     });
+    const removeFolder = useMutation(api.knowledgeBase.removeFolder);
+
+    const handleDeleteFolder = async () => {
+        try {
+            await removeFolder({ folderId: folder._id });
+            toast.success(`"${folder.name}" deleted`);
+        } catch {
+            toast.error("Failed to delete folder");
+        }
+    };
 
     return (
         <div
@@ -246,7 +258,41 @@ function DroppableFolderRow({
                     </p>
                 </div>
             </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            <div className="flex items-center gap-1">
+                {!readOnly && (
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                    Delete folder?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This will delete the folder &quot;
+                                    {folder.name}&quot;. Documents inside will
+                                    be moved to the root level.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDeleteFolder}>
+                                    Delete
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                )}
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </div>
         </div>
     );
 }
@@ -367,7 +413,7 @@ export function DocumentList({
 
     if (readOnly) {
         return (
-            <div className="space-y-2">
+            <div className="space-y-1">
                 {subfolders.map((folder: Doc<"kbFolders">) => (
                     <div
                         key={folder._id}
@@ -423,7 +469,7 @@ export function DocumentList({
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
         >
-            <div className="space-y-2">
+            <div className="space-y-1">
                 <RootDropZone
                     isVisible={isDragging && folderId !== undefined}
                 />
@@ -433,6 +479,7 @@ export function DocumentList({
                         key={folder._id}
                         folder={folder}
                         docCount={folderDocCounts.get(folder._id) ?? 0}
+                        readOnly={readOnly}
                         onClick={() => onFolderClick?.(folder._id)}
                     />
                 ))}

@@ -3,6 +3,7 @@
 import { v } from "convex/values";
 import { action } from "./_generated/server";
 import { api, internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import { generatePost } from "../lib/services/post-generation";
 import { searchImages, type UnsplashImage } from "../lib/services/unsplash";
 
@@ -130,6 +131,19 @@ export const generateFromIdea = action({
             },
         );
 
+        // Track usage
+        try {
+            await ctx.runMutation(internal.usage.trackUsage, {
+                clientId: idea.clientId,
+                service: "blog_generation",
+                promptTokens: result.post.generation.promptTokens ?? 0,
+                completionTokens:
+                    result.post.generation.completionTokens ?? 0,
+            });
+        } catch (e) {
+            console.error("Blog generation usage tracking failed:", e);
+        }
+
         return {
             success: true,
             postId: post._id,
@@ -250,6 +264,19 @@ export const regenerate = action({
                 ? "pending"
                 : "approved",
         });
+
+        // Track usage
+        try {
+            await ctx.runMutation(internal.usage.trackUsage, {
+                clientId: post.clientId,
+                service: "blog_generation",
+                promptTokens: result.post.generation.promptTokens ?? 0,
+                completionTokens:
+                    result.post.generation.completionTokens ?? 0,
+            });
+        } catch (e) {
+            console.error("Blog regeneration usage tracking failed:", e);
+        }
 
         return { success: true };
     },

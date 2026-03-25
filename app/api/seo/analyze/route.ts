@@ -1,10 +1,14 @@
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchMutation } from 'convex/nextjs';
 import { scrapeWebsite, type ScrapingProvider } from '@/lib/services/scraping';
 import { analyzeWebsiteContent } from '@/lib/services/seo-analysis';
+import { api } from '@/convex/_generated/api';
+import type { Id } from '@/convex/_generated/dataModel';
 
 export async function POST(request: NextRequest) {
-  const { userId } = await auth();
+  const authResult = await auth();
+  const { userId } = authResult;
 
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -12,9 +16,10 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { url, provider = 'jina' } = body as {
+    const { url, provider = 'jina', clientId } = body as {
       url: string;
       provider?: ScrapingProvider;
+      clientId?: string;
     };
 
     if (!url || typeof url !== 'string') {
@@ -45,6 +50,35 @@ export async function POST(request: NextRequest) {
         },
         { status: 422 }
       );
+    }
+
+    // Track usage if clientId is provided
+    if (clientId) {
+      const token = await authResult.getToken({ template: 'convex' });
+      try {
+        // Track scraping call
+        await fetchMutation(
+          api.usage.recordUsage,
+          {
+            clientId: clientId as Id<'clients'>,
+            service: 'web_scraping',
+          },
+          { token: token ?? undefined },
+        );
+        // Track SEO analysis call
+        await fetchMutation(
+          api.usage.recordUsage,
+          {
+            clientId: clientId as Id<'clients'>,
+            service: 'seo_analysis',
+            promptTokens: analysisResult.usage?.promptTokens ?? 0,
+            completionTokens: analysisResult.usage?.completionTokens ?? 0,
+          },
+          { token: token ?? undefined },
+        );
+      } catch (e) {
+        console.error('SEO usage tracking failed:', e);
+      }
     }
 
     // Return structured result (client will confirm before saving)

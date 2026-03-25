@@ -44,6 +44,8 @@ import type * as db_knowledgeBase_read from "../db/knowledgeBase/read.js";
 import type * as db_knowledgeBase_write from "../db/knowledgeBase/write.js";
 import type * as db_seo_read from "../db/seo/read.js";
 import type * as db_seo_write from "../db/seo/write.js";
+import type * as db_usageCounters_read from "../db/usageCounters/read.js";
+import type * as db_usageCounters_write from "../db/usageCounters/write.js";
 import type * as embeddings from "../embeddings.js";
 import type * as formDeliveries from "../formDeliveries.js";
 import type * as formDeliveriesActions from "../formDeliveriesActions.js";
@@ -58,6 +60,7 @@ import type * as kbChat from "../kbChat.js";
 import type * as knowledgeBase from "../knowledgeBase.js";
 import type * as knowledgeBaseActions from "../knowledgeBaseActions.js";
 import type * as seo from "../seo.js";
+import type * as usage from "../usage.js";
 
 import type {
   ApiFromModules,
@@ -102,6 +105,8 @@ declare const fullApi: ApiFromModules<{
   "db/knowledgeBase/write": typeof db_knowledgeBase_write;
   "db/seo/read": typeof db_seo_read;
   "db/seo/write": typeof db_seo_write;
+  "db/usageCounters/read": typeof db_usageCounters_read;
+  "db/usageCounters/write": typeof db_usageCounters_write;
   embeddings: typeof embeddings;
   formDeliveries: typeof formDeliveries;
   formDeliveriesActions: typeof formDeliveriesActions;
@@ -116,6 +121,7 @@ declare const fullApi: ApiFromModules<{
   knowledgeBase: typeof knowledgeBase;
   knowledgeBaseActions: typeof knowledgeBaseActions;
   seo: typeof seo;
+  usage: typeof usage;
 }>;
 
 /**

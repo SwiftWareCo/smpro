@@ -3,8 +3,16 @@
 import { v } from "convex/values";
 import { internalAction, action } from "./_generated/server";
 import { api, internal } from "./_generated/api";
-import { rag } from "./_lib/rag";
+import type { Id } from "./_generated/dataModel";
+import { rag, ragSearch } from "./_lib/rag";
 import { extractText, getDocumentProxy } from "unpdf";
+
+function estimateTokens(text: string): number {
+    const trimmed = text.trim();
+    if (!trimmed) return 0;
+    // Approximation used when provider usage metadata is unavailable.
+    return Math.ceil(trimmed.length / 4);
+}
 
 export const processDocument = internalAction({
     args: { documentId: v.id("kbDocuments") },
@@ -25,14 +33,11 @@ export const processDocument = internalAction({
             // Extract text from uploaded file if needed
             if (doc.sourceType === "upload" && doc.storageId) {
                 // Update status to extracting
-                await ctx.runMutation(
-                    internal.knowledgeBase.setDocumentText,
-                    {
-                        documentId: args.documentId,
-                        rawText: "",
-                        charCount: 0,
-                    },
-                );
+                await ctx.runMutation(internal.knowledgeBase.setDocumentText, {
+                    documentId: args.documentId,
+                    rawText: "",
+                    charCount: 0,
+                });
 
                 const blob = await ctx.storage.get(doc.storageId);
                 if (!blob) {
@@ -44,8 +49,12 @@ export const processDocument = internalAction({
 
                 switch (doc.fileType) {
                     case "pdf": {
-                        const pdf = await getDocumentProxy(new Uint8Array(arrayBuffer));
-                        const { text: pdfText } = await extractText(pdf, { mergePages: true });
+                        const pdf = await getDocumentProxy(
+                            new Uint8Array(arrayBuffer),
+                        );
+                        const { text: pdfText } = await extractText(pdf, {
+                            mergePages: true,
+                        });
                         text = pdfText;
                         break;
                     }
@@ -64,7 +73,9 @@ export const processDocument = internalAction({
             }
 
             if (!text || text.trim().length === 0) {
-                throw new Error("No text content could be extracted from the file");
+                throw new Error(
+                    "No text content could be extracted from the file",
+                );
             }
 
             // Save extracted text and update status to embedding
@@ -75,12 +86,28 @@ export const processDocument = internalAction({
             });
 
             // Add to RAG with clientId as namespace for tenant isolation
-            await rag.add(ctx, {
+            const ragResult = await rag.add(ctx, {
                 namespace: doc.clientId,
                 key: args.documentId,
                 title: doc.title,
                 text,
             });
+
+            // Track embedding usage
+            try {
+                const providerTokens = Number(ragResult.usage?.tokens);
+                const embeddingTokens = Number.isFinite(providerTokens)
+                    ? providerTokens
+                    : estimateTokens(text);
+                await ctx.runMutation(internal.usage.trackUsage, {
+                    clientId: doc.clientId as Id<"clients">,
+                    service: "kb_embedding",
+                    callCount: 1,
+                    promptTokens: embeddingTokens,
+                });
+            } catch (e) {
+                console.error("KB embedding usage tracking failed:", e);
+            }
 
             // Mark as ready with estimated chunk count
             const chunkCount = Math.ceil(text.length / 1000);
@@ -127,12 +154,28 @@ export const reindexDocument = internalAction({
             }
 
             // Re-add to RAG — same key replaces old chunks automatically
-            await rag.add(ctx, {
+            const ragResult = await rag.add(ctx, {
                 namespace: doc.clientId,
                 key: args.documentId,
                 title: doc.title,
                 text,
             });
+
+            // Track embedding usage
+            try {
+                const providerTokens = Number(ragResult.usage?.tokens);
+                const embeddingTokens = Number.isFinite(providerTokens)
+                    ? providerTokens
+                    : estimateTokens(text);
+                await ctx.runMutation(internal.usage.trackUsage, {
+                    clientId: doc.clientId as Id<"clients">,
+                    service: "kb_embedding",
+                    callCount: 1,
+                    promptTokens: embeddingTokens,
+                });
+            } catch (e) {
+                console.error("KB embedding usage tracking failed:", e);
+            }
 
             const chunkCount = Math.ceil(text.length / 1000);
             await ctx.runMutation(internal.knowledgeBase.setDocumentReady, {
@@ -169,7 +212,7 @@ export const searchKnowledgeBase = action({
             clientId: args.clientId,
         });
 
-        const results = await rag.search(ctx, {
+        const results = await ragSearch.search(ctx, {
             namespace: args.clientId,
             query: args.query,
             limit: 8,
@@ -191,16 +234,20 @@ export const searchKnowledgeBase = action({
     },
 });
 
-export const reprocessAllDocuments = action({
+export const reprocessAllDocuments = internalAction({
     args: { clientId: v.id("clients") },
     handler: async (ctx, args): Promise<{ reprocessed: number }> => {
-        // Auth check + get all documents (listDocuments calls requireClientAccess)
-        const documents = await ctx.runQuery(api.knowledgeBase.listDocuments, {
-            clientId: args.clientId,
-        });
+        const documents = await ctx.runQuery(
+            internal.knowledgeBase.listDocumentsInternal,
+            {
+                clientId: args.clientId,
+            },
+        );
 
         const ready = documents.filter(
-            (d: { processingStatus: string }) => d.processingStatus === "ready" || d.processingStatus === "failed",
+            (d: { processingStatus: string }) =>
+                d.processingStatus === "ready" ||
+                d.processingStatus === "failed",
         );
 
         for (const doc of ready) {

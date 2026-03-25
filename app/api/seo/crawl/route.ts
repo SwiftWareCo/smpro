@@ -1,14 +1,18 @@
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchMutation } from 'convex/nextjs';
 import { start } from 'workflow/api';
 import { seoCrawlWorkflow, type CrawlParams } from '@/workflows/seo-crawl';
 import { type ScrapingProvider } from '@/lib/services/scraping';
 import { DEFAULT_MAX_PAGES, MAX_PAGES_TO_CRAWL } from '@/lib/constants/seo';
+import { api } from '@/convex/_generated/api';
+import type { Id } from '@/convex/_generated/dataModel';
 
 export const maxDuration = 300; // 5 minutes max for workflow start
 
 export async function POST(request: NextRequest) {
-  const { userId } = await auth();
+  const authResult = await auth();
+  const { userId } = authResult;
 
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -62,6 +66,24 @@ export async function POST(request: NextRequest) {
     };
 
     const run = await start(seoCrawlWorkflow, [params]);
+
+    // Track web scraping usage
+    if (clientId) {
+      try {
+        const token = await authResult.getToken({ template: 'convex' });
+        await fetchMutation(
+          api.usage.recordUsage,
+          {
+            clientId: clientId as Id<'clients'>,
+            service: 'web_scraping',
+            callCount: clampedMaxPages,
+          },
+          { token: token ?? undefined },
+        );
+      } catch (e) {
+        console.error('Crawl usage tracking failed:', e);
+      }
+    }
 
     return NextResponse.json({
       success: true,

@@ -26,14 +26,17 @@ export default async function TenantPortalLayout({
     return (
         <div
             style={themeStyle}
-            className="force-light min-h-svh bg-background text-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="force-light h-svh overflow-hidden bg-background text-foreground"
         >
-            <SidebarProvider defaultOpen={false}>
+            <SidebarProvider
+                defaultOpen={false}
+                className="h-full overflow-hidden"
+            >
                 <PortalSidebar
                     clientName={tenant.name}
                     enabledModules={tenant.enabledModules}
                 />
-                <SidebarInset>
+                <SidebarInset className="min-h-0 overflow-hidden">
                     <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/75">
                         <SidebarTrigger className="-ml-1" />
                         <Separator
@@ -50,17 +53,17 @@ export default async function TenantPortalLayout({
                             <UserButton />
                         </div>
                     </header>
-                    <div className="flex flex-1 flex-col p-4 md:p-6">
-                        <PortalClientProvider
-                            clientId={tenant._id as Id<"clients">}
-                            clientName={tenant.name}
-                            portalPrimaryColor={tenant.portalPrimaryColor}
-                            portalSecondaryColor={tenant.portalSecondaryColor}
-                            enabledModules={tenant.enabledModules}
-                        >
+                    <PortalClientProvider
+                        clientId={tenant._id as Id<"clients">}
+                        clientName={tenant.name}
+                        portalPrimaryColor={tenant.portalPrimaryColor}
+                        portalSecondaryColor={tenant.portalSecondaryColor}
+                        enabledModules={tenant.enabledModules}
+                    >
+                        <div className="scrollbar-hidden flex min-h-0 flex-1 flex-col overflow-y-auto p-4 md:p-6">
                             {children}
-                        </PortalClientProvider>
-                    </div>
+                        </div>
+                    </PortalClientProvider>
                 </SidebarInset>
             </SidebarProvider>
         </div>

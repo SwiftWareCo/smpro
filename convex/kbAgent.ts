@@ -2,11 +2,11 @@
 
 import { v } from "convex/values";
 import { internalAction } from "./_generated/server";
-import { components } from "./_generated/api";
+import { components, internal } from "./_generated/api";
 import { Agent, createTool } from "@convex-dev/agent";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
-import { rag } from "./_lib/rag";
+import { ragSearch } from "./_lib/rag";
 
 const googleAI = createGoogleGenerativeAI({
     apiKey: process.env.GEMINI_API_KEY,
@@ -46,7 +46,7 @@ export const respond = internalAction({
                     ),
             }),
             execute: async (toolCtx, { query }) => {
-                const results = await rag.search(toolCtx, {
+                const results = await ragSearch.search(toolCtx, {
                     namespace: args.clientId,
                     query,
                     limit: 8,
@@ -68,7 +68,25 @@ export const respond = internalAction({
             ctx,
             { threadId: args.threadId, userId: args.userId },
             { prompt: args.prompt, tools: { searchKnowledgeBase } },
-            { saveStreamDeltas: true },
+            {
+                saveStreamDeltas: true,
+                usageHandler: async (handlerCtx, { usage }) => {
+                    try {
+                        await handlerCtx.runMutation(
+                            internal.usage.trackUsage,
+                            {
+                                clientId: args.clientId as any,
+                                service: "kb_chat",
+                                promptTokens: usage.inputTokens ?? 0,
+                                completionTokens:
+                                    usage.outputTokens ?? 0,
+                            },
+                        );
+                    } catch (e) {
+                        console.error("KB usage tracking failed:", e);
+                    }
+                },
+            },
         );
     },
 });

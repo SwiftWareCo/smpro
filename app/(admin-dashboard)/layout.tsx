@@ -27,11 +27,13 @@ export default async function DashboardLayout({
     );
 
     return (
-        <SidebarProvider defaultOpen={false}>
+        <SidebarProvider defaultOpen={false} className="h-svh overflow-hidden">
             <AppSidebar clients={clients} />
-            <SidebarInset>
+            <SidebarInset className="min-h-0 overflow-hidden">
                 <TopBar />
-                <div className="flex flex-1 flex-col">{children}</div>
+                <div className="scrollbar-hidden flex min-h-0 flex-1 flex-col overflow-y-auto">
+                    {children}
+                </div>
             </SidebarInset>
         </SidebarProvider>
     );

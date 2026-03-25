@@ -235,7 +235,7 @@ export function DocumentUpload({
                         >
                             <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                             <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-medium">
+                                <p className="break-all text-sm font-medium">
                                     {qf.file.name}
                                 </p>
                                 <p className="text-xs text-muted-foreground">

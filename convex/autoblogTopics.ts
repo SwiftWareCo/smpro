@@ -144,7 +144,39 @@ export const generateTopics = action({
                         targetWordCount: 1500,
                     }));
                 allTopics = [...allTopics, ...trendingAsTopics];
+
+                // Track trending topics usage
+                try {
+                    if (trendingResult.usage) {
+                        await ctx.runMutation(internal.usage.trackUsage, {
+                            clientId: args.clientId,
+                            service: "trending_topics",
+                            promptTokens: trendingResult.usage.promptTokens,
+                            completionTokens:
+                                trendingResult.usage.completionTokens,
+                        });
+                    }
+                } catch (e) {
+                    console.error(
+                        "Trending topics usage tracking failed:",
+                        e,
+                    );
+                }
             }
+        }
+
+        // Track topic generation usage
+        try {
+            if (topicResult.usage) {
+                await ctx.runMutation(internal.usage.trackUsage, {
+                    clientId: args.clientId,
+                    service: "topic_generation",
+                    promptTokens: topicResult.usage.promptTokens,
+                    completionTokens: topicResult.usage.completionTokens,
+                });
+            }
+        } catch (e) {
+            console.error("Topic generation usage tracking failed:", e);
         }
 
         // Save all topics as ideas

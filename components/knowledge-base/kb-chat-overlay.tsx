@@ -1095,10 +1095,6 @@ export function KBChatOverlay({ clientId }: KBChatOverlayProps) {
 
     return renderOverlayLayer(
         <>
-            <div
-                className="fixed inset-0 z-40"
-                onClick={() => setStage("closed")}
-            />
             {isDesktop ? (
                 <Rnd
                     size={{ width: desktopWidth, height: desktopHeight }}
@@ -1149,17 +1145,13 @@ export function KBChatOverlay({ clientId }: KBChatOverlayProps) {
                         });
                     }}
                 >
-                    <div
-                        className="h-full w-full"
-                        onClick={(e) => e.stopPropagation()}
-                    >
+                    <div className="h-full w-full">
                         {panelContent}
                     </div>
                 </Rnd>
             ) : (
                 <div
                     className="fixed bottom-3 right-3 z-50 h-[520px] w-[calc(100vw-1.5rem)]"
-                    onClick={(e) => e.stopPropagation()}
                 >
                     {panelContent}
                 </div>

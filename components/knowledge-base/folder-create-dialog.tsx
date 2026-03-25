@@ -22,6 +22,8 @@ interface FolderCreateDialogProps {
     onOpenChange: (open: boolean) => void;
     clientId: Id<"clients">;
     parentId?: Id<"kbFolders">;
+    dialogClassName?: string;
+    dialogStyle?: React.CSSProperties;
 }
 
 export function FolderCreateDialog({
@@ -29,6 +31,8 @@ export function FolderCreateDialog({
     onOpenChange,
     clientId,
     parentId,
+    dialogClassName,
+    dialogStyle,
 }: FolderCreateDialogProps) {
     const [name, setName] = useState("");
     const [isCreating, setIsCreating] = useState(false);
@@ -56,7 +60,7 @@ export function FolderCreateDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className={dialogClassName ?? "sm:max-w-md"} style={dialogStyle}>
                 <DialogHeader>
                     <DialogTitle>New Folder</DialogTitle>
                     <DialogDescription>
