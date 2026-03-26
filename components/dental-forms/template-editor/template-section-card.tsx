@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,21 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import {
-    DndContext,
-    DragOverlay,
-    closestCenter,
-    pointerWithin,
-    KeyboardSensor,
-    PointerSensor,
-    useSensor,
-    useSensors,
-    type CollisionDetection,
-    type DragEndEvent,
-    type DragOverEvent,
-    type DragStartEvent,
-} from "@dnd-kit/core";
-import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { Copy, GripVertical, Plus, Trash2 } from "lucide-react";
 import type {
     FieldType,
@@ -30,6 +15,12 @@ import type {
     TemplateSection,
 } from "@/lib/validation/dental-form";
 import { FIELD_TYPE_LABELS, supportsOptions } from "./utils";
+import {
+    draggable,
+    dropTargetForElements,
+    monitorForElements,
+} from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
+import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
 
 interface SortableFieldItemProps {
     field: TemplateField;
@@ -37,6 +28,7 @@ interface SortableFieldItemProps {
     sectionId: string;
     isDragTarget: boolean;
     isBeingDragged: boolean;
+    isSwapAnimating: boolean;
     labelMissing?: boolean;
     onEditField: (sectionId: string, fieldId: string) => void;
     onDuplicateField: (sectionId: string, fieldId: string) => void;
@@ -62,16 +54,11 @@ function getWidthColSpan(field: Pick<TemplateField, "type" | "width">): string {
     return "sm:col-span-3";
 }
 
-type UseSortableReturn = ReturnType<typeof useSortable>;
-
 interface FieldItemContentProps {
     field: TemplateField;
     fieldIndex: number;
     sectionId: string;
-    dragHandleProps?: {
-        attributes: UseSortableReturn["attributes"];
-        listeners: UseSortableReturn["listeners"];
-    };
+    dragHandleRef?: React.RefObject<HTMLSpanElement | null>;
     onEditField: (sectionId: string, fieldId: string) => void;
     onDuplicateField: (sectionId: string, fieldId: string) => void;
     onRemoveField: (sectionId: string, fieldId: string) => void;
@@ -86,7 +73,7 @@ function FieldItemContent({
     field,
     fieldIndex,
     sectionId,
-    dragHandleProps,
+    dragHandleRef,
     onEditField,
     onDuplicateField,
     onRemoveField,
@@ -98,16 +85,15 @@ function FieldItemContent({
 
     return (
         <>
-            {dragHandleProps && (
+            {dragHandleRef ? (
                 <span
-                    {...dragHandleProps.attributes}
-                    {...dragHandleProps.listeners}
+                    ref={dragHandleRef}
+                    data-drag-handle
                     className="shrink-0 cursor-grab touch-none rounded p-0.5 text-muted-foreground hover:text-foreground active:cursor-grabbing"
                 >
                     <GripVertical className="h-4 w-4" />
                 </span>
-            )}
-            {!dragHandleProps && (
+            ) : (
                 <span className="shrink-0 rounded p-0.5 text-muted-foreground">
                     <GripVertical className="h-4 w-4" />
                 </span>
@@ -238,18 +224,53 @@ function SortableFieldItem({
     sectionId,
     isDragTarget,
     isBeingDragged,
+    isSwapAnimating,
     labelMissing,
     onEditField,
     onDuplicateField,
     onRemoveField,
     onUpdateField,
 }: SortableFieldItemProps) {
-    const { attributes, listeners, setNodeRef } = useSortable({ id: field.id });
+    const ref = useRef<HTMLDivElement>(null);
+    const handleRef = useRef<HTMLSpanElement>(null);
+
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        return combine(
+            draggable({
+                element: el,
+                dragHandle: handleRef.current ?? undefined,
+                getInitialData: () => ({
+                    type: "field",
+                    fieldId: field.id,
+                    fieldIndex,
+                    sectionId,
+                }),
+            }),
+            dropTargetForElements({
+                element: el,
+                getData: () => ({
+                    type: "field",
+                    fieldId: field.id,
+                    fieldIndex,
+                    sectionId,
+                }),
+                canDrop: ({ source }) => {
+                    return (
+                        source.data.type === "field" &&
+                        source.data.sectionId === sectionId &&
+                        source.data.fieldId !== field.id
+                    );
+                },
+            }),
+        );
+    }, [field.id, fieldIndex, sectionId]);
 
     return (
         <div
-            ref={setNodeRef}
-            className={`flex h-full items-center gap-2 rounded-xl border px-3 py-2.5 text-left transition-[border-color,background-color,opacity] duration-150 ${
+            ref={ref}
+            className={`relative flex h-full items-center gap-2 rounded-xl border px-3 py-2.5 text-left transition-[border-color,background-color,opacity,box-shadow] duration-150 ${
                 isBeingDragged
                     ? "opacity-0"
                     : isDragTarget
@@ -257,13 +278,13 @@ function SortableFieldItem({
                       : labelMissing
                         ? "border-destructive/60 bg-destructive/5 ring-1 ring-destructive/20"
                         : "border-border/70 bg-muted/10 hover:border-primary/30 hover:bg-primary/5"
-            }`}
+            } ${isSwapAnimating ? "ring-2 ring-primary/30 bg-primary/10" : ""}`}
         >
             <FieldItemContent
                 field={field}
                 fieldIndex={fieldIndex}
                 sectionId={sectionId}
-                dragHandleProps={{ attributes, listeners }}
+                dragHandleRef={handleRef}
                 onEditField={onEditField}
                 onDuplicateField={onDuplicateField}
                 onRemoveField={onRemoveField}
@@ -321,64 +342,127 @@ export const TemplateSectionCard = memo(function TemplateSectionCard({
     onReorderFields,
     onUpdateField,
 }: TemplateSectionCardProps) {
-    const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-        useSensor(KeyboardSensor),
+    const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
+    const [overFieldId, setOverFieldId] = useState<string | null>(null);
+    const [recentSwapFieldIds, setRecentSwapFieldIds] = useState<
+        ReadonlySet<string>
+    >(() => new Set());
+    const fieldContainerRefs = useRef<Record<string, HTMLDivElement | null>>(
+        {},
     );
+    const previousRectsRef = useRef<Record<string, DOMRect>>({});
+    const swapFlashTimeoutRef = useRef<number | null>(null);
 
-    const [activeId, setActiveId] = useState<string | null>(null);
-    const [overId, setOverId] = useState<string | null>(null);
-
-    const fieldIds = useMemo(
-        () => section.fields.map((f) => f.id),
-        [section.fields],
-    );
-    const activeField = activeId
-        ? section.fields.find((f) => f.id === activeId)
-        : null;
-    const activeFieldIndex = activeField
-        ? section.fields.indexOf(activeField)
-        : -1;
-
-    const collisionDetection = useCallback<CollisionDetection>((args) => {
-        const pointerCollisions = pointerWithin(args);
-        if (pointerCollisions.length > 0) return pointerCollisions;
-        return closestCenter(args);
-    }, []);
-
-    const handleDragStart = useCallback((event: DragStartEvent) => {
-        setActiveId(event.active.id as string);
-    }, []);
-
-    const handleDragOver = useCallback((event: DragOverEvent) => {
-        const newOverId = (event.over?.id as string) ?? null;
-        setOverId((prev) => (prev === newOverId ? prev : newOverId));
-    }, []);
-
-    const handleDragEnd = useCallback(
-        (event: DragEndEvent) => {
-            const { active, over } = event;
-            if (over && active.id !== over.id) {
-                const oldIndex = section.fields.findIndex(
-                    (f) => f.id === active.id,
-                );
-                const newIndex = section.fields.findIndex(
-                    (f) => f.id === over.id,
-                );
-                if (oldIndex !== -1 && newIndex !== -1) {
-                    onReorderFields(section.id, oldIndex, newIndex);
-                }
+    useEffect(() => {
+        return () => {
+            if (swapFlashTimeoutRef.current) {
+                window.clearTimeout(swapFlashTimeoutRef.current);
             }
-            setActiveId(null);
-            setOverId(null);
-        },
-        [section.fields, section.id, onReorderFields],
-    );
-
-    const handleDragCancel = useCallback(() => {
-        setActiveId(null);
-        setOverId(null);
+        };
     }, []);
+
+    // FLIP animation to smoothly move swapped cards, including mixed-width cards.
+    useLayoutEffect(() => {
+        const nextRects: Record<string, DOMRect> = {};
+        for (const field of section.fields) {
+            const el = fieldContainerRefs.current[field.id];
+            if (el) {
+                nextRects[field.id] = el.getBoundingClientRect();
+            }
+        }
+
+        const previousRects = previousRectsRef.current;
+        for (const field of section.fields) {
+            const previousRect = previousRects[field.id];
+            const nextRect = nextRects[field.id];
+            const el = fieldContainerRefs.current[field.id];
+            if (!previousRect || !nextRect || !el) continue;
+
+            const dx = previousRect.left - nextRect.left;
+            const dy = previousRect.top - nextRect.top;
+            const hasTranslation = Math.abs(dx) > 1 || Math.abs(dy) > 1;
+            if (!hasTranslation) continue;
+
+            const scaleX = previousRect.width / nextRect.width;
+            const scaleY = previousRect.height / nextRect.height;
+            const fromTransform = `translate(${dx}px, ${dy}px) scale(${scaleX}, ${scaleY})`;
+
+            el.animate(
+                [
+                    { transformOrigin: "top left", transform: fromTransform },
+                    {
+                        transformOrigin: "top left",
+                        transform: "translate(0px, 0px) scale(1, 1)",
+                    },
+                ],
+                {
+                    duration: 220,
+                    easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+                },
+            );
+        }
+
+        previousRectsRef.current = nextRects;
+    }, [section.fields]);
+
+    // Monitor field drag/swap interactions inside this section.
+    useEffect(() => {
+        return monitorForElements({
+            canMonitor: ({ source }) => {
+                return (
+                    source.data.type === "field" &&
+                    source.data.sectionId === section.id
+                );
+            },
+            onDragStart: ({ source }) => {
+                setActiveFieldId((source.data.fieldId as string) ?? null);
+            },
+            onDrag: ({ location }) => {
+                const target = location.current.dropTargets[0];
+                const targetFieldId =
+                    typeof target?.data.fieldId === "string"
+                        ? target.data.fieldId
+                        : null;
+                setOverFieldId((prev) =>
+                    prev === targetFieldId ? prev : targetFieldId,
+                );
+            },
+            onDrop: ({ source, location }) => {
+                const target = location.current.dropTargets[0];
+                const sourceFieldId = source.data.fieldId as string;
+                const sourceIndex = source.data.fieldIndex as number;
+                const targetIndex = target?.data.fieldIndex as
+                    | number
+                    | undefined;
+                const targetFieldId = target?.data.fieldId as
+                    | string
+                    | undefined;
+
+                if (
+                    target &&
+                    targetIndex !== undefined &&
+                    sourceIndex !== targetIndex
+                ) {
+                    onReorderFields(section.id, sourceIndex, targetIndex);
+                    if (targetFieldId && sourceFieldId) {
+                        setRecentSwapFieldIds(
+                            new Set([sourceFieldId, targetFieldId]),
+                        );
+                        if (swapFlashTimeoutRef.current) {
+                            window.clearTimeout(swapFlashTimeoutRef.current);
+                        }
+                        swapFlashTimeoutRef.current = window.setTimeout(() => {
+                            setRecentSwapFieldIds(new Set());
+                        }, 240);
+                    }
+                }
+
+                setActiveFieldId(null);
+                setOverFieldId(null);
+            },
+        });
+    }, [section.id, onReorderFields]);
+
     return (
         <div
             ref={(node) => {
@@ -487,65 +571,38 @@ export const TemplateSectionCard = memo(function TemplateSectionCard({
 
             <div className="space-y-4">
                 {section.fields.length > 0 ? (
-                    <DndContext
-                        sensors={sensors}
-                        collisionDetection={collisionDetection}
-                        onDragStart={handleDragStart}
-                        onDragOver={handleDragOver}
-                        onDragEnd={handleDragEnd}
-                        onDragCancel={handleDragCancel}
-                    >
-                        <SortableContext items={fieldIds}>
-                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-6">
-                                {section.fields.map((field, fieldIndex) => (
-                                    <div
-                                        key={field.id}
-                                        className={getWidthColSpan(field)}
-                                    >
-                                        <SortableFieldItem
-                                            field={field}
-                                            fieldIndex={fieldIndex}
-                                            sectionId={section.id}
-                                            isDragTarget={
-                                                field.id === overId &&
-                                                field.id !== activeId
-                                            }
-                                            isBeingDragged={
-                                                field.id === activeId
-                                            }
-                                            labelMissing={missingFieldLabelIds?.has(
-                                                field.id,
-                                            )}
-                                            onEditField={onEditField}
-                                            onDuplicateField={onDuplicateField}
-                                            onRemoveField={onRemoveField}
-                                            onUpdateField={onUpdateField}
-                                        />
-                                    </div>
-                                ))}
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-6">
+                        {section.fields.map((field, fieldIndex) => (
+                            <div
+                                key={field.id}
+                                className={getWidthColSpan(field)}
+                                ref={(node) => {
+                                    fieldContainerRefs.current[field.id] = node;
+                                }}
+                            >
+                                <SortableFieldItem
+                                    field={field}
+                                    fieldIndex={fieldIndex}
+                                    sectionId={section.id}
+                                    isDragTarget={
+                                        field.id === overFieldId &&
+                                        field.id !== activeFieldId
+                                    }
+                                    isBeingDragged={field.id === activeFieldId}
+                                    isSwapAnimating={recentSwapFieldIds.has(
+                                        field.id,
+                                    )}
+                                    labelMissing={missingFieldLabelIds?.has(
+                                        field.id,
+                                    )}
+                                    onEditField={onEditField}
+                                    onDuplicateField={onDuplicateField}
+                                    onRemoveField={onRemoveField}
+                                    onUpdateField={onUpdateField}
+                                />
                             </div>
-                        </SortableContext>
-                        <DragOverlay
-                            dropAnimation={{
-                                duration: 150,
-                                easing: "ease",
-                            }}
-                        >
-                            {activeField ? (
-                                <div className="flex items-center gap-2 rounded-xl border bg-background px-3 py-2.5 shadow-xl ring-2 ring-primary/30">
-                                    <FieldItemContent
-                                        field={activeField}
-                                        fieldIndex={activeFieldIndex}
-                                        sectionId={section.id}
-                                        onEditField={onEditField}
-                                        onDuplicateField={onDuplicateField}
-                                        onRemoveField={onRemoveField}
-                                        onUpdateField={onUpdateField}
-                                    />
-                                </div>
-                            ) : null}
-                        </DragOverlay>
-                    </DndContext>
+                        ))}
+                    </div>
                 ) : (
                     <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 px-4 py-6 text-sm text-muted-foreground">
                         This section is empty. Add the first item to define what

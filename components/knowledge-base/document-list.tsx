@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id, Doc } from "@/convex/_generated/dataModel";
@@ -30,19 +31,7 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-    DndContext,
-    PointerSensor,
-    KeyboardSensor,
-    useSensor,
-    useSensors,
-    useDraggable,
-    useDroppable,
-    DragOverlay,
-    type DragEndEvent,
-    type DragStartEvent,
-} from "@dnd-kit/core";
-import { useState } from "react";
+import { draggable, dropTargetForElements, monitorForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { cn } from "@/lib/utils";
 
 interface DocumentListProps {
@@ -114,11 +103,22 @@ function DraggableDocumentRow({
     readOnly?: boolean;
     onClick?: () => void;
 }) {
-    const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-        id: doc._id,
-        data: { type: "document", doc },
-    });
+    const ref = useRef<HTMLDivElement>(null);
+    const handleRef = useRef<HTMLButtonElement>(null);
+    const [isDragging, setIsDragging] = useState(false);
     const removeDocument = useMutation(api.knowledgeBase.removeDocument);
+
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        return draggable({
+            element: el,
+            dragHandle: handleRef.current ?? undefined,
+            getInitialData: () => ({ type: "document", doc }),
+            onDragStart: () => setIsDragging(true),
+            onDrop: () => setIsDragging(false),
+        });
+    }, [doc]);
 
     const handleDelete = async () => {
         try {
@@ -131,7 +131,7 @@ function DraggableDocumentRow({
 
     return (
         <div
-            ref={setNodeRef}
+            ref={ref}
             className={cn(
                 "flex items-center justify-between rounded-lg border p-3 transition-opacity",
                 isDragging && "opacity-50",
@@ -143,8 +143,8 @@ function DraggableDocumentRow({
             <div className="flex items-center gap-3 min-w-0">
                 {!readOnly && (
                     <button
-                        {...attributes}
-                        {...listeners}
+                        ref={handleRef}
+                        data-drag-handle
                         className="cursor-grab touch-none text-muted-foreground hover:text-foreground"
                         onClick={(e) => e.stopPropagation()}
                     >
@@ -223,11 +223,21 @@ function DroppableFolderRow({
     readOnly?: boolean;
     onClick: () => void;
 }) {
-    const { setNodeRef, isOver } = useDroppable({
-        id: folder._id,
-        data: { type: "folder", folder },
-    });
+    const ref = useRef<HTMLDivElement>(null);
+    const [isOver, setIsOver] = useState(false);
     const removeFolder = useMutation(api.knowledgeBase.removeFolder);
+
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        return dropTargetForElements({
+            element: el,
+            getData: () => ({ type: "folder", folder }),
+            onDragEnter: () => setIsOver(true),
+            onDragLeave: () => setIsOver(false),
+            onDrop: () => setIsOver(false),
+        });
+    }, [folder]);
 
     const handleDeleteFolder = async () => {
         try {
@@ -240,7 +250,7 @@ function DroppableFolderRow({
 
     return (
         <div
-            ref={setNodeRef}
+            ref={ref}
             onClick={onClick}
             className={cn(
                 "flex cursor-pointer items-center justify-between rounded-lg border p-3 transition-colors hover:border-primary/35 hover:bg-primary/12",
@@ -298,16 +308,26 @@ function DroppableFolderRow({
 }
 
 function RootDropZone({ isVisible }: { isVisible: boolean }) {
-    const { setNodeRef, isOver } = useDroppable({
-        id: "root",
-        data: { type: "root" },
-    });
+    const ref = useRef<HTMLDivElement>(null);
+    const [isOver, setIsOver] = useState(false);
+
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        return dropTargetForElements({
+            element: el,
+            getData: () => ({ type: "root" }),
+            onDragEnter: () => setIsOver(true),
+            onDragLeave: () => setIsOver(false),
+            onDrop: () => setIsOver(false),
+        });
+    }, []);
 
     if (!isVisible) return null;
 
     return (
         <div
-            ref={setNodeRef}
+            ref={ref}
             className={cn(
                 "flex items-center justify-center gap-2 rounded-lg border-2 border-dashed p-3 text-sm text-muted-foreground transition-colors",
                 isOver &&
@@ -341,39 +361,34 @@ export function DocumentList({
     const moveDocument = useMutation(api.knowledgeBase.moveDocument);
     const [isDragging, setIsDragging] = useState(false);
 
-    const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-        useSensor(KeyboardSensor),
-    );
+    useEffect(() => {
+        return monitorForElements({
+            onDragStart: () => setIsDragging(true),
+            onDrop: ({ source, location }) => {
+                setIsDragging(false);
+                const target = location.current.dropTargets[0];
+                if (!target) return;
 
-    const handleDragStart = (_event: DragStartEvent) => {
-        setIsDragging(true);
-    };
+                const documentId = (source.data.doc as Doc<"kbDocuments">)?._id;
+                if (!documentId) return;
 
-    const handleDragEnd = async (event: DragEndEvent) => {
-        setIsDragging(false);
-        const { active, over } = event;
-        if (!over) return;
+                const overData = target.data;
 
-        const documentId = active.id as Id<"kbDocuments">;
-        const overData = over.data.current;
+                let targetFolderId: Id<"kbFolders"> | undefined;
+                if (overData?.type === "folder") {
+                    targetFolderId = (overData.folder as Doc<"kbFolders">)?._id;
+                } else if (overData?.type === "root") {
+                    targetFolderId = undefined;
+                } else {
+                    return;
+                }
 
-        let targetFolderId: Id<"kbFolders"> | undefined;
-        if (overData?.type === "folder") {
-            targetFolderId = over.id as Id<"kbFolders">;
-        } else if (overData?.type === "root") {
-            targetFolderId = undefined;
-        } else {
-            return;
-        }
-
-        try {
-            await moveDocument({ documentId, folderId: targetFolderId });
-            toast.success("Document moved");
-        } catch {
-            toast.error("Failed to move document");
-        }
-    };
+                moveDocument({ documentId, folderId: targetFolderId })
+                    .then(() => toast.success("Document moved"))
+                    .catch(() => toast.error("Failed to move document"));
+            },
+        });
+    }, [moveDocument]);
 
     if (documents === undefined || subfolders === undefined) {
         return (
@@ -464,45 +479,32 @@ export function DocumentList({
     }
 
     return (
-        <DndContext
-            sensors={sensors}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-        >
-            <div className="space-y-1">
-                <RootDropZone
-                    isVisible={isDragging && folderId !== undefined}
+        <div className="space-y-1">
+            <RootDropZone
+                isVisible={isDragging && folderId !== undefined}
+            />
+
+            {subfolders.map((folder: Doc<"kbFolders">) => (
+                <DroppableFolderRow
+                    key={folder._id}
+                    folder={folder}
+                    docCount={folderDocCounts.get(folder._id) ?? 0}
+                    readOnly={readOnly}
+                    onClick={() => onFolderClick?.(folder._id)}
                 />
+            ))}
 
-                {subfolders.map((folder: Doc<"kbFolders">) => (
-                    <DroppableFolderRow
-                        key={folder._id}
-                        folder={folder}
-                        docCount={folderDocCounts.get(folder._id) ?? 0}
-                        readOnly={readOnly}
-                        onClick={() => onFolderClick?.(folder._id)}
-                    />
-                ))}
-
-                {documents.map((doc: Doc<"kbDocuments">) => (
-                    <DraggableDocumentRow
-                        key={doc._id}
-                        doc={doc}
-                        onClick={
-                            onDocumentClick
-                                ? () => onDocumentClick(doc._id)
-                                : undefined
-                        }
-                    />
-                ))}
-            </div>
-            <DragOverlay>
-                {isDragging ? (
-                    <div className="rounded-lg border bg-background p-3 shadow-lg">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                ) : null}
-            </DragOverlay>
-        </DndContext>
+            {documents.map((doc: Doc<"kbDocuments">) => (
+                <DraggableDocumentRow
+                    key={doc._id}
+                    doc={doc}
+                    onClick={
+                        onDocumentClick
+                            ? () => onDocumentClick(doc._id)
+                            : undefined
+                    }
+                />
+            ))}
+        </div>
     );
 }

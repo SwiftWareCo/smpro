@@ -254,6 +254,8 @@ export function TemplateList({
         }
     };
 
+    const compactCards = copyVariant === "form";
+
     if (showEditor || editingTemplate) {
         return (
             <TemplateEditor
@@ -329,15 +331,21 @@ export function TemplateList({
                         </CardContent>
                     </Card>
                 ) : (
-                    <div className="grid gap-4">
+                    <div
+                        className={
+                            compactCards
+                                ? "grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
+                                : "grid gap-4"
+                        }
+                    >
                         {templates.map((template) => (
                             <Card
                                 key={template._id}
-                                className={
+                                className={`${compactCards ? "overflow-hidden" : ""} ${
                                     readOnly
-                                        ? undefined
+                                        ? ""
                                         : "cursor-pointer transition-colors hover:bg-muted/30"
-                                }
+                                }`}
                                 onClick={
                                     readOnly
                                         ? undefined
@@ -352,21 +360,52 @@ export function TemplateList({
                                 role={readOnly ? undefined : "button"}
                                 tabIndex={readOnly ? undefined : 0}
                             >
-                                <CardHeader className="pb-3">
+                                <CardHeader
+                                    className={
+                                        compactCards ? "px-3 pt-3 pb-2" : "pb-3"
+                                    }
+                                >
                                     <div className="flex items-start justify-between">
-                                        <div className="space-y-1">
-                                            <CardTitle className="text-base flex items-center gap-2">
-                                                <FileText className="h-4 w-4" />
-                                                {template.name}
+                                        <div className="min-w-0 space-y-0.5">
+                                            <CardTitle
+                                                className={
+                                                    compactCards
+                                                        ? "flex items-center gap-1.5 text-sm"
+                                                        : "flex items-center gap-2 text-base"
+                                                }
+                                            >
+                                                <FileText
+                                                    className={
+                                                        compactCards
+                                                            ? "h-3.5 w-3.5"
+                                                            : "h-4 w-4"
+                                                    }
+                                                />
+                                                <span
+                                                    className="min-w-0 truncate"
+                                                    title={template.name}
+                                                >
+                                                    {template.name}
+                                                </span>
                                             </CardTitle>
                                             {template.description && (
-                                                <CardDescription>
+                                                <CardDescription
+                                                    className={
+                                                        compactCards
+                                                            ? "truncate text-xs"
+                                                            : undefined
+                                                    }
+                                                >
                                                     {template.description}
                                                 </CardDescription>
                                             )}
                                         </div>
                                         <div
-                                            className="flex items-center gap-2"
+                                            className={
+                                                compactCards
+                                                    ? "flex items-center gap-1"
+                                                    : "flex items-center gap-2"
+                                            }
                                             onClick={(e) => e.stopPropagation()}
                                             onPointerDown={(e) =>
                                                 e.stopPropagation()
@@ -374,11 +413,11 @@ export function TemplateList({
                                         >
                                             <Badge
                                                 variant="secondary"
-                                                className={
-                                                    statusColors[
-                                                        template.status
-                                                    ]
-                                                }
+                                                className={`${statusColors[template.status]} ${
+                                                    compactCards
+                                                        ? "px-1.5 py-0 text-[10px]"
+                                                        : ""
+                                                }`}
                                             >
                                                 {template.status}
                                             </Badge>
@@ -388,7 +427,11 @@ export function TemplateList({
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            className="h-8 w-8"
+                                                            className={
+                                                                compactCards
+                                                                    ? "h-7 w-7"
+                                                                    : "h-8 w-8"
+                                                            }
                                                             onClick={(
                                                                 event,
                                                             ) => {
@@ -400,7 +443,13 @@ export function TemplateList({
                                                                 );
                                                             }}
                                                         >
-                                                            <Eye className="h-4 w-4" />
+                                                            <Eye
+                                                                className={
+                                                                    compactCards
+                                                                        ? "h-3.5 w-3.5"
+                                                                        : "h-4 w-4"
+                                                                }
+                                                            />
                                                         </Button>
                                                     </TooltipTrigger>
                                                     <TooltipContent>
@@ -416,12 +465,22 @@ export function TemplateList({
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            className="h-8 w-8"
+                                                            className={
+                                                                compactCards
+                                                                    ? "h-7 w-7"
+                                                                    : "h-8 w-8"
+                                                            }
                                                             onClick={
                                                                 stopCardClick
                                                             }
                                                         >
-                                                            <MoreVertical className="h-4 w-4" />
+                                                            <MoreVertical
+                                                                className={
+                                                                    compactCards
+                                                                        ? "h-3.5 w-3.5"
+                                                                        : "h-4 w-4"
+                                                                }
+                                                            />
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent
@@ -516,10 +575,36 @@ export function TemplateList({
                                         </div>
                                     </div>
                                 </CardHeader>
-                                <CardContent>
-                                    <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                                        <span>Version {template.version}</span>
-                                        <span>
+                                <CardContent
+                                    className={
+                                        compactCards
+                                            ? "px-3 pt-0 pb-3"
+                                            : undefined
+                                    }
+                                >
+                                    <div
+                                        className={
+                                            compactCards
+                                                ? "flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground"
+                                                : "flex flex-wrap items-center gap-4 text-sm text-muted-foreground"
+                                        }
+                                    >
+                                        <span
+                                            className={
+                                                compactCards
+                                                    ? "rounded-md bg-muted/40 px-1.5 py-0.5"
+                                                    : undefined
+                                            }
+                                        >
+                                            Version {template.version}
+                                        </span>
+                                        <span
+                                            className={
+                                                compactCards
+                                                    ? "rounded-md bg-muted/40 px-1.5 py-0.5"
+                                                    : undefined
+                                            }
+                                        >
                                             {
                                                 template.sections.filter(
                                                     (s) => s.enabled,
@@ -527,7 +612,13 @@ export function TemplateList({
                                             }{" "}
                                             sections
                                         </span>
-                                        <span>
+                                        <span
+                                            className={
+                                                compactCards
+                                                    ? "rounded-md bg-muted/40 px-1.5 py-0.5"
+                                                    : undefined
+                                            }
+                                        >
                                             {template.sections
                                                 .filter((s) => s.enabled)
                                                 .reduce(
@@ -537,7 +628,13 @@ export function TemplateList({
                                                 )}{" "}
                                             fields
                                         </span>
-                                        <span>
+                                        <span
+                                            className={
+                                                compactCards
+                                                    ? "rounded-md bg-muted/40 px-1.5 py-0.5"
+                                                    : undefined
+                                            }
+                                        >
                                             Updated{" "}
                                             {formatProjectDate(
                                                 template.updatedAt,

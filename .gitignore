@@ -33,6 +33,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local AI agent dirs
+/.agents/
+/.claude/
+/.windsurf/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

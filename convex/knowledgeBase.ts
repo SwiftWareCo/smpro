@@ -268,6 +268,78 @@ export const removeFolder = mutation({
     },
 });
 
+// --- Folder Move & Reorder ---
+
+export const moveFolder = mutation({
+    args: {
+        folderId: v.id("kbFolders"),
+        parentId: v.optional(v.id("kbFolders")),
+    },
+    handler: async (ctx, args) => {
+        const folder = await KBRead.getFolderById(ctx, args.folderId);
+        if (!folder) throw new Error("Folder not found");
+        await requireClientAccess(ctx, folder.clientId);
+
+        // Validate target parent belongs to same client
+        if (args.parentId) {
+            const parent = await KBRead.getFolderById(ctx, args.parentId);
+            if (!parent || parent.clientId !== folder.clientId) {
+                throw new Error("Target folder not found");
+            }
+
+            // Cycle detection: walk from target parent up to root
+            let current = parent;
+            while (current) {
+                if (current._id === args.folderId) {
+                    throw new Error("Cannot move a folder into its own descendant");
+                }
+                if (!current.parentId) break;
+                const next = await KBRead.getFolderById(ctx, current.parentId);
+                if (!next) break;
+                current = next;
+            }
+        }
+
+        // Calculate new sort order among siblings
+        const siblings = await KBRead.listFoldersByParent(
+            ctx,
+            folder.clientId,
+            args.parentId,
+        );
+        const maxSort = siblings.reduce(
+            (max, f) => Math.max(max, f.sortOrder),
+            0,
+        );
+
+        await KBWrite.patchFolder(ctx, args.folderId, {
+            parentId: args.parentId,
+            sortOrder: maxSort + 1,
+        });
+        return { success: true };
+    },
+});
+
+export const reorderFolders = mutation({
+    args: {
+        folderIds: v.array(v.id("kbFolders")),
+    },
+    handler: async (ctx, args) => {
+        if (args.folderIds.length === 0) return { success: true };
+
+        // Validate first folder for auth
+        const first = await KBRead.getFolderById(ctx, args.folderIds[0]);
+        if (!first) throw new Error("Folder not found");
+        await requireClientAccess(ctx, first.clientId);
+
+        for (let i = 0; i < args.folderIds.length; i++) {
+            await KBWrite.patchFolder(ctx, args.folderIds[i], {
+                sortOrder: i + 1,
+            });
+        }
+        return { success: true };
+    },
+});
+
 // --- Document Move ---
 
 export const moveDocument = mutation({

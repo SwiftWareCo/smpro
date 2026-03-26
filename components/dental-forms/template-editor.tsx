@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Eye, Loader2, Plus } from "lucide-react";
-import { arrayMove } from "@dnd-kit/sortable";
+import { arraySwap } from "@/lib/array-move";
 import type {
     FieldType,
     TemplateField,
@@ -329,7 +329,7 @@ export function TemplateEditor({
                     section.id === sectionId
                         ? {
                               ...section,
-                              fields: arrayMove(
+                              fields: arraySwap(
                                   section.fields,
                                   oldIndex,
                                   newIndex,
