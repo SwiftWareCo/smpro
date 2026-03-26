@@ -6,6 +6,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 interface PortalClientContextValue {
     clientId: Id<"clients">;
     clientName: string;
+    clerkOrganizationId: string;
     portalPrimaryColor?: string | null;
     portalSecondaryColor?: string | null;
     enabledModules: string[];
@@ -18,6 +19,7 @@ const PortalClientContext = createContext<PortalClientContextValue | null>(
 export function PortalClientProvider({
     clientId,
     clientName,
+    clerkOrganizationId,
     portalPrimaryColor,
     portalSecondaryColor,
     enabledModules,
@@ -25,6 +27,7 @@ export function PortalClientProvider({
 }: {
     clientId: Id<"clients">;
     clientName: string;
+    clerkOrganizationId: string;
     portalPrimaryColor?: string | null;
     portalSecondaryColor?: string | null;
     enabledModules?: string[];
@@ -35,6 +38,7 @@ export function PortalClientProvider({
             value={{
                 clientId,
                 clientName,
+                clerkOrganizationId,
                 portalPrimaryColor,
                 portalSecondaryColor,
                 enabledModules: enabledModules ?? [],

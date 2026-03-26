@@ -21,6 +21,7 @@ import type * as autoblogPosts from "../autoblogPosts.js";
 import type * as autoblogPublish from "../autoblogPublish.js";
 import type * as autoblogScheduler from "../autoblogScheduler.js";
 import type * as autoblogTopics from "../autoblogTopics.js";
+import type * as clientPortalUsers from "../clientPortalUsers.js";
 import type * as clientProvisioning from "../clientProvisioning.js";
 import type * as clients from "../clients.js";
 import type * as content from "../content.js";
@@ -82,6 +83,7 @@ declare const fullApi: ApiFromModules<{
   autoblogPublish: typeof autoblogPublish;
   autoblogScheduler: typeof autoblogScheduler;
   autoblogTopics: typeof autoblogTopics;
+  clientPortalUsers: typeof clientPortalUsers;
   clientProvisioning: typeof clientProvisioning;
   clients: typeof clients;
   content: typeof content;

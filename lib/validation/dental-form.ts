@@ -108,6 +108,15 @@ export const formLanguageSchema = z.enum(FORM_LANGUAGES);
 
 export const MAX_SUBMISSION_SIZE_BYTES = 256 * 1024;
 export const FOLLOW_UP_INFIX = "__fu__";
+const ENGLISH_ENTRY_FIELD_TYPES = new Set([
+    "text",
+    "textarea",
+    "email",
+    "phone",
+    "address",
+    "signature",
+]);
+const ENGLISH_LATIN_REGEX = /^[\p{Script=Latin}\p{M}\p{N}\p{P}\p{Zs}\r\n\t]*$/u;
 
 export function makeFollowUpKey(parentId: string, fuId: string): string {
     return `${parentId}${FOLLOW_UP_INFIX}${fuId}`;
@@ -128,6 +137,19 @@ export type SubmissionFieldMap = Record<string, string>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function requiresEnglishEntry(type: string): boolean {
+    return ENGLISH_ENTRY_FIELD_TYPES.has(type);
+}
+
+function assertEnglishEntry(label: string, value: string): void {
+    if (!value) return;
+    if (!ENGLISH_LATIN_REGEX.test(value)) {
+        throw new Error(
+            `${label} must be entered in English (Latin characters only)`,
+        );
+    }
 }
 
 export function validateSubmissionData(
@@ -254,6 +276,10 @@ export function validateSubmissionData(
             }
         }
 
+        if (requiresEnglishEntry(field.type)) {
+            assertEnglishEntry(field.label, value);
+        }
+
         // Validate follow-ups against trigger, required, and field-type rules.
         if (field.followUps) {
             for (const fu of field.followUps) {
@@ -301,6 +327,10 @@ export function validateSubmissionData(
 
                 if (fu.type === "number" && Number.isNaN(Number(fuValue))) {
                     throw new Error(`${fu.label} must be a number`);
+                }
+
+                if (requiresEnglishEntry(fu.type)) {
+                    assertEnglishEntry(fu.label, fuValue);
                 }
             }
         }

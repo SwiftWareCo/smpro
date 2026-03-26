@@ -16,22 +16,12 @@ import {
 } from "./_lib/clerkAdmin";
 import { clientOnboardingRequestSchema } from "../lib/validation/client-onboarding";
 
-function buildPortalUrl(slug: string) {
-    const tenantRootDomain = process.env.TENANT_ROOT_DOMAIN;
-    if (!tenantRootDomain) {
-        throw new Error("Missing TENANT_ROOT_DOMAIN in Convex environment");
-    }
-
+function buildPortalUrl() {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-    if (appUrl) {
-        const origin = new URL(appUrl);
-        return `${origin.protocol}//${slug}.${tenantRootDomain}`;
+    if (!appUrl) {
+        return "/portal";
     }
-
-    const protocol = tenantRootDomain.startsWith("localhost")
-        ? "http"
-        : "https";
-    return `${protocol}://${slug}.${tenantRootDomain}`;
+    return `${appUrl.replace(/\/+$/, "")}/portal`;
 }
 
 function throwProvisioningError(
@@ -171,7 +161,7 @@ export const provisionClient = action({
                 clientId,
                 slug: payload.slug,
                 adminEmail: payload.adminEmail,
-                portalUrl: buildPortalUrl(payload.slug),
+                portalUrl: buildPortalUrl(),
                 clerkOrganizationId: organizationId,
                 portalAdminUserId,
             };

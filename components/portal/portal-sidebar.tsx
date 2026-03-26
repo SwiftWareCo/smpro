@@ -56,11 +56,11 @@ export function PortalSidebar({
                             <SidebarMenuItem>
                                 <SidebarMenuButton
                                     asChild
-                                    isActive={pathname === "/"}
+                                    isActive={pathname === "/portal"}
                                     tooltip="Dashboard"
                                     className={menuButtonClassName}
                                 >
-                                    <Link href="/">
+                                    <Link href="/portal">
                                         <LayoutDashboard className="h-4 w-4" />
                                         <span>Dashboard</span>
                                     </Link>
@@ -71,13 +71,15 @@ export function PortalSidebar({
                                     <SidebarMenuButton
                                         asChild
                                         isActive={
-                                            pathname === "/forms" ||
-                                            pathname.startsWith("/forms/")
+                                            pathname === "/portal/forms" ||
+                                            pathname.startsWith(
+                                                "/portal/forms/",
+                                            )
                                         }
                                         tooltip="Patient Forms"
                                         className={menuButtonClassName}
                                     >
-                                        <Link href="/forms">
+                                        <Link href="/portal/forms">
                                             <ClipboardList className="h-4 w-4" />
                                             <span>Patient Forms</span>
                                         </Link>
@@ -89,15 +91,16 @@ export function PortalSidebar({
                                     <SidebarMenuButton
                                         asChild
                                         isActive={
-                                            pathname === "/knowledge-base" ||
+                                            pathname ===
+                                                "/portal/knowledge-base" ||
                                             pathname.startsWith(
-                                                "/knowledge-base/",
+                                                "/portal/knowledge-base/",
                                             )
                                         }
                                         tooltip="Knowledge Base"
                                         className={menuButtonClassName}
                                     >
-                                        <Link href="/knowledge-base">
+                                        <Link href="/portal/knowledge-base">
                                             <BookOpen className="h-4 w-4" />
                                             <span>Knowledge Base</span>
                                         </Link>

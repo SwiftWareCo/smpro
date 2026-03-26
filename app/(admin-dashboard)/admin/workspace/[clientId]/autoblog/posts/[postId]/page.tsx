@@ -31,26 +31,26 @@ export default async function PostEditorPage({ params }: PostEditorPageProps) {
         fetchQuery(
             api.clients.get,
             { clientId: clientId as Id<"clients"> },
-            { token }
+            { token },
         ),
         fetchQuery(
             api.autoblog.getPost,
             { postId: postId as Id<"autoblogPosts"> },
-            { token }
+            { token },
         ),
         fetchQuery(
             api.autoblog.getSettings,
             { clientId: clientId as Id<"clients"> },
-            { token }
+            { token },
         ),
     ]);
 
     if (!client) {
-        redirect("/");
+        redirect("/admin");
     }
 
     if (!post) {
-        redirect(`/workspace/${clientId}?tab=autoblog`);
+        redirect(`/admin/workspace/${clientId}?tab=autoblog`);
     }
 
     return (

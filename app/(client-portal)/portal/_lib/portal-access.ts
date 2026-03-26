@@ -1,6 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
 import { fetchQuery } from "convex/nextjs";
-import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { api } from "@/convex/_generated/api";
@@ -14,22 +13,19 @@ function normalizeEnabledModules(
 }
 
 export const getPortalTenant = cache(async () => {
-    const requestHeaders = await headers();
-    const tenantSlug = requestHeaders.get("x-tenant-slug");
-
-    if (!tenantSlug) {
-        notFound();
-    }
-
-    const { userId, getToken } = await auth();
+    const { userId, orgId, getToken } = await auth();
     if (!userId) {
         redirect("/sign-in");
     }
 
+    if (!orgId) {
+        redirect("/select-org");
+    }
+
     const token = (await getToken({ template: "convex" })) ?? undefined;
     const tenant = await fetchQuery(
-        api.clients.getPortalBySlug,
-        { slug: tenantSlug },
+        api.clients.getPortalByClerkOrganizationId,
+        { clerkOrganizationId: orgId },
         { token },
     );
 
@@ -53,7 +49,7 @@ export function hasPortalModule(
 export async function requirePortalModule(module: PortalModule) {
     const tenant = await getPortalTenant();
     if (!hasPortalModule(tenant.enabledModules, module)) {
-        redirect("/");
+        redirect("/portal");
     }
     return tenant;
 }

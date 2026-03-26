@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { useQuery } from "convex/react";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery } from "convex/react";
 import Image from "next/image";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
@@ -10,7 +10,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Printer, Copy } from "lucide-react";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ArrowLeft, Printer, Copy, Trash2 } from "lucide-react";
 import { formatProjectDate, formatProjectDateTime } from "@/lib/date-utils";
 import { parseMultipleChoiceValue } from "@/lib/multiple-choice";
 import { cn } from "@/lib/utils";
@@ -277,6 +287,14 @@ function SubmissionPrintView({
                                                     {answer.value}
                                                 </p>
                                             )}
+                                            {answer.kind === "signature" && (
+                                                <p className="mt-2 text-xs text-slate-500">
+                                                    Date signed:{" "}
+                                                    {formatProjectDate(
+                                                        submittedAt,
+                                                    )}
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -293,10 +311,13 @@ export function SubmissionDetail({
     submission,
     onBack,
 }: SubmissionDetailProps) {
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const formData = useMemo(
         () => (submission.formData ?? {}) as Record<string, unknown>,
         [submission.formData],
     );
+    const removeSubmission = useMutation(api.formSubmissions.remove);
     const template = useQuery(api.formTemplates.get, {
         templateId: submission.templateId,
     });
@@ -323,6 +344,21 @@ export function SubmissionDetail({
             } catch {
                 toast.error("Failed to copy");
             }
+        }
+    };
+
+    const handleDelete = async () => {
+        setDeleting(true);
+        try {
+            await removeSubmission({ submissionId: submission._id });
+            toast.success("Submission deleted");
+            setDeleteOpen(false);
+            onBack();
+        } catch (error) {
+            console.error("Delete submission error:", error);
+            toast.error("Failed to delete submission");
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -494,6 +530,17 @@ export function SubmissionDetail({
                         <Printer className="mr-2 h-4 w-4" />
                         Print
                     </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDeleteOpen(true)}
+                        className="print:hidden text-destructive hover:text-destructive"
+                        type="button"
+                        disabled={deleting}
+                    >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                    </Button>
                 </div>
             </div>
 
@@ -603,6 +650,15 @@ export function SubmissionDetail({
                                                             {answer.value}
                                                         </p>
                                                     )}
+                                                    {answer.kind ===
+                                                        "signature" && (
+                                                        <p className="mt-2 text-xs text-muted-foreground">
+                                                            Date signed:{" "}
+                                                            {formatProjectDate(
+                                                                submission.submittedAt,
+                                                            )}
+                                                        </p>
+                                                    )}
                                                 </div>
 
                                                 {answer.kind === "text" && (
@@ -641,6 +697,30 @@ export function SubmissionDetail({
                     sections={displaySections}
                 />
             )}
+            <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Delete this submission?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This permanently deletes the submission and linked
+                            consent record. This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleting}>
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={deleting}
+                        >
+                            {deleting ? "Deleting..." : "Delete Submission"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

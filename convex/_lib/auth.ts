@@ -106,11 +106,6 @@ export async function requireClientAccess(
         return client;
     }
 
-    // Portal admin check
-    if (client.portalAdminUserId === identity.subject) {
-        return client;
-    }
-
     // Portal org member check
     if (
         orgId &&

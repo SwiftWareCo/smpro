@@ -129,6 +129,7 @@ export const createLink = action({
             token,
             routing.slug,
             preferredLanguage,
+            { requireAbsolute: true },
         );
 
         return {

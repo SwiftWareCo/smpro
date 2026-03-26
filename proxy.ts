@@ -4,11 +4,6 @@ import {
     createRouteMatcher,
 } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import {
-    getAppRootDomain,
-    getRequestHost,
-    resolveTenantSlugFromHost,
-} from "@/lib/tenant-host";
 
 const isPublicRoute = createRouteMatcher([
     "/sign-in(.*)",
@@ -17,16 +12,7 @@ const isPublicRoute = createRouteMatcher([
     "/select-org(.*)",
 ]);
 
-function shouldBypassTenantRewrite(pathname: string) {
-    return (
-        pathname.startsWith("/api") ||
-        pathname.startsWith("/trpc") ||
-        pathname.startsWith("/sign-in") ||
-        pathname === "/form" ||
-        pathname.startsWith("/form/") ||
-        pathname.startsWith("/select-org")
-    );
-}
+const isAdminRoute = createRouteMatcher(["/admin(.*)", "/workspace/(.*)"]);
 
 function hasAgencyAdminMetadata(
     publicMetadata: Record<string, unknown> | null | undefined,
@@ -36,82 +22,95 @@ function hasAgencyAdminMetadata(
 }
 
 export default clerkMiddleware(async (auth, req) => {
-    const requestHost = getRequestHost(req.headers) ?? req.nextUrl.host;
-    const appRootDomain = getAppRootDomain();
-
     if (!isPublicRoute(req)) {
         await auth.protect();
     }
 
-    const { userId } = await auth();
+    const { userId, orgId } = await auth();
+    const { pathname, search } = req.nextUrl;
+    let clerkInstance: Awaited<ReturnType<typeof clerkClient>> | null = null;
+    const getClerk = async () => {
+        if (!clerkInstance) {
+            clerkInstance = await clerkClient();
+        }
+        return clerkInstance;
+    };
 
-    // Admin app domain check
-    if (appRootDomain && requestHost === appRootDomain && userId) {
-        const clerk = await clerkClient();
+    let isAgencyAdminCache: boolean | null = null;
+    const isAgencyAdmin = async () => {
+        if (!userId) return false;
+        if (isAgencyAdminCache !== null) return isAgencyAdminCache;
+
+        const clerk = await getClerk();
         const user = await clerk.users.getUser(userId);
+        isAgencyAdminCache = hasAgencyAdminMetadata(
+            user.publicMetadata as Record<string, unknown> | undefined,
+        );
 
-        if (
-            !hasAgencyAdminMetadata(
-                user.publicMetadata as Record<string, unknown> | undefined,
-            )
-        ) {
+        return isAgencyAdminCache;
+    };
+    let membershipCountCache: number | null = null;
+    const getMembershipCount = async () => {
+        if (!userId) return 0;
+        if (membershipCountCache !== null) return membershipCountCache;
+
+        const clerk = await getClerk();
+        const memberships = await clerk.users.getOrganizationMembershipList({
+            userId,
+            // We only need to know if there is more than one.
+            limit: 2,
+        });
+        membershipCountCache = memberships.data.length;
+        return membershipCountCache;
+    };
+
+    // Root path routes users to the correct app surface.
+    if (pathname === "/" && userId) {
+        const agencyAdmin = await isAgencyAdmin();
+        const membershipCount = await getMembershipCount();
+
+        if (agencyAdmin && membershipCount > 1) {
+            return NextResponse.redirect(new URL("/select-org", req.url));
+        }
+
+        if (agencyAdmin) {
+            return NextResponse.redirect(new URL("/admin", req.url));
+        }
+
+        if (membershipCount > 1) {
+            return NextResponse.redirect(new URL("/select-org", req.url));
+        }
+
+        if (orgId) {
+            return NextResponse.redirect(new URL("/portal", req.url));
+        }
+
+        return NextResponse.redirect(new URL("/select-org", req.url));
+    }
+
+    // Keep old admin URLs working while canonicalizing to /admin.
+    if (pathname === "/workspace" || pathname.startsWith("/workspace/")) {
+        const nextPath =
+            pathname === "/workspace" ? "/admin" : `/admin${pathname}`;
+        const redirectUrl = new URL(nextPath, req.url);
+        redirectUrl.search = search;
+        return NextResponse.redirect(redirectUrl);
+    }
+
+    // Admin routes require agency_admin metadata
+    if (isAdminRoute(req) && userId) {
+        if (!(await isAgencyAdmin())) {
             return new NextResponse("Forbidden", { status: 403 });
         }
     }
 
-    const tenantSlug = resolveTenantSlugFromHost(requestHost);
-    if (!tenantSlug) {
-        return;
+    // Portal routes require an active Clerk organization
+    if (req.nextUrl.pathname.startsWith("/portal")) {
+        if (!orgId) {
+            const selectOrgUrl = new URL("/select-org", req.url);
+            return NextResponse.redirect(selectOrgUrl);
+        }
     }
-
-    if (!userId) {
-        return;
-    }
-
-    const clerk = await clerkClient();
-    const memberships = await clerk.users.getOrganizationMembershipList({
-        userId,
-        limit: 100,
-    });
-
-    const isMemberOfTenant = memberships.data.some((membership) => {
-        const organizationSlug = membership.organization.slug?.toLowerCase();
-        return organizationSlug === tenantSlug;
-    });
-
-    if (!isMemberOfTenant) {
-        return new NextResponse("Forbidden", { status: 403 });
-    }
-
-    if (shouldBypassTenantRewrite(req.nextUrl.pathname)) {
-        return;
-    }
-
-    const requestHeaders = new Headers(req.headers);
-    requestHeaders.set("x-tenant-slug", tenantSlug);
-
-    const isPortalPath =
-        req.nextUrl.pathname === "/portal" ||
-        req.nextUrl.pathname.startsWith("/portal/");
-    if (isPortalPath) {
-        return NextResponse.next({
-            request: {
-                headers: requestHeaders,
-            },
-        });
-    }
-
-    const rewriteUrl = req.nextUrl.clone();
-    rewriteUrl.pathname =
-        req.nextUrl.pathname === "/"
-            ? "/portal"
-            : `/portal${req.nextUrl.pathname}`;
-
-    return NextResponse.rewrite(rewriteUrl, {
-        request: {
-            headers: requestHeaders,
-        },
-    });
 });
 
 export const config = {

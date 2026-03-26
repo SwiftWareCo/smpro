@@ -253,7 +253,7 @@ export function PostEditor({
     };
 
     const handleBack = () => {
-        router.push(`/workspace/${clientId}?tab=autoblog`);
+        router.push(`/admin/workspace/${clientId}?tab=autoblog`);
     };
 
     return (

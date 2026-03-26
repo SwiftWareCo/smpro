@@ -104,15 +104,15 @@ function getClientInitials(name: string) {
 const navMain = [
     {
         title: "Dashboard",
-        url: "/",
+        url: "/admin",
         icon: LayoutDashboard,
     },
 ];
 
 export function AppSidebar({ clients, ...props }: AppSidebarProps) {
     const pathname = usePathname();
-    const selectedClientId = pathname.startsWith("/workspace/")
-        ? pathname.split("/workspace/")[1]?.split("/")[0]
+    const selectedClientId = pathname.startsWith("/admin/workspace/")
+        ? pathname.split("/admin/workspace/")[1]?.split("/")[0]
         : null;
     const clientList = usePreloadedQuery(clients);
 
@@ -302,7 +302,7 @@ export function AppSidebar({ clients, ...props }: AppSidebarProps) {
                                                         tooltip={client.name}
                                                     >
                                                         <Link
-                                                            href={`/workspace/${client._id}`}
+                                                            href={`/admin/workspace/${client._id}`}
                                                         >
                                                             <Avatar className="h-6 w-6 shrink-0 rounded-lg border border-sidebar-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.12)]">
                                                                 <AvatarImage

@@ -1,10 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { AppBreadcrumbs } from "@/components/dashboard/breadcrumbs";
 import { Separator } from "@/components/ui/separator";
 import ModeToggle from "@/components/mode-toggle";
 import { UserButton } from "@clerk/nextjs";
+import { Button } from "@/components/ui/button";
+import { ArrowRightLeft } from "lucide-react";
 
 export function TopBar() {
     return (
@@ -16,6 +19,12 @@ export function TopBar() {
             />
             <AppBreadcrumbs />
             <div className="ml-auto flex items-center gap-2">
+                <Button variant="ghost" size="sm" asChild>
+                    <Link href="/select-org">
+                        <ArrowRightLeft className="size-4" />
+                        Switch
+                    </Link>
+                </Button>
                 <ModeToggle />
                 <UserButton />
             </div>

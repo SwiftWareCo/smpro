@@ -18,7 +18,7 @@ export default async function GithubCallbackPage({
     const setupAction = firstParam(params.setup_action) ?? "install";
 
     if (!installationId || !stateParam) {
-        redirect("/");
+        redirect("/admin");
     }
 
     try {
@@ -36,9 +36,9 @@ export default async function GithubCallbackPage({
             installation_id: installationId,
             setup_action: setupAction,
         });
-        redirect(`/workspace/${clientId}?${query.toString()}`);
+        redirect(`/admin/workspace/${clientId}?${query.toString()}`);
     } catch (err) {
         console.error("Failed to parse GitHub state", err);
-        redirect("/dashboard");
+        redirect("/admin");
     }
 }

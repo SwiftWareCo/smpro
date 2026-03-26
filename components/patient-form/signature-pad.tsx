@@ -80,7 +80,8 @@ export function SignaturePad({
             >
                 {value ? (
                     <p
-                        className="min-h-10 text-3xl leading-tight text-slate-900"
+                        className="min-h-10 text-left text-3xl leading-tight text-slate-900 [direction:ltr]"
+                        dir="ltr"
                         style={SIGNATURE_FONT_STYLE}
                     >
                         {value}
@@ -114,13 +115,16 @@ export function SignaturePad({
                             }
                             placeholder="Full name"
                             autoFocus
+                            dir="ltr"
+                            className="text-left [direction:ltr]"
                         />
                         <div className="rounded-md border bg-muted/20 p-3">
                             <p className="text-xs uppercase tracking-wide text-muted-foreground">
                                 Preview
                             </p>
                             <p
-                                className="mt-1 min-h-10 text-3xl leading-tight text-slate-900"
+                                className="mt-1 min-h-10 text-left text-3xl leading-tight text-slate-900 [direction:ltr]"
+                                dir="ltr"
                                 style={SIGNATURE_FONT_STYLE}
                             >
                                 {typedName.trim() || "Your signature"}

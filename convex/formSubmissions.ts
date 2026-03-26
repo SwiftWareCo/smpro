@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
-import { internalMutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { requireClientAccess } from "./_lib/auth";
 import { logAuditEvent } from "./_lib/audit";
 import * as DentalFormsRead from "./db/dentalForms/read";
@@ -77,6 +77,44 @@ export const get = query({
         if (!submission) return null;
         await requireClientAccess(ctx, submission.clientId);
         return submission;
+    },
+});
+
+export const remove = mutation({
+    args: { submissionId: v.id("formSubmissions") },
+    handler: async (ctx, args) => {
+        const submission = await DentalFormsRead.getSubmissionById(
+            ctx,
+            args.submissionId,
+        );
+        if (!submission) {
+            throw new ConvexError({
+                code: "NOT_FOUND",
+                message: "Submission not found",
+            });
+        }
+
+        const client = await requireClientAccess(ctx, submission.clientId);
+
+        if (submission.consentRecordId) {
+            const consent = await ctx.db.get(submission.consentRecordId);
+            if (consent) {
+                await ctx.db.delete(consent._id);
+            }
+        }
+
+        await ctx.db.delete(submission._id);
+
+        await logAuditEvent(ctx, {
+            actor: client.userId,
+            actorType: "user",
+            action: "form_submission.delete",
+            resource: "formSubmissions",
+            resourceId: submission._id,
+            clientId: submission.clientId,
+        });
+
+        return { success: true };
     },
 });
 

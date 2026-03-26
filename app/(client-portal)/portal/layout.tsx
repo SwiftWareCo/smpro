@@ -56,6 +56,7 @@ export default async function TenantPortalLayout({
                     <PortalClientProvider
                         clientId={tenant._id as Id<"clients">}
                         clientName={tenant.name}
+                        clerkOrganizationId={tenant.clerkOrganizationId!}
                         portalPrimaryColor={tenant.portalPrimaryColor}
                         portalSecondaryColor={tenant.portalSecondaryColor}
                         enabledModules={tenant.enabledModules}

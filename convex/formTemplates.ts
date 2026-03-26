@@ -160,6 +160,7 @@ export const getByToken = query({
 
             return {
                 template,
+                baseTemplate: template,
                 delivery: {
                     _id: delivery._id,
                     channel: delivery.channel,
@@ -189,6 +190,7 @@ export const getByToken = query({
 
         return {
             template: resolvedTemplate,
+            baseTemplate: template,
             delivery: {
                 _id: delivery._id,
                 channel: delivery.channel,

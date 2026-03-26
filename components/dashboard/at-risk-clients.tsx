@@ -64,7 +64,7 @@ export function AtRiskClients({ clients, setupStatuses }: AtRiskClientsProps) {
                         return (
                             <Link
                                 key={client._id}
-                                href={`/workspace/${client._id}`}
+                                href={`/admin/workspace/${client._id}`}
                                 className="block"
                             >
                                 <div className="flex items-center gap-3 p-3 rounded-lg border hover:border-primary/50 hover:bg-accent/50 transition-colors">

@@ -334,7 +334,7 @@ export function TemplateList({
                     <div
                         className={
                             compactCards
-                                ? "grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
+                                ? "grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
                                 : "grid gap-4"
                         }
                     >
@@ -362,7 +362,9 @@ export function TemplateList({
                             >
                                 <CardHeader
                                     className={
-                                        compactCards ? "px-3 pt-3 pb-2" : "pb-3"
+                                        compactCards
+                                            ? "px-2.5 pt-2.5 pb-1.5"
+                                            : "pb-3"
                                     }
                                 >
                                     <div className="flex items-start justify-between">
@@ -370,14 +372,14 @@ export function TemplateList({
                                             <CardTitle
                                                 className={
                                                     compactCards
-                                                        ? "flex items-center gap-1.5 text-sm"
+                                                        ? "flex items-center gap-1 text-[13px]"
                                                         : "flex items-center gap-2 text-base"
                                                 }
                                             >
                                                 <FileText
                                                     className={
                                                         compactCards
-                                                            ? "h-3.5 w-3.5"
+                                                            ? "h-3 w-3"
                                                             : "h-4 w-4"
                                                     }
                                                 />
@@ -403,7 +405,7 @@ export function TemplateList({
                                         <div
                                             className={
                                                 compactCards
-                                                    ? "flex items-center gap-1"
+                                                    ? "flex items-center gap-0.5"
                                                     : "flex items-center gap-2"
                                             }
                                             onClick={(e) => e.stopPropagation()}
@@ -415,7 +417,7 @@ export function TemplateList({
                                                 variant="secondary"
                                                 className={`${statusColors[template.status]} ${
                                                     compactCards
-                                                        ? "px-1.5 py-0 text-[10px]"
+                                                        ? "px-1 py-0 text-[9px]"
                                                         : ""
                                                 }`}
                                             >
@@ -429,7 +431,7 @@ export function TemplateList({
                                                             size="icon"
                                                             className={
                                                                 compactCards
-                                                                    ? "h-7 w-7"
+                                                                    ? "h-6 w-6"
                                                                     : "h-8 w-8"
                                                             }
                                                             onClick={(
@@ -446,7 +448,7 @@ export function TemplateList({
                                                             <Eye
                                                                 className={
                                                                     compactCards
-                                                                        ? "h-3.5 w-3.5"
+                                                                        ? "h-3 w-3"
                                                                         : "h-4 w-4"
                                                                 }
                                                             />
@@ -467,7 +469,7 @@ export function TemplateList({
                                                             size="icon"
                                                             className={
                                                                 compactCards
-                                                                    ? "h-7 w-7"
+                                                                    ? "h-6 w-6"
                                                                     : "h-8 w-8"
                                                             }
                                                             onClick={
@@ -477,7 +479,7 @@ export function TemplateList({
                                                             <MoreVertical
                                                                 className={
                                                                     compactCards
-                                                                        ? "h-3.5 w-3.5"
+                                                                        ? "h-3 w-3"
                                                                         : "h-4 w-4"
                                                                 }
                                                             />
@@ -578,14 +580,14 @@ export function TemplateList({
                                 <CardContent
                                     className={
                                         compactCards
-                                            ? "px-3 pt-0 pb-3"
+                                            ? "px-2.5 pt-0 pb-2.5"
                                             : undefined
                                     }
                                 >
                                     <div
                                         className={
                                             compactCards
-                                                ? "flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground"
+                                                ? "flex flex-wrap items-center gap-x-1 gap-y-1 text-[11px] text-muted-foreground"
                                                 : "flex flex-wrap items-center gap-4 text-sm text-muted-foreground"
                                         }
                                     >

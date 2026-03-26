@@ -62,7 +62,9 @@ export function CalendarView({ clientId }: CalendarViewProps) {
 
         const map = new Map<string, Doc<"autoblogPosts">[]>();
         posts.forEach((post) => {
-            const date = new Date(post.scheduledFor ?? post.publishedAt ?? post.createdAt);
+            const date = new Date(
+                post.scheduledFor ?? post.publishedAt ?? post.createdAt,
+            );
             const dateKey = format(date, "yyyy-MM-dd");
             const existing = map.get(dateKey) || [];
             map.set(dateKey, [...existing, post]);
@@ -85,7 +87,7 @@ export function CalendarView({ clientId }: CalendarViewProps) {
     };
 
     const handlePostClick = (postId: Id<"autoblogPosts">) => {
-        router.push(`/workspace/${clientId}/autoblog/posts/${postId}`);
+        router.push(`/admin/workspace/${clientId}/autoblog/posts/${postId}`);
     };
 
     const modifiers = useMemo(() => {
@@ -109,7 +111,9 @@ export function CalendarView({ clientId }: CalendarViewProps) {
             <Card>
                 <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">Content Calendar</CardTitle>
+                        <CardTitle className="text-lg">
+                            Content Calendar
+                        </CardTitle>
                         <div className="flex items-center gap-2">
                             <Button
                                 variant="outline"
@@ -154,10 +158,16 @@ export function CalendarView({ clientId }: CalendarViewProps) {
                             ),
                         }}
                         components={{
-                            DayButton: ({ day, modifiers: dayModifiers, ...props }) => {
+                            DayButton: ({
+                                day,
+                                modifiers: dayModifiers,
+                                ...props
+                            }) => {
                                 const dateKey = format(day.date, "yyyy-MM-dd");
                                 const dayPosts = postsByDate.get(dateKey) || [];
-                                const isSelected = selectedDate && isSameDay(day.date, selectedDate);
+                                const isSelected =
+                                    selectedDate &&
+                                    isSameDay(day.date, selectedDate);
 
                                 return (
                                     <button
@@ -167,22 +177,29 @@ export function CalendarView({ clientId }: CalendarViewProps) {
                                             "hover:bg-accent",
                                             isSelected && "bg-accent",
                                             dayModifiers.today && "font-bold",
-                                            dayModifiers.outside && "text-muted-foreground opacity-50",
+                                            dayModifiers.outside &&
+                                                "text-muted-foreground opacity-50",
                                         )}
                                     >
-                                        <span className="text-sm">{day.date.getDate()}</span>
+                                        <span className="text-sm">
+                                            {day.date.getDate()}
+                                        </span>
                                         {dayPosts.length > 0 && (
                                             <div className="flex flex-wrap gap-0.5 justify-center">
-                                                {dayPosts.slice(0, 3).map((post) => (
-                                                    <div
-                                                        key={post._id}
-                                                        className={cn(
-                                                            "size-2 rounded-full",
-                                                            statusColors[post.status as PostStatus],
-                                                        )}
-                                                        title={post.title}
-                                                    />
-                                                ))}
+                                                {dayPosts
+                                                    .slice(0, 3)
+                                                    .map((post) => (
+                                                        <div
+                                                            key={post._id}
+                                                            className={cn(
+                                                                "size-2 rounded-full",
+                                                                statusColors[
+                                                                    post.status as PostStatus
+                                                                ],
+                                                            )}
+                                                            title={post.title}
+                                                        />
+                                                    ))}
                                                 {dayPosts.length > 3 && (
                                                     <span className="text-xs text-muted-foreground">
                                                         +{dayPosts.length - 3}
@@ -199,8 +216,16 @@ export function CalendarView({ clientId }: CalendarViewProps) {
                     {/* Status Legend */}
                     <div className="mt-4 flex flex-wrap gap-4 text-sm">
                         {Object.entries(statusColors).map(([status, color]) => (
-                            <div key={status} className="flex items-center gap-1.5">
-                                <div className={cn("size-2.5 rounded-full", color)} />
+                            <div
+                                key={status}
+                                className="flex items-center gap-1.5"
+                            >
+                                <div
+                                    className={cn(
+                                        "size-2.5 rounded-full",
+                                        color,
+                                    )}
+                                />
                                 <span className="text-muted-foreground">
                                     {statusLabels[status as PostStatus]}
                                 </span>
@@ -233,10 +258,17 @@ export function CalendarView({ clientId }: CalendarViewProps) {
                                         <div className="flex items-center gap-3">
                                             <FileText className="size-4 text-muted-foreground" />
                                             <div>
-                                                <p className="font-medium text-sm">{post.title}</p>
+                                                <p className="font-medium text-sm">
+                                                    {post.title}
+                                                </p>
                                                 <p className="text-xs text-muted-foreground">
                                                     {post.scheduledFor
-                                                        ? format(new Date(post.scheduledFor), "h:mm a")
+                                                        ? format(
+                                                              new Date(
+                                                                  post.scheduledFor,
+                                                              ),
+                                                              "h:mm a",
+                                                          )
                                                         : "No time set"}
                                                 </p>
                                             </div>
@@ -246,15 +278,23 @@ export function CalendarView({ clientId }: CalendarViewProps) {
                                                 variant="secondary"
                                                 className={cn(
                                                     "text-white text-xs",
-                                                    statusColors[post.status as PostStatus],
+                                                    statusColors[
+                                                        post.status as PostStatus
+                                                    ],
                                                 )}
                                             >
-                                                {statusLabels[post.status as PostStatus]}
+                                                {
+                                                    statusLabels[
+                                                        post.status as PostStatus
+                                                    ]
+                                                }
                                             </Badge>
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                onClick={() => handlePostClick(post._id)}
+                                                onClick={() =>
+                                                    handlePostClick(post._id)
+                                                }
                                             >
                                                 <Eye className="size-4" />
                                             </Button>

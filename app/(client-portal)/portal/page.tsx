@@ -263,7 +263,7 @@ export default function TenantDashboardPage() {
                     <div className="flex flex-wrap items-center gap-2">
                         {hasPatientForms && (
                             <Button asChild className="rounded-xl px-5">
-                                <Link href="/forms">
+                                <Link href="/portal/forms">
                                     <ClipboardList className="mr-2 h-4 w-4" />
                                     Open Patient Forms
                                 </Link>
@@ -277,7 +277,7 @@ export default function TenantDashboardPage() {
                                 }
                                 className="rounded-xl px-5"
                             >
-                                <Link href="/knowledge-base">
+                                <Link href="/portal/knowledge-base">
                                     <BookOpen className="mr-2 h-4 w-4" />
                                     Open Knowledge Base
                                 </Link>

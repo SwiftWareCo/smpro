@@ -11,6 +11,7 @@ interface AddressAutocompleteProps {
     onChange: (address: string) => void;
     language: FormLanguage;
     placeholder?: string;
+    forceLtr?: boolean;
 }
 
 const GOOGLE_LOCALE_MAP: Record<FormLanguage, string> = {
@@ -42,7 +43,10 @@ function parseUnitAndAddress(combined: string): {
     const afterSep = combined.slice(sepIndex + UNIT_SEPARATOR.length).trim();
     // Only treat it as a unit prefix if it looks like "Unit XXX"
     if (/^(Unit|Apt|Suite|#)\s/i.test(beforeSep)) {
-        return { unit: beforeSep.replace(/^(Unit|Apt|Suite|#)\s*/i, ""), address: afterSep };
+        return {
+            unit: beforeSep.replace(/^(Unit|Apt|Suite|#)\s*/i, ""),
+            address: afterSep,
+        };
     }
     return { unit: "", address: combined };
 }
@@ -57,6 +61,7 @@ export function AddressAutocomplete({
     onChange,
     language,
     placeholder,
+    forceLtr = false,
 }: AddressAutocompleteProps) {
     const instanceId = useId();
     const listboxId = `address-listbox-${instanceId}`;
@@ -182,12 +187,17 @@ export function AddressAutocomplete({
                     c.types.includes("postal_code"),
                 );
 
-                if (postalComponent && !finalAddress.includes(postalComponent.longText ?? "")) {
+                if (
+                    postalComponent &&
+                    !finalAddress.includes(postalComponent.longText ?? "")
+                ) {
                     finalAddress = `${finalAddress}, ${postalComponent.longText}`;
                 }
 
                 setInputValue(finalAddress);
-                onChangeRef.current(combineUnitAndAddress(unitValue, finalAddress));
+                onChangeRef.current(
+                    combineUnitAndAddress(unitValue, finalAddress),
+                );
             } catch (error) {
                 console.error("Place details fetch failed:", error);
                 // Fall back to prediction text
@@ -279,13 +289,32 @@ export function AddressAutocomplete({
             <div className="space-y-2">
                 <Input
                     value={parsed.address}
-                    onChange={(e) => onChange(combineUnitAndAddress(parsed.unit, e.target.value))}
+                    onChange={(e) =>
+                        onChange(
+                            combineUnitAndAddress(parsed.unit, e.target.value),
+                        )
+                    }
                     placeholder={placeholder}
+                    dir={forceLtr ? "ltr" : undefined}
+                    className={
+                        forceLtr ? "text-left [direction:ltr]" : undefined
+                    }
                 />
                 <Input
                     value={parsed.unit}
-                    onChange={(e) => onChange(combineUnitAndAddress(e.target.value, parsed.address))}
+                    onChange={(e) =>
+                        onChange(
+                            combineUnitAndAddress(
+                                e.target.value,
+                                parsed.address,
+                            ),
+                        )
+                    }
                     placeholder={copy.unitPlaceholder}
+                    dir={forceLtr ? "ltr" : undefined}
+                    className={
+                        forceLtr ? "text-left [direction:ltr]" : undefined
+                    }
                 />
             </div>
         );
@@ -311,6 +340,8 @@ export function AddressAutocomplete({
                 aria-activedescendant={activeDescendant}
                 aria-autocomplete="list"
                 autoComplete="off"
+                dir={forceLtr ? "ltr" : undefined}
+                className={forceLtr ? "text-left [direction:ltr]" : undefined}
             />
 
             <Input
@@ -318,6 +349,8 @@ export function AddressAutocomplete({
                 onChange={handleUnitChange}
                 placeholder={copy.unitPlaceholder}
                 autoComplete="off"
+                dir={forceLtr ? "ltr" : undefined}
+                className={forceLtr ? "text-left [direction:ltr]" : undefined}
             />
 
             {isOpen && suggestions.length > 0 && (
@@ -325,7 +358,11 @@ export function AddressAutocomplete({
                     id={listboxId}
                     role="listbox"
                     className="absolute z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-md"
-                    style={{ top: inputRef.current ? inputRef.current.offsetHeight + 4 : undefined }}
+                    style={{
+                        top: inputRef.current
+                            ? inputRef.current.offsetHeight + 4
+                            : undefined,
+                    }}
                 >
                     {suggestions.map((suggestion, index) => {
                         const prediction = suggestion.placePrediction;

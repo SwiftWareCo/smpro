@@ -38,11 +38,15 @@ export const submit = action({
         }
 
         const { template, delivery } = deliveryInfo;
+        const baseTemplate = await ctx.runQuery(api.formTemplates.getInternal, {
+            templateId: template._id,
+        });
+        const validationTemplate = baseTemplate ?? template;
 
         let validatedFormData: Record<string, string>;
         try {
             validatedFormData = validateSubmissionData(
-                template.sections,
+                validationTemplate.sections,
                 args.formData,
             );
         } catch (error) {
@@ -61,12 +65,12 @@ export const submit = action({
         } = await ctx.runMutation(
             internal.formSubmissions.createSubmissionWithConsent,
             {
-                clientId: template.clientId,
-                templateId: template._id,
+                clientId: validationTemplate.clientId,
+                templateId: validationTemplate._id,
                 deliveryId: delivery._id,
                 formData: validatedFormData,
-                consentVersion: template.consentVersion,
-                consentTextSnapshot: template.consentText,
+                consentVersion: validationTemplate.consentVersion,
+                consentTextSnapshot: validationTemplate.consentText,
                 ip: args.ip,
             },
         );

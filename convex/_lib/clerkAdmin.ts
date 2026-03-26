@@ -19,7 +19,11 @@ export class ClerkApiError extends Error {
     details: ClerkApiErrorItem[];
 
     constructor(status: number, details: ClerkApiErrorItem[]) {
-        super(details[0]?.long_message ?? details[0]?.message ?? "Clerk API error");
+        super(
+            details[0]?.long_message ??
+                details[0]?.message ??
+                "Clerk API error",
+        );
         this.status = status;
         this.details = details;
     }
@@ -63,6 +67,11 @@ async function clerkRequest<T>(
 }
 
 export async function clerkUserExistsByEmail(email: string) {
+    const user = await clerkGetUserByEmail(email);
+    return !!user;
+}
+
+export async function clerkGetUserByEmail(email: string) {
     const params = new URLSearchParams();
     params.append("email_address[]", email);
     params.append("limit", "1");
@@ -72,11 +81,7 @@ export async function clerkUserExistsByEmail(email: string) {
         total_count?: number;
     }>(`/users?${params.toString()}`);
 
-    if (typeof result.total_count === "number") {
-        return result.total_count > 0;
-    }
-
-    return (result.data?.length ?? 0) > 0;
+    return result.data?.[0] ?? null;
 }
 
 export async function clerkCreateOrganization(args: {
@@ -94,7 +99,10 @@ export async function clerkCreateOrganization(args: {
     });
 }
 
-export async function clerkCreateUser(args: { email: string; password: string }) {
+export async function clerkCreateUser(args: {
+    email: string;
+    password: string;
+}) {
     return clerkRequest<{ id: string }>("/users", {
         method: "POST",
         body: {
@@ -119,6 +127,30 @@ export async function clerkCreateOrganizationMembership(args: {
                 role: args.role,
             },
         },
+    );
+}
+
+export async function clerkListOrganizationMemberships(args: {
+    organizationId: string;
+    limit?: number;
+}) {
+    const params = new URLSearchParams();
+    params.append("limit", String(args.limit ?? 100));
+
+    return clerkRequest<{
+        data?: Array<{
+            id: string;
+            role: "org:admin" | "org:member" | string;
+            public_user_data?: {
+                user_id?: string;
+                identifier?: string;
+                first_name?: string | null;
+                last_name?: string | null;
+                image_url?: string | null;
+            } | null;
+        }>;
+    }>(
+        `/organizations/${args.organizationId}/memberships?${params.toString()}`,
     );
 }
 

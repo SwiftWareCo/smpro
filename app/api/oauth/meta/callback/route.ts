@@ -49,22 +49,22 @@ export async function GET(req: Request) {
     // Redirect destination based on clientId
     const getErrorRedirect = (errorType: string) => {
         if (clientId) {
-            return buildRedirect(`/workspace/${clientId}`, {
+            return buildRedirect(`/admin/workspace/${clientId}`, {
                 tab: "social",
                 error: errorType,
             });
         }
-        return `/?error=${errorType}`;
+        return `/admin?error=${errorType}`;
     };
 
     const getSuccessRedirect = () => {
         if (clientId) {
-            return buildRedirect(`/workspace/${clientId}`, {
+            return buildRedirect(`/admin/workspace/${clientId}`, {
                 tab: "social",
                 success: "meta",
             });
         }
-        return `/?success=meta`;
+        return "/admin?success=meta";
     };
 
     const token = await getToken({ template: "convex" });

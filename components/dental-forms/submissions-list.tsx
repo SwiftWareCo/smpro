@@ -2,13 +2,7 @@
 
 import { useState } from "react";
 import type { Doc } from "@/convex/_generated/dataModel";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FileText, Eye, Inbox } from "lucide-react";
@@ -80,26 +74,27 @@ export function SubmissionsList({ submissions }: SubmissionsListProps) {
                 </p>
             </div>
 
-            <div className="grid gap-3">
+            <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {submissions.map((submission) => (
                     <Card
                         key={submission._id}
-                        className="hover:shadow-sm transition-shadow"
+                        className="overflow-hidden transition-colors hover:bg-muted/20"
                     >
-                        <CardHeader className="pb-2">
+                        <CardHeader className="px-2.5 pt-2.5 pb-1.5">
                             <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <FileText className="h-4 w-4 text-muted-foreground" />
-                                    <CardTitle className="text-base">
+                                <div className="min-w-0 flex items-center gap-1.5">
+                                    <FileText className="h-3 w-3 text-muted-foreground" />
+                                    <CardTitle
+                                        className="truncate text-[13px]"
+                                        title={submission.submittedByName}
+                                    >
                                         {submission.submittedByName}
                                     </CardTitle>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1">
                                     <Badge
                                         variant="secondary"
-                                        className={
-                                            statusColors[submission.status]
-                                        }
+                                        className={`${statusColors[submission.status]} px-1 py-0 text-[9px]`}
                                     >
                                         {statusLabels[submission.status] ??
                                             submission.status}
@@ -107,25 +102,26 @@ export function SubmissionsList({ submissions }: SubmissionsListProps) {
                                     <Button
                                         variant="outline"
                                         size="sm"
+                                        className="h-6 px-2 text-[11px]"
                                         onClick={() =>
                                             setSelectedSubmission(submission)
                                         }
                                     >
-                                        <Eye className="mr-2 h-4 w-4" />
+                                        <Eye className="mr-1 h-3 w-3" />
                                         View
                                     </Button>
                                 </div>
                             </div>
                         </CardHeader>
-                        <CardContent>
-                            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                                <span>
+                        <CardContent className="px-2.5 pt-0 pb-2.5">
+                            <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-[11px] text-muted-foreground">
+                                <span className="rounded-md bg-muted/40 px-1.5 py-0.5">
                                     Form {submission.templateName}
                                     {submission.templateVersion
                                         ? ` (v${submission.templateVersion})`
                                         : ""}
                                 </span>
-                                <span>
+                                <span className="rounded-md bg-muted/40 px-1.5 py-0.5">
                                     Submitted{" "}
                                     {formatProjectDateTime(
                                         submission.submittedAt,

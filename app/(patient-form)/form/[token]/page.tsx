@@ -186,6 +186,12 @@ export default function PatientFormPage({
                 consentVersion: match.consentVersion,
             };
         })();
+    const canonicalTemplate =
+        (
+            formData as {
+                baseTemplate?: typeof formData.template;
+            }
+        ).baseTemplate ?? formData.template;
     const tenantThemeStyle = buildTenantThemeStyle({
         primaryColor: formData.portalPrimaryColor,
         secondaryColor: formData.portalSecondaryColor,
@@ -200,6 +206,7 @@ export default function PatientFormPage({
         >
             <FormRenderer
                 template={finalTemplate}
+                canonicalTemplate={canonicalTemplate}
                 token={token}
                 language={effectiveLanguage}
                 clientName={formData.clientName}

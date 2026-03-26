@@ -23,7 +23,7 @@ export default async function WorkspacePage({ params }: WorkspacePageProps) {
     ).catch(() => null);
 
     if (!client) {
-        redirect("/");
+        redirect("/admin");
     }
 
     // Fetch setup status, accounts, and SEO settings in parallel

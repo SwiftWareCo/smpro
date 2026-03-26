@@ -55,6 +55,7 @@ type FormValues = Record<string, string>;
 
 interface FormRendererProps {
     template: Doc<"formTemplates">;
+    canonicalTemplate?: Doc<"formTemplates">;
     token?: string;
     language: FormLanguage;
     clientName: string;
@@ -81,6 +82,9 @@ interface ParagraphStyleConfig {
 
 const LONG_FORM_FIELD_THRESHOLD = 10;
 const CONSENT_FIELD_ID = "__consent";
+const ENGLISH_INPUT_CLASS = "text-left [direction:ltr]";
+const ENGLISH_ONLY_MESSAGE = "Please enter in English (Latin characters only)";
+const ENGLISH_LATIN_REGEX = /^[\p{Script=Latin}\p{M}\p{N}\p{P}\p{Zs}\r\n\t]*$/u;
 
 function isInteractiveField(field: TemplateFieldDoc): boolean {
     return field.type !== "paragraph";
@@ -149,6 +153,25 @@ function getFieldRules(
             const allowed = field.options ?? [];
             const allValid = selected.every((v) => allowed.includes(v));
             return allValid || copy.invalidSelection;
+        };
+    }
+
+    if (
+        field.type === "text" ||
+        field.type === "textarea" ||
+        field.type === "email" ||
+        field.type === "phone" ||
+        field.type === "address"
+    ) {
+        const prevValidate =
+            typeof rules.validate === "function" ? rules.validate : undefined;
+        rules.validate = (value: string, formValues: FormValues) => {
+            if (prevValidate) {
+                const prev = prevValidate(value, formValues);
+                if (prev !== true) return prev;
+            }
+            if (!value) return true;
+            return ENGLISH_LATIN_REGEX.test(value) || ENGLISH_ONLY_MESSAGE;
         };
     }
 
@@ -246,6 +269,7 @@ function getParagraphTextClass(paragraphStyle?: ParagraphStyleConfig): string {
 
 export function FormRenderer({
     template,
+    canonicalTemplate,
     token,
     language,
     clientName,
@@ -270,6 +294,48 @@ export function FormRenderer({
         () => template.sections.filter((section) => section.enabled),
         [template.sections],
     );
+    const canonicalFieldOptions = useMemo(() => {
+        const sourceSections = canonicalTemplate?.sections ?? template.sections;
+        const optionsByFieldKey = new Map<string, string[]>();
+
+        for (const section of sourceSections) {
+            for (const field of section.fields) {
+                optionsByFieldKey.set(field.id, field.options ?? []);
+                if (!field.followUps) continue;
+                for (const fu of field.followUps) {
+                    optionsByFieldKey.set(
+                        makeFollowUpKey(field.id, fu.id),
+                        fu.options ?? [],
+                    );
+                }
+            }
+        }
+
+        return optionsByFieldKey;
+    }, [canonicalTemplate?.sections, template.sections]);
+
+    const getCanonicalOptions = (
+        fieldKey: string,
+        displayOptions: string[],
+    ): string[] => {
+        const canonical = canonicalFieldOptions.get(fieldKey);
+        if (!canonical || canonical.length !== displayOptions.length) {
+            return displayOptions;
+        }
+        return canonical;
+    };
+
+    const getOptionPairs = (
+        fieldKey: string,
+        displayOptions?: string[],
+    ): Array<{ label: string; value: string }> => {
+        const labels = displayOptions ?? [];
+        const values = getCanonicalOptions(fieldKey, labels);
+        return labels.map((label, index) => ({
+            label,
+            value: values[index] ?? label,
+        }));
+    };
 
     const interactiveFieldCount = useMemo(
         () =>
@@ -570,6 +636,8 @@ export function FormRenderer({
             return (
                 <Input
                     id={fieldKey}
+                    dir="ltr"
+                    className={ENGLISH_INPUT_CLASS}
                     placeholder={fieldConfig.placeholder}
                     {...register(
                         fieldKey,
@@ -587,6 +655,8 @@ export function FormRenderer({
                 <Textarea
                     id={fieldKey}
                     rows={3}
+                    dir="ltr"
+                    className={ENGLISH_INPUT_CLASS}
                     placeholder={fieldConfig.placeholder}
                     {...register(
                         fieldKey,
@@ -604,6 +674,8 @@ export function FormRenderer({
                 <Input
                     id={fieldKey}
                     type="number"
+                    dir="ltr"
+                    className={ENGLISH_INPUT_CLASS}
                     placeholder={fieldConfig.placeholder}
                     {...register(
                         fieldKey,
@@ -637,12 +709,18 @@ export function FormRenderer({
         }
 
         if (fieldType === "select") {
+            const optionPairs = getOptionPairs(fieldKey, fieldConfig.options);
+            const valueOptions = optionPairs.map((option) => option.value);
             return (
                 <Controller
                     name={fieldKey}
                     control={control}
                     rules={getFieldRules(
-                        { ...fieldConfig, type: fieldType },
+                        {
+                            ...fieldConfig,
+                            type: fieldType,
+                            options: valueOptions,
+                        },
                         language,
                     )}
                     render={({ field: controllerField }) => (
@@ -654,9 +732,12 @@ export function FormRenderer({
                                 <SelectValue placeholder={copy.selectOption} />
                             </SelectTrigger>
                             <SelectContent className="force-light">
-                                {(fieldConfig.options ?? []).map((option) => (
-                                    <SelectItem key={option} value={option}>
-                                        {option}
+                                {optionPairs.map((option) => (
+                                    <SelectItem
+                                        key={`${fieldKey}-${option.value}`}
+                                        value={option.value}
+                                    >
+                                        {option.label}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -667,16 +748,21 @@ export function FormRenderer({
         }
 
         if (fieldType === "radio") {
+            const optionPairs = getOptionPairs(fieldKey, fieldConfig.options);
+            const valueOptions = optionPairs.map((option) => option.value);
             return (
                 <Controller
                     name={fieldKey}
                     control={control}
                     rules={getFieldRules(
-                        { ...fieldConfig, type: fieldType },
+                        {
+                            ...fieldConfig,
+                            type: fieldType,
+                            options: valueOptions,
+                        },
                         language,
                     )}
                     render={({ field: controllerField }) => {
-                        const options = fieldConfig.options ?? [];
                         const gridClass = getChoiceGridClass(
                             fieldConfig.width,
                             mobile,
@@ -687,22 +773,22 @@ export function FormRenderer({
                                 onValueChange={controllerField.onChange}
                                 className={gridClass}
                             >
-                                {options.map((option) => (
+                                {optionPairs.map((option) => (
                                     <div
-                                        key={option}
+                                        key={`${fieldKey}-${option.value}`}
                                         className="flex w-full min-w-0 overflow-hidden items-start gap-2 rounded-lg border border-slate-300 bg-background px-3 py-2"
                                     >
                                         <RadioGroupItem
-                                            value={option}
-                                            id={`${fieldKey}-${option}`}
+                                            value={option.value}
+                                            id={`${fieldKey}-${option.value}`}
                                             className="mt-0.5"
                                         />
                                         <Label
-                                            htmlFor={`${fieldKey}-${option}`}
-                                            title={option}
+                                            htmlFor={`${fieldKey}-${option.value}`}
+                                            title={option.label}
                                             className="block min-w-0 flex-1 whitespace-normal break-words [overflow-wrap:anywhere] text-sm font-normal leading-snug"
                                         >
-                                            {option}
+                                            {option.label}
                                         </Label>
                                     </div>
                                 ))}
@@ -714,16 +800,21 @@ export function FormRenderer({
         }
 
         if (fieldType === "multiSelect") {
+            const optionPairs = getOptionPairs(fieldKey, fieldConfig.options);
+            const valueOptions = optionPairs.map((option) => option.value);
             return (
                 <Controller
                     name={fieldKey}
                     control={control}
                     rules={getFieldRules(
-                        { ...fieldConfig, type: fieldType },
+                        {
+                            ...fieldConfig,
+                            type: fieldType,
+                            options: valueOptions,
+                        },
                         language,
                     )}
                     render={({ field: controllerField }) => {
-                        const options = fieldConfig.options ?? [];
                         const selected = parseMultipleChoiceValue(
                             controllerField.value ?? "",
                         );
@@ -733,15 +824,17 @@ export function FormRenderer({
                         );
                         return (
                             <div className={gridClass}>
-                                {options.map((option) => {
-                                    const isChecked = selected.includes(option);
+                                {optionPairs.map((option) => {
+                                    const isChecked = selected.includes(
+                                        option.value,
+                                    );
                                     return (
                                         <div
-                                            key={option}
+                                            key={`${fieldKey}-${option.value}`}
                                             className="flex w-full min-w-0 overflow-hidden items-start gap-2 rounded-lg border border-slate-300 bg-background px-3 py-2"
                                         >
                                             <Checkbox
-                                                id={`${fieldKey}-${option}`}
+                                                id={`${fieldKey}-${option.value}`}
                                                 checked={isChecked}
                                                 className="mt-0.5"
                                                 onCheckedChange={(checked) => {
@@ -749,12 +842,12 @@ export function FormRenderer({
                                                         checked === true
                                                             ? [
                                                                   ...selected,
-                                                                  option,
+                                                                  option.value,
                                                               ]
                                                             : selected.filter(
                                                                   (v) =>
                                                                       v !==
-                                                                      option,
+                                                                      option.value,
                                                               );
                                                     controllerField.onChange(
                                                         serializeMultipleChoiceValue(
@@ -764,11 +857,11 @@ export function FormRenderer({
                                                 }}
                                             />
                                             <Label
-                                                htmlFor={`${fieldKey}-${option}`}
-                                                title={option}
+                                                htmlFor={`${fieldKey}-${option.value}`}
+                                                title={option.label}
                                                 className="block min-w-0 flex-1 whitespace-normal break-words [overflow-wrap:anywhere] text-sm font-normal leading-snug"
                                             >
-                                                {option}
+                                                {option.label}
                                             </Label>
                                         </div>
                                     );
@@ -869,10 +962,19 @@ export function FormRenderer({
                         name={field.id}
                         control={control}
                         rules={{
-                            validate: (value) =>
-                                !field.required || value
-                                    ? true
-                                    : copy.requiredField(field.label),
+                            validate: (value) => {
+                                const normalized = (value ?? "").trim();
+                                if (field.required && !normalized) {
+                                    return copy.requiredField(field.label);
+                                }
+                                if (
+                                    normalized &&
+                                    !ENGLISH_LATIN_REGEX.test(normalized)
+                                ) {
+                                    return ENGLISH_ONLY_MESSAGE;
+                                }
+                                return true;
+                            },
                         }}
                         render={({ field: controllerField }) => (
                             <SignaturePad
@@ -917,6 +1019,7 @@ export function FormRenderer({
                                 onChange={controllerField.onChange}
                                 language={language}
                                 placeholder={copy.addressPlaceholder}
+                                forceLtr
                             />
                         )}
                     />
@@ -945,6 +1048,8 @@ export function FormRenderer({
                     <Input
                         id={field.id}
                         type="email"
+                        dir="ltr"
+                        className={ENGLISH_INPUT_CLASS}
                         placeholder={field.placeholder ?? "email@example.com"}
                         {...register(field.id, getFieldRules(field, language))}
                     />
@@ -973,6 +1078,8 @@ export function FormRenderer({
                     <Input
                         id={field.id}
                         type="tel"
+                        dir="ltr"
+                        className={ENGLISH_INPUT_CLASS}
                         placeholder={field.placeholder ?? "(555) 123-4567"}
                         {...register(field.id, getFieldRules(field, language))}
                     />
